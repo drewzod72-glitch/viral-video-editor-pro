@@ -18,12 +18,33 @@ const fixDunikTypo = (str: string): string => {
 };
 
 export default function App() {
+  const [hasStarted, setHasStarted] = useState(false);
   const [activeProject, setActiveProject] = useState<VideoProject | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStage, setProcessingStage] = useState('');
   const [activeTab, setActiveTab] = useState<'niche' | 'studio' | 'viral'>('niche');
   const [downloadReadyInfo, setDownloadReadyInfo] = useState<{ url: string; filename: string } | null>(null);
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+
+  // --- BOOTSTRAP SCREEN (PREVENTS IPHONE CRASH) ---
+  if (!hasStarted) {
+    return (
+      <div className="min-h-screen bg-[#020617] flex flex-col items-center justify-center p-8 text-center">
+        <div className="w-20 h-20 bg-purple-600/20 rounded-[30px] flex items-center justify-center mb-8 animate-pulse">
+           <Sparkles className="text-purple-500 w-10 h-10" />
+        </div>
+        <h1 className="text-2xl font-black text-white uppercase tracking-tighter mb-4">Viral AI Editor</h1>
+        <p className="text-slate-400 text-sm max-w-[280px] mb-10 leading-relaxed">Ready to transform your videos with Google Gemini AI?</p>
+        <button 
+          onClick={() => setHasStarted(true)}
+          className="w-full max-w-[280px] py-4 bg-purple-600 hover:bg-purple-500 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-2xl shadow-purple-500/20 transition-all active:scale-95"
+        >
+          Start AI Editor
+        </button>
+        <p className="mt-6 text-[10px] text-slate-600 font-bold uppercase tracking-widest">v1.2.0 • Gold Master Edition</p>
+      </div>
+    );
+  }
 
   const triggerVideoExport = async () => {
     if (!activeProject) return;

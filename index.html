@@ -17,15 +17,17 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
-      // Professional Error Recovery System for Mobile
+      // Diagnostic Error Recovery for Mobile
       window.onerror = function(message, source, lineno, colno, error) {
         const root = document.getElementById('root');
-        if (root && (root.innerHTML === '' || root.innerHTML.includes('Initializing'))) {
+        if (root) {
           root.innerHTML = '<div style="padding: 40px; color: white; background: #020617; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">' +
             '<div style="font-size: 40px; margin-bottom: 20px;">⚠️</div>' +
-            '<h2 style="font-weight: 900; letter-spacing: -0.5px; margin-bottom: 10px;">ENGINE LOAD ERROR</h2>' +
-            '<p style="color: #64748b; font-size: 13px; max-width: 280px; line-height: 1.6; margin-bottom: 30px;">Your mobile browser blocked the script or hit a memory limit. Please close other tabs and reload.</p>' +
-            '<button onclick="location.reload()" style="padding: 14px 28px; background: #8b5cf6; color: white; border: none; border-radius: 16px; font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; box-shadow: 0 10px 20px -5px rgba(139, 92, 246, 0.4);">Reload Editor</button>' +
+            '<h2 style="font-weight: 900; letter-spacing: -0.5px; margin-bottom: 10px;">ENGINE ERROR</h2>' +
+            '<div style="background: rgba(255,0,0,0.1); padding: 15px; border-radius: 10px; margin-bottom: 30px;">' +
+            '<p style="color: #f43f5e; font-size: 11px; font-family: monospace; word-break: break-all; text-align: left;">' + message + '</p>' +
+            '</div>' +
+            '<button onclick="location.reload()" style="padding: 14px 28px; background: #8b5cf6; color: white; border: none; border-radius: 16px; font-weight: 800; font-size: 12px; text-transform: uppercase;">Reload Page</button>' +
             '</div>';
         }
         return false;
