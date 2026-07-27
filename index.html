@@ -3,20 +3,29 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>Auto Viral Video Editor</title>
+    <title>Viral AI Video Editor • Smart Auto-Editor</title>
+    <style>
+      body { margin: 0; background-color: #020617; }
+      #root:empty::after {
+        content: 'Initializing AI Editor...';
+        position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        color: #94a3b8; font-family: sans-serif; font-size: 14px; letter-spacing: 1px; text-transform: uppercase;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
-      // Emergency Error Recovery for Mobile
+      // Professional Error Recovery System for Mobile
       window.onerror = function(message, source, lineno, colno, error) {
         const root = document.getElementById('root');
-        if (root) {
-          root.innerHTML = '<div style="padding: 30px; color: white; background: #0f172a; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">' +
-            '<h2 style="color: #f43f5e; margin-bottom: 10px;">⚠️ Application Crash</h2>' +
-            '<p style="color: #94a3b8; max-width: 300px; margin-bottom: 20px;">Memory limit reached or script error. Please reload.</p>' +
-            '<button onclick="location.reload()" style="padding: 12px 24px; background: #8b5cf6; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer;">RELOAD APP</button>' +
+        if (root && (root.innerHTML === '' || root.innerHTML.includes('Initializing'))) {
+          root.innerHTML = '<div style="padding: 40px; color: white; background: #020617; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">' +
+            '<div style="font-size: 40px; margin-bottom: 20px;">⚠️</div>' +
+            '<h2 style="font-weight: 900; letter-spacing: -0.5px; margin-bottom: 10px;">ENGINE LOAD ERROR</h2>' +
+            '<p style="color: #64748b; font-size: 13px; max-width: 280px; line-height: 1.6; margin-bottom: 30px;">Your mobile browser blocked the script or hit a memory limit. Please close other tabs and reload.</p>' +
+            '<button onclick="location.reload()" style="padding: 14px 28px; background: #8b5cf6; color: white; border: none; border-radius: 16px; font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; box-shadow: 0 10px 20px -5px rgba(139, 92, 246, 0.4);">Reload Editor</button>' +
             '</div>';
         }
         return false;
