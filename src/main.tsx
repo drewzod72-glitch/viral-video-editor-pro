@@ -18,11 +18,11 @@ try {
   console.log('[System] App successfully rendered to DOM.');
 } catch (error) {
   console.error('[Critical] Failed to mount React app:', error);
-  document.body.innerHTML = \`
+  document.body.innerHTML = `
     <div style="padding: 40px; color: white; background: #020617; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
       <h2 style="color: #f43f5e;">CRITICAL BOOT ERROR</h2>
-      <p style="color: #64748b; max-width: 300px;">\${error.message}</p>
+      <p style="color: #64748b; max-width: 300px;">${(error as any).message}</p>
       <button onclick="location.reload()" style="margin-top: 20px; padding: 12px 24px; background: #8b5cf6; color: white; border: none; border-radius: 12px; font-weight: bold;">RETRY</button>
     </div>
-  \`;
+  `;
 }
