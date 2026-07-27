@@ -1,13 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { VideoProject, VideoNiche, SubtitleItem } from './types';
-import { FREE_MUSIC_TRACKS, RAW_VIDEO_TEMPLATES } from './data';
+import React, { useState, Suspense, lazy } from 'react';
+import { VideoProject } from './types';
+import { Sparkles, Download, Video as VideoIcon, CheckCircle, KeyRound, MessageSquare, Flame } from 'lucide-react';
 import NicheSelector from './components/NicheSelector';
-import { saveFileToDevice } from './utils/download';
-import VideoPlayerWorkspace from './components/VideoPlayerWorkspace';
-import ViralityScorecard from './components/ViralityScorecard';
-import { Sparkles, Download, Video as VideoIcon, CheckCircle, KeyRound } from 'lucide-react';
 import ApiKeySettingsModal from './components/ApiKeySettingsModal';
 import { runAnalyzeVideo } from './utils/geminiClient';
+import { AICopilotConsole } from './components/AICopilotConsole';
+
+const VideoPlayerWorkspace = lazy(() => import('./components/VideoPlayerWorkspace'));
+const ViralityScorecard = lazy(() => import('./components/ViralityScorecard'));
 
 const fixDunikTypo = (str: string): string => {
   if (typeof str !== 'string' || !str) return str;
@@ -22,7 +22,7 @@ export default function App() {
   const [activeProject, setActiveProject] = useState<VideoProject | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStage, setProcessingStage] = useState('');
-  const [activeTab, setActiveTab] = useState<'studio' | 'viral'>('studio');
+  const [activeTab, setActiveTab] = useState<'studio' | 'viral' | 'copilot'>('studio');
   const [downloadReadyInfo, setDownloadReadyInfo] = useState<{ url: string; filename: string } | null>(null);
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [activeClipId, setActiveClipId] = useState<string | null>(null);
@@ -80,13 +80,13 @@ export default function App() {
   const triggerVideoExport = async () => {
     if (!activeProject) return;
     setIsProcessing(true);
-    setProcessingStage("Initializing Video Engine (FFmpeg)...");
+    setProcessingStage("Initializing Video Engine...");
     try {
       const { renderVideoInBrowser } = await import('./utils/ffmpegClient');
-      const blob = await renderVideoInBrowser(activeProject, (prg) => {
+      const editedBlob = await renderVideoInBrowser(activeProject, (prg) => {
         setProcessingStage(`Baking video: ${prg}%`);
       });
-      const url = URL.createObjectURL(blob);
+      const url = URL.createObjectURL(editedBlob);
       setDownloadReadyInfo({ url, filename: `${activeProject.name}_edited.mp4` });
     } catch (err: any) {
       alert('Export failed: ' + err.message);
@@ -145,13 +145,18 @@ export default function App() {
                <div className="flex items-center gap-3">
                  <div className="p-2 bg-purple-600/20 rounded-xl"><VideoIcon className="text-purple-500 w-4 h-4" /></div>
                  <div>
-                    <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Editing Project</h2>
+                    <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Project</h2>
                     <p className="text-sm font-black truncate max-w-[150px]">{activeProject.name}</p>
                  </div>
                </div>
-               <div className="flex gap-2">
+               <div className="flex flex-wrap gap-2">
                  <button onClick={() => setActiveTab('studio')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'studio' ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/20' : 'bg-slate-800 text-slate-400 hover:text-white'}`}>Studio</button>
-                 <button onClick={() => setActiveTab('viral')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'viral' ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/20' : 'bg-slate-800 text-slate-400 hover:text-white'}`}>Viral Specs</button>
+                 <button onClick={() => setActiveTab('viral')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'viral' ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/20' : 'bg-slate-800 text-slate-400 hover:text-white'}`}>
+                   <Flame className="w-3 h-3 inline mr-1" /> Specs
+                 </button>
+                 <button onClick={() => setActiveTab('copilot')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'copilot' ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/20' : 'bg-slate-800 text-slate-400 hover:text-white'}`}>
+                   <MessageSquare className="w-3 h-3 inline mr-1" /> Copilot
+                 </button>
                  <button onClick={triggerVideoExport} className="bg-emerald-600 hover:bg-emerald-500 px-6 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2">
                    <Download className="w-3.5 h-3.5" /> Bake Video
                  </button>
@@ -159,23 +164,33 @@ export default function App() {
             </div>
             
             {activeTab === 'studio' ? (
-               <VideoPlayerWorkspace 
-                 project={activeProject} 
-                 onUpdateProject={setActiveProject as any} 
-                 activeMusicTrack={null} 
-                 musicVolume={0.5} 
-                 setMusicVolume={() => {}} 
-                 enableSubtitles={true} 
-                 setEnableSubtitles={() => {}} 
-                 enableZooms={true} 
-                 setEnableZooms={() => {}} 
-                 enableColorGrade={true} 
-                 setEnableColorGrade={() => {}} 
-                 activeClipId={activeClipId} 
-                 onClipSelect={setActiveClipId} 
-               />
+               <Suspense fallback={<div>Loading Workspace...</div>}>
+                <VideoPlayerWorkspace 
+                  project={activeProject} 
+                  onUpdateProject={setActiveProject as any} 
+                  activeMusicTrack={null} 
+                  musicVolume={0.5} 
+                  setMusicVolume={() => {}} 
+                  enableSubtitles={true} 
+                  setEnableSubtitles={() => {}} 
+                  enableZooms={true} 
+                  setEnableZooms={() => {}} 
+                  enableColorGrade={true} 
+                  setEnableColorGrade={() => {}} 
+                  activeClipId={activeClipId} 
+                  onClipSelect={setActiveClipId} 
+                />
+               </Suspense>
+            ) : activeTab === 'viral' ? (
+              <Suspense fallback={<div>Loading Scorecard...</div>}>
+                <ViralityScorecard project={activeProject} onUpdateProject={setActiveProject as any} />
+              </Suspense>
             ) : (
-               <ViralityScorecard project={activeProject} onUpdateProject={setActiveProject as any} />
+              <AICopilotConsole 
+                project={activeProject} 
+                onUpdateProject={setActiveProject as any}
+                onUpdateSubtitles={(subs) => setActiveProject({ ...activeProject, subtitles: subs })}
+              />
             )}
           </div>
         )}
@@ -191,11 +206,7 @@ export default function App() {
             </div>
             <h3 className="text-xl font-black uppercase tracking-tight mb-2">Video Ready!</h3>
             <p className="text-xs text-slate-400 mb-8 leading-relaxed">Your professional vertical short is fully baked and optimized for TikTok.</p>
-            <a href={downloadReadyInfo.url} download={downloadReadyInfo.filename} onClick={async () => {
-                const blob = await fetch(downloadReadyInfo.url).then(r => r.blob());
-                await saveFileToDevice(blob, downloadReadyInfo.filename);
-                setDownloadReadyInfo(null);
-            }} className="block w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-black text-sm mb-4 transition-all active:scale-95 shadow-lg shadow-emerald-500/20">SAVE TO PHOTOS</a>
+            <a href={downloadReadyInfo.url} download={downloadReadyInfo.filename} className="block w-full py-4 bg-green-600 hover:bg-green-500 text-white rounded-2xl font-black text-sm mb-4 transition-all active:scale-95 shadow-lg shadow-emerald-500/20 text-center">SAVE TO PHOTOS</a>
             <button onClick={() => setDownloadReadyInfo(null)} className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Back to Studio</button>
           </div>
         </div>

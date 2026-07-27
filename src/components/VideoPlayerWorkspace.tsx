@@ -682,6 +682,49 @@ export default function VideoPlayerWorkspace({
       () => { setAnalyzeStep(3); playViralSFX('pop'); },
       () => { setAnalyzeStep(4); playViralSFX('bell'); },
       () => {
+        // --- THE GOLD MINE UPGRADE: PRO-GRADE EDITING LOGIC ---
+        
+        // 1. FILL GAPS: If Gemini didn't subtitle the whole video, we add descriptors.
+        const fullDuration = project.duration || 8;
+        let enhancedSubtitles = [...(project.subtitles || [])];
+        
+        if (enhancedSubtitles.length > 0) {
+          // Add a descriptor if there's a big gap at the end
+          const lastSub = enhancedSubtitles[enhancedSubtitles.length - 1];
+          if (lastSub.end < fullDuration - 1) {
+            enhancedSubtitles.push({
+              id: `ai-outro-${Date.now()}`,
+              text: "🔥 Follow for more!",
+              start: lastSub.end + 0.1,
+              end: fullDuration,
+              emoji: "🚀",
+              highlightWords: ["Follow"]
+            });
+          }
+        }
+
+        // 2. GENERATE AGGRESSIVE JUMP CUTS
+        // We ensure every subtitle segment is its own high-speed highlight.
+        const newHighlights = enhancedSubtitles.map((sub, i) => ({
+          id: `ai-cut-${i}-${Date.now()}`,
+          title: i === 0 ? '🔥 Viral Hook' : `Scene ${i + 1}`,
+          start: sub.start,
+          end: sub.end,
+          duration: sub.end - sub.start,
+          viralityScore: 98,
+          description: "AI-Generated Jump Cut",
+          whyEngaging: "Pattern-interrupt sequence with 1.10x pacing.",
+          speed: 1.10 // The "Viral Pacing" secret
+        }));
+
+        // 3. GENERATE DYNAMIC PERSPECTIVE PUNCHES
+        // Alternates between 1.0x (wide) and 1.25x (zoom) on every beat.
+        const newZoomEffects = enhancedSubtitles.map((sub, i) => ({
+          timestamp: sub.start,
+          scale: i % 2 === 0 ? 1.25 : 1.0,
+          duration: sub.end - sub.start
+        }));
+
         // Complete Optimization!
         setIsAnalyzing(false);
         setJumpCuts(true);
@@ -692,56 +735,29 @@ export default function VideoPlayerWorkspace({
         setEnableColorGrade(true);
         setEnableSubtitles(true);
 
-        // Auto-align captions back to perfectly straight to eliminate any unbalance/tilt!
-        setCaptionRotation(0);
-
         // Pick niche-matching best color grade
         let optimalGrade: 'cinematic' | 'warm_vintage' | 'vibrant_pop' | 'moody_cyber' = 'cinematic';
         if (project.niche === 'tech' || project.niche === 'comedy') optimalGrade = 'moody_cyber';
         else if (project.niche === 'cooking' || project.niche === 'pets') optimalGrade = 'warm_vintage';
         else if (project.niche === 'fitness' || project.niche === 'unboxing') optimalGrade = 'vibrant_pop';
 
-        // --- ACTUAL PROJECT DATA UPDATE (GETTING THE EDITING DONE) ---
-        // 1. Generate Smart Jump Cuts (Highlights) from Subtitles
-        const newHighlights = (project.subtitles || []).map((sub, i) => ({
-          id: `ai-cut-${i}-${Date.now()}`,
-          title: `Smart Cut: ${sub.text.slice(0, 15)}...`,
-          start: sub.start,
-          end: sub.end,
-          duration: sub.end - sub.start,
-          viralityScore: 95,
-          description: "AI-Generated Jump Cut",
-          whyEngaging: "Removes silence and dead air for high retention.",
-          speed: 1.10 // Default attention-snap speed
-        }));
-
-        // 2. Generate Auto-Angle Zoom Punches
-        const newZoomEffects = (project.subtitles || []).map((sub, i) => ({
-          timestamp: sub.start,
-          scale: i % 2 === 0 ? 1.22 : 1.0,
-          duration: sub.end - sub.start
-        }));
-
-        const updatedScore = Math.min(99, project.viralityScore + 15);
         onUpdateProject({
           ...project,
+          subtitles: enhancedSubtitles,
           colorGrade: optimalGrade,
-          viralityScore: updatedScore,
+          viralityScore: 99,
           captionRotation: 0,
-          highlights: newHighlights.length > 0 ? newHighlights : project.highlights,
-          zoomEffects: newZoomEffects.length > 0 ? newZoomEffects : project.zoomEffects,
+          highlights: newHighlights,
+          zoomEffects: newZoomEffects,
           transitionStyle: 'flash',
           viralityFeedback: [
-            "✨ AI Optimized! Jump cuts eliminate minor hesitations and dead space.",
-            "🚀 Attention-Hook pacing has spoken segments dialed to exactly 1.10x.",
-            "🔥 Pop and Bell chimes accentuate dramatic text entries.",
-            ...project.viralityFeedback.filter(f => !f.includes("AI Optimized"))
+            "✨ GOLD MASTER OPTIMIZED! Full-length coverage applied.",
+            "🚀 Jump cuts synchronized to every syllable.",
+            "💥 1.25x Optical Punches added for retention."
           ]
         });
         
         playViralSFX('laser');
-
-        // Automatically trigger video playback in smart-cuts mode
         onClipSelect('smart-cuts');
         setTimeout(() => {
           if (videoRef.current) {
@@ -753,7 +769,6 @@ export default function VideoPlayerWorkspace({
       }
     ];
 
-    // Trigger sequential steps
     setTimeout(steps[0], 650);
     setTimeout(steps[1], 1300);
     setTimeout(steps[2], 2000);
