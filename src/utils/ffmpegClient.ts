@@ -46,5 +46,5 @@ export async function renderVideoInBrowser(
   ]);
 
   const data = await ff.readFile('output.mp4');
-  return new Blob([data], { type: 'video/mp4' });
+  return new Blob([data as any], { type: 'video/mp4' });
 }
