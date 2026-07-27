@@ -328,7 +328,8 @@ export default function VideoPlayerWorkspace({
     const audio = musicAudioRef.current;
 
     if (video.paused) {
-      if (video.currentTime < startLimit || video.currentTime >= endLimit) {
+      // Ensure we are within the selected clip bounds before playing
+      if (video.currentTime < startLimit - 0.1 || video.currentTime >= endLimit - 0.1) {
         video.currentTime = startLimit;
       }
       video.play().catch(() => {});
@@ -347,6 +348,18 @@ export default function VideoPlayerWorkspace({
       setIsPlaying(false);
     }
   };
+
+  // NEW: Immediate Seek on Clip Selection change
+  useEffect(() => {
+    if (videoRef.current) {
+      console.log(`[Clip Switch] Jumping to start: ${startLimit}s`);
+      videoRef.current.currentTime = startLimit;
+      setCurrentTime(startLimit);
+      if (isPlaying) {
+        videoRef.current.play().catch(() => {});
+      }
+    }
+  }, [activeClipId, startLimit]);
 
   const restartVideo = () => {
     if (videoRef.current) {
