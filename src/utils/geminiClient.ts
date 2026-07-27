@@ -1,7 +1,7 @@
 import { getStoredApiKey } from './apiKeyStore';
 import type { SubtitleItem, VideoNiche, CaptionStyle } from '../types';
 
-const MODEL_OPTIONS = ['gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-2.0-flash-exp'];
+const MODEL_OPTIONS = ['gemini-1.5-flash-latest', 'gemini-1.5-flash', 'gemini-2.0-flash-exp'];
 const GEMINI_API_ROOT = 'https://generativelanguage.googleapis.com/v1beta/models';
 const GEMINI_UPLOAD_ROOT = 'https://generativelanguage.googleapis.com/upload/v1beta/files';
 
@@ -152,9 +152,11 @@ async function generateStructuredContent({ apiKey, parts, responseSchema, signal
     try {
       if (signal?.aborted) throw new Error('Aborted');
 
-      // HYBRID AUTH: Use BOTH query param and Header for maximum compatibility 
-      // across all Google API routing versions (Standard AIza vs Auth AQ.Ab)
-      const res = await fetch(`${GEMINI_API_ROOT}/${model}:generateContent?key=${apiKey}`, {
+      console.log(`[Gemini] Attempting analysis with model: ${model}...`);
+
+      // 2026 AUTH STRATEGY: Use the 'x-goog-api-key' header for AQ.Ab keys.
+      // We REMOVE the query parameter to avoid "multiple auth methods" errors.
+      const res = await fetch(`${GEMINI_API_ROOT}/${model}:generateContent`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -163,28 +165,45 @@ async function generateStructuredContent({ apiKey, parts, responseSchema, signal
         signal,
         body: JSON.stringify({
           contents: [{ parts }],
-          generationConfig: { responseMimeType: 'application/json', responseSchema },
+          generationConfig: { 
+            responseMimeType: 'application/json', 
+            responseSchema 
+          },
         }),
       });
 
       if (!res.ok) {
-        const errBody = await res.text().catch(() => '');
-        if (res.status === 403) throw new Error('API Key Permission Denied. Check your key in AI Studio.');
+        const errText = await res.text().catch(() => 'No error body');
+        console.error(`[Gemini] Model ${model} returned ${res.status}:`, errText);
+        
+        if (res.status === 403) {
+          throw new Error('API Key Permission Denied. Go to AI Studio and ensure "Generative Language API" is enabled for your project.');
+        }
+        if (res.status === 429) {
+          throw new Error('Quota Exceeded. You are sending too many requests. Wait 60 seconds.');
+        }
+        
+        lastError = new Error(`Gemini [${model}] Error ${res.status}: ${errText.slice(0, 150)}`);
         continue; // Try next model
       }
 
       const data = await res.json();
       const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!text) throw new Error('AI returned an empty response.');
+      if (!text) {
+        lastError = new Error(`Model ${model} returned success but no text content.`);
+        continue;
+      }
       return JSON.parse(text);
     } catch (err: any) {
       lastError = err;
       if (err.message === 'Aborted') throw err;
-      console.warn(`[Gemini] Model ${model} failure:`, err.message);
+      console.warn(`[Gemini] Model ${model} exception:`, err.message);
       continue;
     }
   }
-  throw lastError || new Error('All Gemini models failed or were unavailable.');
+  
+  // If we reach here, all models failed. Show the LAST error received.
+  throw lastError || new Error('Critical: All AI models failed to respond.');
 }
 
 const ANALYZE_VIDEO_SCHEMA = {
