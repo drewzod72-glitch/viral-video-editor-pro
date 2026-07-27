@@ -143,52 +143,68 @@ export default function ViralityScorecard({ project, onUpdateProject, onRequestA
     }, 1800);
 
     try {
+      // THE "SMART" UPGRADE: Instead of a full re-analysis, we ask Gemini to 
+      // strictly REFINE the current masterpiece.
       const result = await runAnalyzeVideo({
         name: project.name,
         niche: project.niche,
         originalDuration: project.duration,
-        userDescription: `User requested a creator-style upgrade to Archetype: ${chosen.name}. Custom directions: ${customDirectives || 'Boost narrative hooks, insert high energy emojis and craft perfect dynamic timing'}`,
+        userDescription: `ULTRA-BOOST REQUEST. Current Project: "${project.title}". 
+        Archetype Target: ${chosen.name}. 
+        User Goal: ${customDirectives || 'Maximize engagement'}.
+        CRITICAL: Keep the existing core script but inject more power, urgent emojis, and cliffhangers.`,
         defaultTranscribe: project.subtitles.map(s => s.text).join(' '),
         imitationOptions: {
           archetype: chosen.name,
-          referenceSource: `Selected profile: ${chosen.name} Style Preset: ${chosen.stylePreset}`,
-          copyInstructions: `Structure subtitles using ${chosen.stylePreset} rules. Emojis optimization: ${injectEmojis ? 'enabled' : 'disabled'}. High contrast rendering: ${forceHighContrast ? 'enabled' : 'disabled'}. Custom notes: ${customDirectives || 'Optimize spacing and visual contrasts'}`
+          referenceSource: `Selected profile: ${chosen.name}`,
+          copyInstructions: `ENHANCE only. Do not remove existing viral elements. Add ${injectEmojis ? 'high-energy emojis' : 'minimal text'} and 1.25x zoom punches.`
         },
-        videoFile: null, // Booster restyles existing text/subtitles — no new footage to analyze.
+        videoFile: null, 
       });
 
       clearInterval(interval);
 
-      if (!result.success) {
-        throw new Error('Booster did not return a usable result.');
+      if (!result.success || !result.project.subtitles) {
+        throw new Error('Booster failed to generate valid improvements.');
       }
 
-      // Format result and merge with project details
+      // SUBTITLE-DERIVED ENHANCEMENT: We ensure the timeline is fully populated
+      const newSubs = result.project.subtitles.map((sub: any) => ({
+        ...sub,
+        text: fixDunikTypo(sub.text),
+        highlightWords: Array.isArray(sub.highlightWords) ? sub.highlightWords.map((w: string) => fixDunikTypo(w)) : []
+      }));
+
+      const newHighlights = newSubs.map((sub: any, i: number) => ({
+        id: `boost-clip-${i}-${Date.now()}`,
+        title: i === 0 ? '🚀 Boosted Hook' : `Scene ${i+1}`,
+        start: sub.start,
+        end: sub.end,
+        duration: sub.end - sub.start,
+        viralityScore: 99,
+        description: "AI-Enhanced Clip",
+        whyEngaging: "Optimized for chosen creator style.",
+        speed: 1.10
+      }));
+
+      const newZooms = newSubs.map((sub: any, i: number) => ({
+        timestamp: sub.start,
+        scale: i % 2 === 0 ? 1.25 : 1.0,
+        duration: sub.end - sub.start
+      }));
+
       const boostedProject: VideoProject = {
         ...project,
-        title: fixDunikTypo(result.project.title),
-        alternativeTitles: result.project.alternativeTitles,
-        description: fixDunikTypo(result.project.description),
-        tags: result.project.tags,
-        viralityScore: Math.max(90, result.project.viralityScore), // Booster increases score
-        viralityCriteria: {
-          hook: Math.max(88, result.project.viralityCriteria?.hook || 92),
-          pacing: Math.max(90, result.project.viralityCriteria?.pacing || 94),
-          emotion: Math.max(86, result.project.viralityCriteria?.emotion || 90),
-          visualContrast: Math.max(88, result.project.viralityCriteria?.visualContrast || 93)
-        },
-        viralityFeedback: result.project.viralityFeedback,
+        title: fixDunikTypo(result.project.title || project.title),
+        description: fixDunikTypo(result.project.description || project.description),
+        tags: result.project.tags || project.tags,
+        viralityScore: 99,
+        subtitles: newSubs,
+        highlights: newHighlights,
+        zoomEffects: newZooms,
         captionStyle: chosen.stylePreset as CaptionStyle,
-        captionRotation: forceStraightCaptions ? 0 : chosen.rotation,
-        colorGrade: chosen.id === 'asmr_luxury' ? 'cinematic' : (chosen.id === 'mrbeast_hype' ? 'vibrant_pop' : 'moody_cyber'),
-        subtitles: (result.project.subtitles || []).map((sub: any) => ({
-          ...sub,
-          text: fixDunikTypo(sub.text),
-          highlightWords: Array.isArray(sub.highlightWords) ? sub.highlightWords.map((w: string) => fixDunikTypo(w)) : []
-        })),
-        zoomEffects: result.project.zoomEffects || [],
-        endingCTA: result.project.endingCTA,
-        thumbnailRecommendation: result.project.thumbnailRecommendation,
+        colorGrade: chosen.id === 'asmr_luxury' ? 'cinematic' : 'vibrant_pop',
+        engineMode: 'live-gemini'
       };
 
       onUpdateProject?.(boostedProject);

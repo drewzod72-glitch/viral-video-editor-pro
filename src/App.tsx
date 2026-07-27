@@ -1,13 +1,15 @@
-import React, { useState, Suspense, lazy } from 'react';
+import React, { useState, useEffect } from 'react';
 import { VideoProject } from './types';
-import { Sparkles, Download, Video as VideoIcon, CheckCircle, KeyRound, MessageSquare, Flame } from 'lucide-react';
+import { FREE_MUSIC_TRACKS } from './data';
 import NicheSelector from './components/NicheSelector';
+import { saveFileToDevice } from './utils/download';
+import VideoPlayerWorkspace from './components/VideoPlayerWorkspace';
+import ViralityScorecard from './components/ViralityScorecard';
+import { AICopilotConsole } from './components/AICopilotConsole';
+import { Sparkles, Download, Video as VideoIcon, CheckCircle, KeyRound, MessageSquare, Flame } from 'lucide-react';
 import ApiKeySettingsModal from './components/ApiKeySettingsModal';
 import { runAnalyzeVideo } from './utils/geminiClient';
-import { AICopilotConsole } from './components/AICopilotConsole';
-
-const VideoPlayerWorkspace = lazy(() => import('./components/VideoPlayerWorkspace'));
-const ViralityScorecard = lazy(() => import('./components/ViralityScorecard'));
+import { renderVideoInBrowser } from './utils/ffmpegClient';
 
 const fixDunikTypo = (str: string): string => {
   if (typeof str !== 'string' || !str) return str;
@@ -80,15 +82,21 @@ export default function App() {
   const triggerVideoExport = async () => {
     if (!activeProject) return;
     setIsProcessing(true);
-    setProcessingStage("Initializing Video Engine...");
+    setProcessingStage("Warming Engine (FFmpeg)...");
     try {
-      const { renderVideoInBrowser } = await import('./utils/ffmpegClient');
+      // Direct call since we removed lazy loading
       const editedBlob = await renderVideoInBrowser(activeProject, (prg) => {
         setProcessingStage(`Baking video: ${prg}%`);
       });
+      
+      if (!editedBlob || editedBlob.size < 100) {
+        throw new Error('Engine produced an empty file. Please try again.');
+      }
+
       const url = URL.createObjectURL(editedBlob);
-      setDownloadReadyInfo({ url, filename: `${activeProject.name}_edited.mp4` });
+      setDownloadReadyInfo({ url, filename: `${activeProject.name.replace(/\s+/g, '_')}_viral_edit.mp4` });
     } catch (err: any) {
+      console.error('[Export Error]', err);
       alert('Export failed: ' + err.message);
     } finally {
       setIsProcessing(false);
@@ -102,7 +110,7 @@ export default function App() {
            <Sparkles className="text-purple-500 w-10 h-10" />
         </div>
         <h1 className="text-2xl font-black text-white uppercase tracking-tighter mb-4 bg-gradient-to-tr from-purple-400 to-pink-500 bg-clip-text text-transparent">Viral AI Editor</h1>
-        <p className="text-slate-400 text-sm max-w-[280px] mb-10 leading-relaxed">The Gold Mine Edition: Multimodal AI Video Forge.</p>
+        <p className="text-slate-400 text-sm max-w-[280px] mb-10 leading-relaxed">The Gold Mine Edition: High-Performance AI Video Forge.</p>
         <button 
           onClick={() => setHasStarted(true)}
           className="w-full max-w-[280px] py-4 bg-purple-600 hover:bg-purple-500 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-2xl shadow-purple-500/20 transition-all active:scale-95"
@@ -128,6 +136,7 @@ export default function App() {
         <div className="fixed inset-0 bg-black/90 flex flex-col items-center justify-center z-50 p-6 text-center">
           <div className="w-12 h-12 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mb-4" />
           <h2 className="text-md font-bold uppercase tracking-widest">{processingStage}</h2>
+          <p className="text-[10px] text-slate-500 mt-2 max-w-[250px]">Please keep this tab active. Mobile browsers sleep background tasks!</p>
           <button onClick={() => setIsProcessing(false)} className="mt-8 text-[10px] text-purple-400 font-black uppercase">Cancel</button>
         </div>
       )}
@@ -163,29 +172,29 @@ export default function App() {
                </div>
             </div>
             
-            {activeTab === 'studio' ? (
-               <Suspense fallback={<div>Loading Workspace...</div>}>
-                <VideoPlayerWorkspace 
-                  project={activeProject} 
-                  onUpdateProject={setActiveProject as any} 
-                  activeMusicTrack={null} 
-                  musicVolume={0.5} 
-                  setMusicVolume={() => {}} 
-                  enableSubtitles={true} 
-                  setEnableSubtitles={() => {}} 
-                  enableZooms={true} 
-                  setEnableZooms={() => {}} 
-                  enableColorGrade={true} 
-                  setEnableColorGrade={() => {}} 
-                  activeClipId={activeClipId} 
-                  onClipSelect={setActiveClipId} 
-                />
-               </Suspense>
-            ) : activeTab === 'viral' ? (
-              <Suspense fallback={<div>Loading Scorecard...</div>}>
-                <ViralityScorecard project={activeProject} onUpdateProject={setActiveProject as any} />
-              </Suspense>
-            ) : (
+            {activeTab === 'studio' && (
+              <VideoPlayerWorkspace 
+                project={activeProject} 
+                onUpdateProject={setActiveProject as any} 
+                activeMusicTrack={null} 
+                musicVolume={0.5} 
+                setMusicVolume={() => {}} 
+                enableSubtitles={true} 
+                setEnableSubtitles={() => {}} 
+                enableZooms={true} 
+                setEnableZooms={() => {}} 
+                enableColorGrade={true} 
+                setEnableColorGrade={() => {}} 
+                activeClipId={activeClipId} 
+                onClipSelect={setActiveClipId} 
+              />
+            )}
+            
+            {activeTab === 'viral' && (
+              <ViralityScorecard project={activeProject} onUpdateProject={setActiveProject as any} />
+            )}
+            
+            {activeTab === 'copilot' && (
               <AICopilotConsole 
                 project={activeProject} 
                 onUpdateProject={setActiveProject as any}
@@ -205,8 +214,17 @@ export default function App() {
               <CheckCircle className="w-8 h-8 text-emerald-500" />
             </div>
             <h3 className="text-xl font-black uppercase tracking-tight mb-2">Video Ready!</h3>
-            <p className="text-xs text-slate-400 mb-8 leading-relaxed">Your professional vertical short is fully baked and optimized for TikTok.</p>
-            <a href={downloadReadyInfo.url} download={downloadReadyInfo.filename} className="block w-full py-4 bg-green-600 hover:bg-green-500 text-white rounded-2xl font-black text-sm mb-4 transition-all active:scale-95 shadow-lg shadow-emerald-500/20 text-center">SAVE TO PHOTOS</a>
+            <p className="text-xs text-slate-400 mb-8 leading-relaxed">Your professional vertical short is fully baked and ready to share.</p>
+            <button 
+              onClick={async () => {
+                const blob = await fetch(downloadReadyInfo.url).then(r => r.blob());
+                await saveFileToDevice(blob, downloadReadyInfo.filename);
+                setDownloadReadyInfo(null);
+              }} 
+              className="block w-full py-4 bg-green-600 hover:bg-green-500 text-white rounded-2xl font-black text-sm mb-4 transition-all active:scale-95 shadow-lg shadow-emerald-500/20"
+            >
+              SAVE TO PHOTOS
+            </button>
             <button onClick={() => setDownloadReadyInfo(null)} className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Back to Studio</button>
           </div>
         </div>
