@@ -115,14 +115,16 @@ function requireApiKey(explicitKey?: string): string {
 }
 
 async function fileToBase64(file: File): Promise<string> {
-  const buf = await file.arrayBuffer();
-  let binary = '';
-  const bytes = new Uint8Array(buf);
-  const chunkSize = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
-  }
-  return btoa(binary);
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      const base64 = result.split(',')[1];
+      resolve(base64);
+    };
+    reader.onerror = (err) => reject(new Error('Failed to read video file for AI analysis.'));
+    reader.readAsDataURL(file);
+  });
 }
 
 /** Same fix-up the server used to apply to Gemini's output (a recurring model typo of "Dunik" -> "Dunk"). */

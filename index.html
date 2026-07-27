@@ -8,5 +8,19 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Emergency Error Recovery for Mobile
+      window.onerror = function(message, source, lineno, colno, error) {
+        const root = document.getElementById('root');
+        if (root) {
+          root.innerHTML = '<div style="padding: 30px; color: white; background: #0f172a; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">' +
+            '<h2 style="color: #f43f5e; margin-bottom: 10px;">⚠️ Application Crash</h2>' +
+            '<p style="color: #94a3b8; max-width: 300px; margin-bottom: 20px;">Memory limit reached or script error. Please reload.</p>' +
+            '<button onclick="location.reload()" style="padding: 12px 24px; background: #8b5cf6; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer;">RELOAD APP</button>' +
+            '</div>';
+        }
+        return false;
+      };
+    </script>
   </body>
 </html>

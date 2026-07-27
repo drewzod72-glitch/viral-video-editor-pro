@@ -834,15 +834,19 @@ export default function App() {
       setActiveProjectId(newProject.id);
       setActiveProject(newProject);
       setActiveClipId(null); // Reset highlight bounds
+      
+      // Cleanup UI
+      setIsProcessing(false);
+      setProcessingProgress(100);
       setActiveTab('studio');
-
       triggerNotification('success', '✨ Successfully analyzed and configured high-retention video pacing specifications!');
 
     } catch (error: any) {
+      console.error("[AI Forge Error]", error);
       clearTimeout(timeoutId);
       clearInterval(interval);
-      setProcessingProgress(0);
       setIsProcessing(false);
+      setProcessingProgress(0);
 
       if (error?.name === 'MissingApiKeyError') {
         setShowApiKeyModal(true);
