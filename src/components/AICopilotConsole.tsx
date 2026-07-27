@@ -25,6 +25,10 @@ export const AICopilotConsole: React.FC<AICopilotConsoleProps> = ({
     { action: 'Sanitize variables & Dunik Typos', time: 'Just Now', status: 'Completed' },
     { action: 'Calibrate Audio Ducking matrix', time: '5 mins ago', status: 'Optimal' }
   ]);
+  const [recentHealActions, setRecentHealActions] = useState<{ action: string; time: string; status: string }[]>([
+    { action: 'Sanitize variables & Dunik Typos', time: 'Just Now', status: 'Completed' },
+    { action: 'Calibrate Audio Ducking matrix', time: '5 mins ago', status: 'Optimal' }
+  ]);
 
   const runHealAction = async (actionType: string, customCommand?: string) => {
     setIsHealLoading(actionType);
