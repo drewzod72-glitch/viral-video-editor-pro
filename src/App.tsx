@@ -215,17 +215,25 @@ export default function App() {
             </div>
             <h3 className="text-xl font-black uppercase tracking-tight mb-2">Video Ready!</h3>
             <p className="text-xs text-slate-400 mb-8 leading-relaxed">Your professional vertical short is fully baked and ready to share.</p>
-            <button 
-              onClick={async () => {
-                const blob = await fetch(downloadReadyInfo.url).then(r => r.blob());
-                await saveFileToDevice(blob, downloadReadyInfo.filename);
-                setDownloadReadyInfo(null);
-              }} 
-              className="block w-full py-4 bg-green-600 hover:bg-green-500 text-white rounded-2xl font-black text-sm mb-4 transition-all active:scale-95 shadow-lg shadow-emerald-500/20"
+            <a 
+              href={downloadReadyInfo.url} 
+              download={downloadReadyInfo.filename} 
+              onClick={() => {
+                setTimeout(() => {
+                  URL.revokeObjectURL(downloadReadyInfo.url);
+                  setDownloadReadyInfo(null);
+                }, 100);
+              }}
+              className="block w-full py-4 bg-green-600 hover:bg-green-500 text-white rounded-2xl font-black text-sm mb-4 transition-all active:scale-95 shadow-lg shadow-emerald-500/20 text-center"
             >
               SAVE TO PHOTOS
+            </a>
+            <button 
+              onClick={() => setDownloadReadyInfo(null)} 
+              className="text-[10px] font-black uppercase text-slate-500 tracking-widest"
+            >
+              Back to Studio
             </button>
-            <button onClick={() => setDownloadReadyInfo(null)} className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Back to Studio</button>
           </div>
         </div>
       )}

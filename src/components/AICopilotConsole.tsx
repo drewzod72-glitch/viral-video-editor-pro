@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Sparkles, Send, ShieldAlert, CheckCircle, Terminal, HelpCircle, Flame, ArrowRight, Zap, RefreshCw } from 'lucide-react';
 import { VideoProject, SubtitleItem } from '../types';
 import { runCopilotOptimize } from '../utils/geminiClient';
+import { getStoredApiKey } from '../utils/apiKeyStore';
 
 interface AICopilotConsoleProps {
   project: VideoProject;
@@ -20,6 +21,10 @@ export const AICopilotConsole: React.FC<AICopilotConsoleProps> = ({
   const [isHealLoading, setIsHealLoading] = useState<string | null>(null);
   const [aiResponse, setAiResponse] = useState<string>('System initialized. Tap a repair tool or enter a command.');
   const [showDemoBanner, setShowDemoMode] = useState<boolean>(!getStoredApiKey());
+  const [recentHealActions, setRecentHealActions] = useState<{ action: string; time: string; status: string }[]>([
+    { action: 'Sanitize variables & Dunik Typos', time: 'Just Now', status: 'Completed' },
+    { action: 'Calibrate Audio Ducking matrix', time: '5 mins ago', status: 'Optimal' }
+  ]);
 
   const runHealAction = async (actionType: string, customCommand?: string) => {
     setIsHealLoading(actionType);

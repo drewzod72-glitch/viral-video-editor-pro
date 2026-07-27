@@ -117,12 +117,13 @@ export default function ViralityScorecard({ project, onUpdateProject, onRequestA
     }
   ];
 
-  const handleLaunchBooster = async () => {
+  const handleLaunchBooster = async (explicitId?: string) => {
     setIsBoosting(true);
     setSuccessMessage(null);
     setErrorMessage(null);
     
-    const chosen = archetypes.find(a => a.id === selectedArchetype) || archetypes[0];
+    const targetId = explicitId || selectedArchetype;
+    const chosen = archetypes.find(a => a.id === targetId) || archetypes[0];
 
     const stages = [
       '🔌 Initializing Viral Inspiration Replica Engine...',
@@ -538,7 +539,7 @@ export default function ViralityScorecard({ project, onUpdateProject, onRequestA
             </p>
           </div>
 
-          {/* Archetypes grid selection */}
+          {/* Archetypes grid selection (Launching on Click) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {archetypes.map((arch) => {
               const SelectedIcon = arch.icon;
@@ -546,7 +547,13 @@ export default function ViralityScorecard({ project, onUpdateProject, onRequestA
               return (
                 <div
                   key={arch.id}
-                  onClick={() => !isBoosting && setSelectedArchetype(arch.id)}
+                  onClick={() => {
+                    if (!isBoosting) {
+                      setSelectedArchetype(arch.id);
+                      // Trigger launch immediately
+                      handleLaunchBooster(arch.id);
+                    }
+                  }}
                   className={`border p-4 rounded-xl cursor-pointer transition-all duration-300 flex flex-col justify-between h-40 ${
                     isChosen 
                       ? 'bg-slate-950 border-brand-purple/50 shadow-lg shadow-brand-purple/5 ring-1 ring-brand-purple/20' 
@@ -574,11 +581,11 @@ export default function ViralityScorecard({ project, onUpdateProject, onRequestA
                   <div className="flex justify-between items-center text-[11px] font-mono border-t border-slate-900 pt-2 shrink-0">
                     <span className="text-slate-500">Preset: <span className="text-slate-300 capitalize">{arch.stylePreset}</span></span>
                     {isChosen ? (
-                      <span className="text-brand-purple font-bold flex items-center gap-1 font-sans">
-                        <Check className="w-3 h-3" /> Selected Style
+                      <span className="text-brand-purple font-bold flex items-center gap-1 font-sans animate-pulse">
+                        <Zap className="w-3 h-3" /> Boosting...
                       </span>
                     ) : (
-                      <span className="text-slate-500 hover:text-slate-300">Click to arm</span>
+                      <span className="text-slate-500 hover:text-slate-300">Apply Style</span>
                     )}
                   </div>
                 </div>
@@ -586,72 +593,8 @@ export default function ViralityScorecard({ project, onUpdateProject, onRequestA
             })}
           </div>
 
-          {/* Customizable prompts override */}
-          <div className="space-y-3 pt-2">
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-bold uppercase text-slate-400 tracking-wider flex items-center gap-1">
-                <Edit3 className="w-3.5 h-3.5 text-brand-cyan" />
-                Algorithm Guidelines & Focus Target Prompt
-              </label>
-              <span className="text-[10px] text-slate-500">Inject custom triggers tailored to your particular visual goals (e.g. products, size runs, emotional lines, pricing hooks).</span>
-            </div>
-
-            <textarea
-              disabled={isBoosting}
-              value={customDirectives}
-              onChange={(e) => setCustomDirectives(e.target.value)}
-              placeholder="e.g. Emphasize price markers with double highlighting, structure script in a humorous tone, insert high-CTR reaction check tags at the ending..."
-              className="w-full h-20 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-brand-purple font-mono resize-none leading-relaxed transition-colors"
-            />
-          </div>
-
-          {/* Injection toggle checklists */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-950/30 p-4 rounded-xl border border-slate-850/60">
-            <label className="flex items-start gap-3 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                disabled={isBoosting}
-                checked={injectEmojis}
-                onChange={(e) => setInjectEmojis(e.target.checked)}
-                className="w-4 h-4 rounded text-brand-purple bg-slate-900 border-slate-800 focus:ring-brand-purple mt-0.5 shrink-0"
-              />
-              <div className="text-left font-sans">
-                <p className="text-xs font-bold text-white leading-none">Inject High-Intensity Emojis</p>
-                <p className="text-[10px] text-slate-500 mt-1 leading-normal">Inserts copy-targeted emoji markers (💰, 🚨, 👑) dynamically within captions.</p>
-              </div>
-            </label>
-
-            <label className="flex items-start gap-3 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                disabled={isBoosting}
-                checked={forceHighContrast}
-                onChange={(e) => setForceHighContrast(e.target.checked)}
-                className="w-4 h-4 rounded text-brand-purple bg-slate-900 border-slate-800 focus:ring-brand-purple mt-0.5 shrink-0"
-              />
-              <div className="text-left font-sans">
-                <p className="text-xs font-bold text-white leading-none">Force High-Contrast Highlights</p>
-                <p className="text-[10px] text-slate-500 mt-1 leading-normal">Ensures the subtitle rendering pipeline marks vital terms automatically.</p>
-              </div>
-            </label>
-
-            <label className="flex items-start gap-3 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                disabled={isBoosting}
-                checked={forceStraightCaptions}
-                onChange={(e) => setForceStraightCaptions(e.target.checked)}
-                className="w-4 h-4 rounded text-brand-purple bg-slate-900 border-slate-800 focus:ring-brand-purple mt-0.5 shrink-0"
-              />
-              <div className="text-left font-sans">
-                <p className="text-xs font-bold text-white leading-none">Straight & Balanced (0°)</p>
-                <p className="text-[10px] text-slate-500 mt-1 leading-normal">Aligns subtitles perfectly straight to prevent tilted or unbalanced layouts.</p>
-              </div>
-            </label>
-          </div>
-
           {/* Running Booster Loading Overlay State */}
-          {isBoosting ? (
+          {isBoosting && (
             <div className="bg-slate-950/80 border border-brand-purple/30 p-6 rounded-2xl flex flex-col items-center justify-center text-center space-y-4 shadow-xl">
               <div className="relative">
                 <RefreshCw className="w-8 h-8 text-brand-purple animate-spin" />
@@ -663,22 +606,19 @@ export default function ViralityScorecard({ project, onUpdateProject, onRequestA
               </div>
               <p className="text-[10px] text-slate-500 italic max-w-sm">Re-writing subtitles transcription scripts and matching algorithm pacing indices. Please remain active on this tab.</p>
             </div>
-          ) : (
-            <div className="pt-2">
-              {errorMessage && (
-                <p className="text-xs text-brand-pink font-semibold my-2.5">⚠️ Error: {errorMessage}</p>
-              )}
+          )}
 
-              <button
-                onClick={handleLaunchBooster}
-                className="w-full bg-gradient-to-r from-brand-purple via-violet-600 to-indigo-600 hover:brightness-110 active:scale-[0.99] font-display text-white text-xs font-bold uppercase tracking-wider py-3.5 px-6 rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer shadow-brand-purple/10"
-              >
-                <Zap className="w-4 h-4 text-brand-yellow animate-bounce" />
-                Launch Algorithmic Virality Booster
-                <ChevronRight className="w-4 h-4 ml-1" />
-              </button>
+          {errorMessage && !isBoosting && (
+            <div className="pt-4 border-t border-slate-800">
+               <p className="text-xs text-brand-pink font-semibold">⚠️ Error: {errorMessage}</p>
+               <button onClick={() => setErrorMessage(null)} className="text-[10px] text-slate-500 uppercase font-black underline mt-1">Dismiss</button>
             </div>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
         </div>
       )}
     </div>
