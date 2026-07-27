@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: auto-viral-video-editor-backend
+    runtime: node
+    plan: free
+    region: oregon
+    branch: main
+    buildCommand: npm install && npm run build:server
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # PORT is set automatically by Render — do not set it manually here.
+      # GEMINI_API_KEY is intentionally NOT listed: every AI feature now
+      # runs client-side with each user's own key (see the Settings
+      # modal in the app). This backend only handles video rendering.
+    healthCheckPath: /
