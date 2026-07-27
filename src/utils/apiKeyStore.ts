@@ -75,7 +75,8 @@ export function clearStoredApiKey(): void {
   }
 }
 
-/** Very loose shape check — Gemini keys are typically 39 chars starting with "AIza" — just enough to catch obvious paste mistakes, not real validation. Call sanitizeApiKeyInput() first. */
+/** Very loose shape check — Gemini keys are typically 39 chars starting with "AIza" (Standard) or "AQ.Ab" (Auth) — just enough to catch obvious paste mistakes, not real validation. Call sanitizeApiKeyInput() first. */
 export function looksLikeValidGeminiKey(key: string): boolean {
-  return /^[A-Za-z0-9_\-]{20,}$/.test(key);
+  // Updated regex to allow periods (.) used in new 2026 Auth keys (e.g. AQ.Ab...)
+  return /^[A-Za-z0-9_\-\.]{20,}$/.test(key);
 }

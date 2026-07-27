@@ -95,7 +95,8 @@ async function captureVideoSnapshots(file: File, count: number = 3): Promise<str
 async function uploadVideoToFileApi(apiKey: string, file: File): Promise<string> {
   console.log(`[Gemini Files API] Resumable Upload: ${file.name}`);
 
-  const metadataResponse = await fetch(`${GEMINI_UPLOAD_ROOT}?key=${apiKey}`, {
+  // Use headers for the key to support new AQ.Ab (Aqab) keys
+  const metadataResponse = await fetch(`${GEMINI_UPLOAD_ROOT}`, {
     method: 'POST',
     headers: {
       'X-Goog-Upload-Protocol': 'resumable',
@@ -103,16 +104,16 @@ async function uploadVideoToFileApi(apiKey: string, file: File): Promise<string>
       'X-Goog-Upload-Header-Content-Length': file.size.toString(),
       'X-Goog-Upload-Header-Content-Type': file.type || 'video/mp4',
       'Content-Type': 'application/json',
+      'x-goog-api-key': apiKey
     },
     body: JSON.stringify({ file: { display_name: file.name } }),
   });
 
-  if (!metadataResponse.ok) throw new Error('Failed to initiate Gemini upload.');
+  if (!metadataResponse.ok) throw new Error('Failed to initiate Gemini upload. Check your API key.');
 
   const uploadUrl = metadataResponse.headers.get('X-Goog-Upload-URL');
   const uploadResponse = await fetch(uploadUrl!, {
     method: 'POST',
-    headers: { 'X-Goog-Upload-Command': 'upload, finalize' },
     body: file,
   });
 
@@ -126,9 +127,12 @@ async function uploadVideoToFileApi(apiKey: string, file: File): Promise<string>
     if (state === 'FAILED') throw new Error('Gemini media processing failed.');
     if (attempts > 30) throw new Error('Gemini indexing timeout.');
     await new Promise((r) => setTimeout(r, 3000));
-    const poll = await fetch(`https://generativelanguage.googleapis.com/v1beta/${fileName}?key=${apiKey}`);
-    const data = await poll.json();
-    state = data.state;
+    
+    const poll = await fetch(`https://generativelanguage.googleapis.com/v1beta/${fileName}`, {
+      headers: { 'x-goog-api-key': apiKey }
+    });
+    const pollData = await poll.json();
+    state = pollData.state;
   }
   return uploadData.file.uri;
 }
@@ -148,9 +152,14 @@ async function generateStructuredContent({ apiKey, parts, responseSchema, signal
     try {
       if (signal?.aborted) throw new Error('Aborted');
 
+      // HYBRID AUTH: Use BOTH query param and Header for maximum compatibility 
+      // across all Google API routing versions (Standard AIza vs Auth AQ.Ab)
       const res = await fetch(`${GEMINI_API_ROOT}/${model}:generateContent?key=${apiKey}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey 
+        },
         signal,
         body: JSON.stringify({
           contents: [{ parts }],
@@ -159,20 +168,23 @@ async function generateStructuredContent({ apiKey, parts, responseSchema, signal
       });
 
       if (!res.ok) {
-        if (res.status === 403) throw new Error('API Key Permission Denied.');
-        continue;
+        const errBody = await res.text().catch(() => '');
+        if (res.status === 403) throw new Error('API Key Permission Denied. Check your key in AI Studio.');
+        continue; // Try next model
       }
 
       const data = await res.json();
       const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text) throw new Error('AI returned an empty response.');
       return JSON.parse(text);
-    } catch (err) {
+    } catch (err: any) {
       lastError = err;
       if (err.message === 'Aborted') throw err;
+      console.warn(`[Gemini] Model ${model} failure:`, err.message);
       continue;
     }
   }
-  throw lastError || new Error('Gemini Unavailable');
+  throw lastError || new Error('All Gemini models failed or were unavailable.');
 }
 
 const ANALYZE_VIDEO_SCHEMA = {
