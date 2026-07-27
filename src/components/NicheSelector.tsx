@@ -170,7 +170,13 @@ export default function NicheSelector({
           ))}
         </div>
       ) : (
-        <form onSubmit={handleCustomSubmit} className="space-y-4">
+        <form 
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleCustomSubmit(e);
+          }} 
+          className="space-y-4"
+        >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* File Upload zone */}
             <div
@@ -248,6 +254,16 @@ export default function NicheSelector({
               className="w-full text-xs rounded-lg bg-slate-950 border border-slate-800 text-slate-300 px-3 py-2 focus:outline-none focus:border-brand-cyan placeholder:text-slate-600"
             />
           </div>
+
+          {/* Main trigger button for custom file submission - MOVED INSIDE FORM */}
+          <button
+            type="submit"
+            disabled={isProcessing || (!selectedFileObj && !customFileName)}
+            className="w-full py-4 px-4 rounded-xl font-black text-sm uppercase tracking-widest transition-all duration-200 flex items-center justify-center gap-3 text-black bg-brand-cyan hover:bg-cyan-400 hover:shadow-cyan-950/20 shadow-lg disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer mt-2"
+          >
+            <Sparkles className="w-5 h-5 text-black animate-spin" style={{ animationDuration: '3s' }} />
+            Forge and Edit Custom Video
+          </button>
         </form>
       )}
 
