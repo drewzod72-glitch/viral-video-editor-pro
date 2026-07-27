@@ -1,12 +1,12 @@
 import { getStoredApiKey } from './apiKeyStore';
 import type { SubtitleItem, VideoNiche, CaptionStyle } from '../types';
 
-const MODEL_OPTIONS = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-flash-latest'];
+const MODEL_OPTIONS = ['gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-2.0-flash-exp'];
 const GEMINI_API_ROOT = 'https://generativelanguage.googleapis.com/v1beta/models';
 const GEMINI_UPLOAD_ROOT = 'https://generativelanguage.googleapis.com/upload/v1beta/files';
 
 const FILE_API_THRESHOLD_BYTES = 20 * 1024 * 1024; // 20MB
-const MAX_INLINE_VIDEO_BYTES = 25 * 1024 * 1024; // ~25MB cap for base64
+const MAX_INLINE_VIDEO_BYTES = 20 * 1024 * 1024; // 20MB cap for base64
 
 export class MissingApiKeyError extends Error {
   constructor() {
