@@ -68,10 +68,16 @@ export default function NicheSelector({
 
   const handleCustomSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedFileObj && !customFileName) return;
+    console.log('[NicheSelector] Submitting custom file:', customFileName);
+    
+    if (!selectedFileObj && !customFileName) {
+      alert("Please select a video file first.");
+      return;
+    }
     
     // Fallback file/name if user uploaded something
     const file = selectedFileObj || new File([], customFileName || 'custom-video.mp4');
+    
     onUploadCustomFile(
       file,
       customFileName || 'uploaded-footage.mp4',
@@ -336,20 +342,20 @@ export default function NicheSelector({
             </div>
           </div>
         )}
-      </div>
 
-      {/* Main trigger button for custom file submission */}
-      {activeTab === 'custom' && (
-        <button
-          onClick={handleCustomSubmit}
-          type="button"
-          disabled={isProcessing || (!selectedFileObj && !customFileName)}
-          className="w-full py-3 px-4 rounded-xl font-bold text-xs uppercase tracking-wider transition-all duration-200 flex items-center justify-center gap-2 text-black bg-brand-cyan hover:bg-cyan-400 hover:shadow-cyan-950/20 shadow-lg disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-        >
-          <Sparkles className="w-4 h-4 text-black animate-spin" style={{ animationDuration: '3s' }} />
-          Forge and Edit Custom Video {enableImitation ? 'with Clone Imitation' : ''}
-        </button>
-      )}
+        {/* Main trigger button for custom file submission - MOVED INSIDE FORM */}
+        {activeTab === 'custom' && (
+          <button
+            onClick={handleCustomSubmit}
+            type="submit"
+            disabled={isProcessing || (!selectedFileObj && !customFileName)}
+            className="w-full py-4 px-4 rounded-xl font-black text-sm uppercase tracking-widest transition-all duration-200 flex items-center justify-center gap-3 text-black bg-brand-cyan hover:bg-cyan-400 hover:shadow-cyan-950/20 shadow-lg disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer mt-4"
+          >
+            <Sparkles className="w-5 h-5 text-black animate-spin" style={{ animationDuration: '3s' }} />
+            Forge and Edit Custom Video
+          </button>
+        )}
+      </div>
 
       {/* User-friendly info note about presets */}
       {activeTab === 'presets' && enableImitation && (
@@ -357,7 +363,6 @@ export default function NicheSelector({
           💡 Copycat imitation is active! Click any preset above to forge beautiful vertical video matching your selected creator style!
         </div>
       )}
-
     </div>
   );
 }
