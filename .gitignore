@@ -6,3 +6,5 @@ uploads/
 *.zip
 *.txt
 .env
+.DS_Store
+final_recovery/
