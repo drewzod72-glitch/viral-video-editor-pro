@@ -1,24 +1,20 @@
-import { VideoProject } from '../types';
+import { VideoProject, SubtitleItem, getCaptionStyles } from '../types';
 
 /**
- * HARDWARE-ACCELERATED ENGINE (CANVAS-RECORDER)
+ * PREMIUM HARDWARE-ACCELERATED ENGINE
  * 
- * This engine bypasses FFmpeg.wasm entirely for the "Free" tier. 
- * Instead of software encoding (which crashes iPhones), it uses the 
- * phone's native GPU and MediaRecorder chip.
- * 
- * Performance: 10x faster, 0% Out-of-Memory crashes.
+ * Replicates the "Gemini Edit" look perfectly by using high-fidelity 
+ * canvas rendering synchronized with the phone's native video chip.
  */
 export async function renderVideoInBrowser(
   project: VideoProject,
   onProgress: (progress: number) => void,
   activeClipId: string | null = null
 ): Promise<Blob> {
-  console.log('[Hardware Engine] Initializing Native Forge...');
+  console.log('[Hardware Engine] Initializing Premium Forge...');
 
   return new Promise(async (resolve, reject) => {
     try {
-      // 1. Setup Video & Canvas
       const video = document.createElement('video');
       video.src = project.videoUrl;
       video.crossOrigin = 'anonymous';
@@ -27,7 +23,7 @@ export async function renderVideoInBrowser(
       
       await new Promise((r) => (video.onloadedmetadata = r));
 
-      const W = 720; // 720p is safe for hardware encoding
+      const W = 720; 
       const H = 1280;
       const canvas = document.createElement('canvas');
       canvas.width = W;
@@ -35,18 +31,16 @@ export async function renderVideoInBrowser(
       const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
       if (!ctx) throw new Error('Hardware context failed.');
 
-      // 2. Determine Clips
       const highlights = activeClipId === 'smart-cuts' 
         ? project.highlights.slice(0, 10) 
         : (activeClipId ? [project.highlights.find(h => h.id === activeClipId)!] : [{ start: 0, end: video.duration, duration: video.duration }]);
 
-      // 3. Setup Recording
       const stream = canvas.captureStream(30);
       
-      // Add Audio Track if possible (Simplified for now, will enhance in Pro)
+      // Standard MP4 recording
       const recorder = new MediaRecorder(stream, {
         mimeType: 'video/mp4;codecs=avc1',
-        videoBitsPerSecond: 5000000 
+        videoBitsPerSecond: 6000000 
       });
 
       const chunks: Blob[] = [];
@@ -61,39 +55,35 @@ export async function renderVideoInBrowser(
 
       for (const hl of highlights) {
         const segDur = hl.duration || (hl.end - hl.start);
-        const startTime = hl.start;
-        const endTime = hl.end;
         const fps = 30;
         const frameTime = 1 / fps;
 
         for (let t = 0; t < segDur; t += frameTime) {
-          // Seek video to precise frame
-          video.currentTime = startTime + t;
+          const videoTime = hl.start + t;
+          video.currentTime = videoTime;
           await new Promise(r => {
-            const onSeek = () => {
-              video.removeEventListener('seeked', onSeek);
-              r(null);
-            };
+            const onSeek = () => { video.removeEventListener('seeked', onSeek); r(null); };
             video.addEventListener('seeked', onSeek);
           });
 
-          // Draw Frame
-          ctx.drawImage(video, 0, 0, W, H);
-
-          // Apply AI Subtitles (Hardware Baked)
+          // 1. CALCULATE ZOOM (Perspective Punch)
+          let scale = 1.0;
           const globalT = elapsed + t;
+          const activeZoom = project.zoomEffects?.find(z => globalT >= z.timestamp && globalT <= z.timestamp + z.duration);
+          if (activeZoom) scale = activeZoom.scale;
+
+          const sW = video.videoWidth / scale;
+          const sH = video.videoHeight / scale;
+          const sX = (video.videoWidth - sW) / 2;
+          const sY = (video.videoHeight - sH) / 2;
+
+          // 2. DRAW FRAME
+          ctx.drawImage(video, sX, sY, sW, sH, 0, 0, W, H);
+
+          // 3. DRAW PREMIUM SUBTITLES
           const sub = project.subtitles?.find(s => globalT >= s.start && globalT <= s.end);
           if (sub) {
-            ctx.shadowColor = 'rgba(0,0,0,0.8)';
-            ctx.shadowBlur = 10;
-            ctx.fillStyle = '#FBFF00'; // Hormozi Yellow
-            ctx.strokeStyle = 'black';
-            ctx.lineWidth = 6;
-            ctx.font = 'black 48px sans-serif';
-            ctx.textAlign = 'center';
-            const txt = sub.text.toUpperCase();
-            ctx.strokeText(txt, W / 2, H - 250);
-            ctx.fillText(txt, W / 2, H - 250);
+            drawStyledSubtitles(ctx, sub, project, W, H);
           }
 
           onProgress(Math.round(((elapsed + t) / totalDuration) * 100));
@@ -105,5 +95,76 @@ export async function renderVideoInBrowser(
     } catch (err) {
       reject(err);
     }
+  });
+}
+
+function drawStyledSubtitles(ctx: CanvasRenderingContext2D, sub: SubtitleItem, project: VideoProject, W: number, H: number) {
+  const style = getCaptionStyles(project.captionStyle || 'hormozi', sub.text.length, W);
+  
+  // Font configuration
+  const fontName = project.captionStyle === 'minimalist' ? 'sans-serif' : 'Impact, sans-serif';
+  const weight = project.captionStyle === 'minimalist' ? '500' : '900';
+  ctx.font = `${weight} ${style.fontSize}px ${fontName}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  const text = style.textTransform === 'uppercase' ? sub.text.toUpperCase() : sub.text;
+  const words = text.split(' ');
+  
+  // Calculate text dimensions
+  const metrics = ctx.measureText(text);
+  const textWidth = metrics.width;
+  const textHeight = style.fontSize;
+  
+  // Position
+  let y = H * 0.75;
+  if (project.captionPosition === 'top') y = H * 0.15;
+  if (project.captionPosition === 'center') y = H * 0.5;
+
+  // Draw Background Box
+  if (style.hasBox) {
+    const paddingX = style.boxPaddingX || 20;
+    const paddingY = style.boxPaddingY || 10;
+    ctx.fillStyle = style.boxBg || 'rgba(0,0,0,0.8)';
+    ctx.beginPath();
+    const bx = (W - textWidth) / 2 - paddingX;
+    const by = y - textHeight / 2 - paddingY;
+    const bw = textWidth + paddingX * 2;
+    const bh = textHeight + paddingY * 2;
+    const r = style.boxRadius || 12;
+    
+    // Rounded rect
+    ctx.moveTo(bx + r, by);
+    ctx.lineTo(bx + bw - r, by);
+    ctx.quadraticCurveTo(bx + bw, by, bx + bw, by + r);
+    ctx.lineTo(bx + bw, by + bh - r);
+    ctx.quadraticCurveTo(bx + bw, by + bh, bx + bw - r, by + bh);
+    ctx.lineTo(bx + r, by + bh);
+    ctx.quadraticCurveTo(bx, by + bh, bx, by + bh - r);
+    ctx.lineTo(bx, by + r);
+    ctx.quadraticCurveTo(bx, by, bx + r, by);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // Draw Words with Highlighting
+  let currentX = (W - textWidth) / 2;
+  const highlightWords = (sub.highlightWords || []).map(w => w.toUpperCase());
+
+  words.forEach((word, i) => {
+    const cleanWord = word.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"").toUpperCase();
+    const isHighlighted = highlightWords.includes(cleanWord);
+    
+    ctx.fillStyle = isHighlighted ? style.highlightColor : style.textColor;
+    
+    // Stroke
+    if (style.strokeWidth > 0) {
+      ctx.strokeStyle = style.strokeColor;
+      ctx.lineWidth = style.strokeWidth * 2;
+      ctx.strokeText(word, currentX + ctx.measureText(word).width / 2, y);
+    }
+    
+    ctx.fillText(word, currentX + ctx.measureText(word).width / 2, y);
+    currentX += ctx.measureText(word + ' ').width;
   });
 }
