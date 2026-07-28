@@ -682,50 +682,61 @@ export default function VideoPlayerWorkspace({
       () => { setAnalyzeStep(3); playViralSFX('pop'); },
       () => { setAnalyzeStep(4); playViralSFX('bell'); },
       () => {
-        // --- VIRAL CONTENT ENGINEERING (V3) ---
-        // Protocol: Beat the Algorithm through pattern interrupts and tension building.
+        // --- UNSTOPPABLE VIRAL ENGINEERING (V4) ---
+        // Protocol: Maximize Dopamine & Force Algorithm Rewatches.
         
         const fullDuration = project.duration || 14;
         let enhancedSubtitles = [...(project.subtitles || [])];
         
-        // 1. DYNAMIC HOOK INJECTION
-        if (enhancedSubtitles.length > 0 && !enhancedSubtitles[0].text.includes('🚨')) {
-          enhancedSubtitles[0].text = `🚨 WAIT! ${enhancedSubtitles[0].text}`;
-          enhancedSubtitles[0].highlightWords = ['WAIT!'];
+        // 1. PSYCHOLOGICAL HOOK (The Investigator Archetype)
+        if (enhancedSubtitles.length > 0) {
+          const firstSub = enhancedSubtitles[0].text.replace(/^🚨 |^🤫 |^WAIT! |^STOP! /g, '');
+          enhancedSubtitles[0].text = `🤫 THE SECRET TO ${firstSub.toUpperCase()}`;
+          enhancedSubtitles[0].highlightWords = ['SECRET'];
+          enhancedSubtitles[0].emoji = '🔍';
         }
 
-        // 2. AGGRESSIVE PATTERN INTERRUPTS (JUMP CUTS)
-        // We cut every 1.5 to 2.5 seconds to maintain high Dopamine levels.
+        // 2. INFINITY LOOP CTA (The Bridge)
+        const loopCTA = {
+          id: `loop-${Date.now()}`,
+          text: "AND THAT IS WHY...",
+          start: fullDuration - 1.2,
+          end: fullDuration,
+          emoji: "🔁",
+          highlightWords: ["WHY"]
+        };
+        enhancedSubtitles.push(loopCTA);
+
+        // 3. THE HEARTBEAT PACING (1.8s Pattern Interrupts)
         const newHighlights = [];
         let cur = 0;
         let idx = 0;
         while (cur < fullDuration) {
-          const step = 1.5 + Math.random(); // Varied pacing
+          const step = 1.6 + (Math.random() * 0.4); 
           const end = Math.min(cur + step, fullDuration);
           newHighlights.push({
             id: `viral-cut-${idx}-${Date.now()}`,
-            title: idx === 0 ? '🔥 THE HOOK' : `Segment ${idx + 1}`,
+            title: idx === 0 ? '🚨 THE HOOK' : `Scene ${idx + 1}`,
             start: cur,
             end: end,
             duration: end - cur,
             viralityScore: 99,
-            description: "Algorithmic Pattern Interrupt",
-            whyEngaging: "Rapid frame shift to reset viewer attention span.",
-            speed: idx % 3 === 0 ? 1.12 : 1.0 // "Micro-pacing" speed ramps
+            description: "Dopamine-Pattern Interrupt",
+            whyEngaging: "Visual state reset to maintain high hold.",
+            speed: idx % 2 === 0 ? 1.15 : 1.0 // Alternating speed to 'push' the viewer
           });
           cur = end;
           idx++;
         }
 
-        // 3. PERSPECTIVE PUNCHES (OPTICAL ZOOM)
-        // Alternating zoom depth to simulate a multi-camera setup.
+        // 4. PERSPECTIVE PUNCHES (Tension Zooming)
         const newZoomEffects = newHighlights.map((hl, i) => ({
           timestamp: hl.start,
-          scale: i % 2 === 0 ? 1.25 : 1.0,
+          scale: i % 2 === 0 ? 1.28 : 1.0, // Aggressive punch-ins
           duration: hl.duration
         }));
 
-        // 4. PRESTIGE STYLING
+        // 5. EMOTIONAL COLOR GRADING
         setIsAnalyzing(false);
         setJumpCuts(true);
         setSpeedRamp(true);
@@ -735,24 +746,19 @@ export default function VideoPlayerWorkspace({
         setEnableColorGrade(true);
         setEnableSubtitles(true);
 
-        // Algorithm-optimized color grading
-        let optimalGrade: 'cinematic' | 'vibrant_pop' | 'moody_cyber' = 'cinematic';
-        if (project.niche === 'cooking' || project.niche === 'unboxing') optimalGrade = 'vibrant_pop';
-        if (project.niche === 'tech') optimalGrade = 'moody_cyber';
-
         onUpdateProject({
           ...project,
           subtitles: enhancedSubtitles,
-          colorGrade: optimalGrade,
-          viralityScore: 99,
-          captionStyle: 'hormozi', // Best performing for retention
+          colorGrade: project.niche === 'tech' ? 'moody_cyber' : 'vibrant_pop',
+          viralityScore: 100,
+          captionStyle: 'mrbeast', // Neon contrast for high-impact
           highlights: newHighlights,
           zoomEffects: newZoomEffects,
           transitionStyle: 'flash',
           viralityFeedback: [
-            "🚀 ALGORITHM BEATEN: Pattern interrupts set to 1.8s avg.",
-            "📈 RETENTION MAXIMIZED: 1.12x Micro-pacing enabled.",
-            "💥 ATTENTION LOCKED: Perspective punches synchronized."
+            "🏆 UNSTOPPABLE: Infinity loop bridge created.",
+            "🔥 HOOKED: Investigator archetype injected (0.5s).",
+            "📈 ALGORITHM BEATEN: 1.8s Heartbeat rhythm applied."
           ]
         });
         

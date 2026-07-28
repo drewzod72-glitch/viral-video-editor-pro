@@ -266,22 +266,37 @@ export async function runAnalyzeVideo(params: any): Promise<any> {
   const apiKey = requireApiKey(params.apiKey);
   const userInstructions = params.userDescription ? `USER SPECIFIC GOALS: ${params.userDescription}` : '';
   
-  let prompt = `You are a Viral Content Engineer & Senior Social Media Editor for top 1% creators.
-Analyze this video for the "${params.niche}" niche. ${userInstructions}
+  let prompt = `You are a World-Class Viral Content Architect & Psychology-Driven Social Media Director.
+Your task is to re-engineer this video into an UNSTOPPABLE social media asset for the "${params.niche}" niche.
 
-Your goal is to engineer this video to BEAT THE ALGORITHM by maximizing Watch Time and Retention.
+### 🧠 RETENTION PSYCHOLOGY PROTOCOLS:
 
-### EDITING PROTOCOL:
-1. **The Hook (0-3s)**: Identify the most striking visual or statement. Start with a 1.2x Zoom and a bold, curiosity-driven caption.
-2. **Pattern Interrupts**: Every 2-3 seconds, change the visual state. Toggle between 1.0x (Wide) and 1.25x (Punch-in) zooms.
-3. **Pacing**: Use 1.10x speed for "set-up" talk, and 1.0x for "punch-lines" or climax moments.
-4. **Captions**:
-   - Max 3 words per line.
-   - Use high-contrast colors (Yellow/Green).
-   - Use Emojis to visualize keywords (e.g., "Money 💰", "Fast ⚡").
-5. **Highlights**: Extract ONLY the high-retention segments. Discard silence, "ums", and slow movements.
+1. **THE 0.5s DECISION (THE HOOK)**:
+   - Rewrite the first subtitle into one of these high-performing archetypes:
+     * *The Investigator*: "I found the hidden secret to..."
+     * *The Identity Call*: "If you are a [Niche], read this."
+     * *The Pattern Interrupt*: "Everything you know about [Niche] is WRONG."
+   - Start with a 🚨 or 🤫 emoji.
 
-Return a JSON blueprint matching the schema.`;
+2. **THE 1.8s HEARTBEAT (PACING)**:
+   - Create jump-cuts (highlights) every 1.5 - 2.2 seconds.
+   - Never let a visual stay stagnant.
+   - Alternate zooms: 1.0x -> 1.25x -> 1.1x -> 1.3x.
+
+3. **THE INFINITY LOOP (RETENTION)**:
+   - Identify the very last word/sentence.
+   - Craft the Ending CTA to "bridge" perfectly back to the start.
+   - Goal: Force the algorithm to count 2-3 views per user.
+
+4. **EMOTIONAL MOOD ENGINE**:
+   - Detect the "Vibe". 
+   - Choose "CaptionStyle": 'hormozi' for high-energy, 'minimalist' for luxury, 'comic' for pets/skits.
+   - Choose "ColorGrade": 'vibrant_pop' for food/products, 'moody_cyber' for tech, 'cinematic' for fitness.
+
+5. **SMART COMMENT TRIGGERS**:
+   - Instead of "Follow me", create a polarizing question: "Who else does this? 🙋‍♂️" or "A or B? 👇"
+
+Return a JSON blueprint that implements these protocols exactly.`;
   
   if (!params.videoFile && params.defaultTranscribe) {
     prompt += `\n\nVIDEO TRANSCRIPT FOR CONTEXT: ${params.defaultTranscribe}`;
