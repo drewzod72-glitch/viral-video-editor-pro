@@ -97,42 +97,38 @@ export async function renderVideoInBrowser(
     videoFilters.push('scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black');
   }
 
-  // A. Dynamic Zooms (Consolidated into one filter for stability)
+  // A. Simplified Dynamic Zooms (Limit to 10 for stability)
   if (project.zoomEffects && project.zoomEffects.length > 0) {
     let wExpr = 'iw';
     let hExpr = 'ih';
-    
-    // Sort zooms by timestamp to ensure correct nesting
-    const sortedZooms = [...project.zoomEffects].sort((a, b) => a.timestamp - b.timestamp);
+    const sortedZooms = [...project.zoomEffects].sort((a, b) => a.timestamp - b.timestamp).slice(0, 10);
     
     sortedZooms.forEach((z) => {
       const adjStart = timeAdjustment(z.timestamp);
       if (adjStart === null) return;
       const adjEnd = adjStart + z.duration;
-      
-      // Nest the if statements: if(in_range, crop, previous_expr)
       wExpr = `if(between(t,${adjStart.toFixed(2)},${adjEnd.toFixed(2)}),iw/${z.scale},${wExpr})`;
       hExpr = `if(between(t,${adjStart.toFixed(2)},${adjEnd.toFixed(2)}),ih/${z.scale},${hExpr})`;
     });
     
-    videoFilters.push(`crop=w='${wExpr}':h='${hExpr}'`);
-    videoFilters.push(`scale=1080:1920`); // Re-scale to target dimensions after crop
+    videoFilters.push(`crop=w='${wExpr}':h='${hExpr}',scale=1080:1920`);
   }
 
-  // B. Subtitles
+  // B. Subtitles (Limit to 25 for maximum stability in browser)
   if (project.subtitles && project.subtitles.length > 0) {
-    // Limit to 45 subtitles to avoid command line length issues in browser
-    project.subtitles.slice(0, 45).forEach((sub) => {
-      const sanitizedText = sub.text.toUpperCase()
-        .replace(/[',:;%\[\]]/g, " ")
+    project.subtitles.slice(0, 25).forEach((sub) => {
+      // Very strict sanitization: only alphanumeric and space
+      const safeText = sub.text.toUpperCase()
+        .replace(/[^A-Z0-9 ]/g, "") 
         .trim();
-      if (!sanitizedText) return;
+      
+      if (!safeText) return;
 
       const adjStart = timeAdjustment(sub.start);
       const adjEnd = timeAdjustment(sub.end);
       if (adjStart === null || adjEnd === null) return;
 
-      videoFilters.push(`drawtext=fontfile=font.ttf:text='${sanitizedText}':fontcolor=white:fontsize=70:borderw=4:bordercolor=black:x=(w-text_w)/2:y=h-480:enable='between(t,${adjStart.toFixed(2)},${adjEnd.toFixed(2)})'`);
+      videoFilters.push(`drawtext=fontfile=font.ttf:text='${safeText}':fontcolor=white:fontsize=70:borderw=4:bordercolor=black:x=(w-text_w)/2:y=h-480:enable='between(t,${adjStart.toFixed(2)},${adjEnd.toFixed(2)})'`);
     });
   }
 
@@ -154,9 +150,10 @@ export async function renderVideoInBrowser(
   execArgs.push(
     '-c:v', 'libx264',
     '-preset', 'ultrafast',
-    '-crf', '28',
+    '-crf', '30', // Higher compression for memory
+    '-pix_fmt', 'yuv420p', // Standard mobile pixel format
     '-c:a', 'aac',
-    '-b:a', '128k',
+    '-b:a', '96k',
     '-ar', '44100',
     '-movflags', '+faststart',
     'output.mp4'
