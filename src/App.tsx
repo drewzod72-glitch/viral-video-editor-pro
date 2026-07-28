@@ -96,27 +96,22 @@ export default function App() {
   const triggerVideoExport = async () => {
     if (!activeProject) return;
     setIsProcessing(true);
-    setProcessingStage("Warming Engine (FFmpeg)...");
+    setProcessingStage("Initializing Native Forge...");
     try {
-      // DYNAMIC IMPORT: This keeps the 30MB FFmpeg engine out of the main bundle.
-      // It only downloads when the user actually clicks "Bake".
       const { renderVideoInBrowser } = await import('./utils/ffmpegClient');
       
       const editedBlob = await renderVideoInBrowser(activeProject, (prg) => {
         setProcessingProgress(prg);
-        setProcessingStage(`Baking video: ${prg}%`);
+        setProcessingStage(`Baking: ${prg}%`);
       }, activeClipId);
       
-      if (!editedBlob || editedBlob.size < 100) {
-        throw new Error('Engine produced an empty file. Try a shorter clip.');
-      }
+      if (!editedBlob) throw new Error('Bake failed.');
 
       const url = URL.createObjectURL(editedBlob);
       setDownloadReadyInfo({ url, filename: `${activeProject.name.replace(/\s+/g, '_')}_edit.mp4` });
     } catch (err: any) {
       console.error('[Export Error]', err);
-      const msg = err?.message || (typeof err === 'string' ? err : 'Unknown hardware error. Try refreshing the page.');
-      alert('Export failed: ' + msg);
+      alert('Bake failed. Please try a shorter segment or close background apps.');
     } finally {
       setIsProcessing(false);
     }
