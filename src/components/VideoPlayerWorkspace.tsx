@@ -704,8 +704,8 @@ export default function VideoPlayerWorkspace({
         }
 
         // 2. GENERATE AGGRESSIVE JUMP CUTS
-        // We ensure every subtitle segment is its own high-speed highlight.
-        const newHighlights = enhancedSubtitles.map((sub, i) => ({
+        // We limit to the first 10 segments for engine stability on mobile devices.
+        const newHighlights = enhancedSubtitles.slice(0, 10).map((sub, i) => ({
           id: `ai-cut-${i}-${Date.now()}`,
           title: i === 0 ? '🔥 Viral Hook' : `Scene ${i + 1}`,
           start: sub.start,
@@ -714,12 +714,12 @@ export default function VideoPlayerWorkspace({
           viralityScore: 98,
           description: "AI-Generated Jump Cut",
           whyEngaging: "Pattern-interrupt sequence with 1.10x pacing.",
-          speed: 1.10 // The "Viral Pacing" secret
+          speed: 1.10
         }));
 
         // 3. GENERATE DYNAMIC PERSPECTIVE PUNCHES
         // Alternates between 1.0x (wide) and 1.25x (zoom) on every beat.
-        const newZoomEffects = enhancedSubtitles.map((sub, i) => ({
+        const newZoomEffects = enhancedSubtitles.slice(0, 10).map((sub, i) => ({
           timestamp: sub.start,
           scale: i % 2 === 0 ? 1.25 : 1.0,
           duration: sub.end - sub.start

@@ -56,10 +56,26 @@ export async function renderVideoInBrowser(
 
   if (selectedClip) {
     // Single Clip Mode: Timestamps start from 0 at clip.start
-    inputArgs = ['-ss', selectedClip.start.toString(), '-t', selectedClip.duration.toString(), '-i', inputName];
+    const speed = selectedClip.speed || 1.0;
+    const ptsExpr = speed === 1.0 ? 'PTS-STARTPTS' : `(PTS-STARTPTS)/${speed}`;
+    
+    // We apply speed via setpts and atempo
+    let vFilter = `trim=start=${selectedClip.start}:end=${selectedClip.end},setpts=${ptsExpr}`;
+    let aFilter = `atrim=start=${selectedClip.start}:end=${selectedClip.end},asetpts=${ptsExpr}`;
+    if (speed !== 1.0) {
+      // atempo supports 0.5 to 2.0
+      aFilter += `,atempo=${speed}`;
+    }
+    
+    useFilterComplex = true;
+    filterComplex = `[0:v]${vFilter},scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black[v_clip]; `;
+    filterComplex += `[0:a]${aFilter}[a_clip]`;
+    outputStream = '[v_clip]';
+    audioStream = '[a_clip]';
+
     timeAdjustment = (t) => {
-      const adj = t - selectedClip.start;
-      return (adj >= 0 && adj <= selectedClip.duration) ? adj : null;
+      const adj = (t - selectedClip.start) / speed;
+      return (adj >= 0 && adj <= (selectedClip.duration / speed)) ? adj : null;
     };
   } else if (activeClipId === 'smart-cuts' && project.highlights.length > 0) {
     // Smart Cuts Mode: Build mapping
@@ -67,25 +83,38 @@ export async function renderVideoInBrowser(
     let vStreams = '';
     let aStreams = '';
     let currentConcatTime = 0;
-    const mapping: { start: number, end: number, offset: number }[] = [];
+    const mapping: { start: number, end: number, offset: number, speed: number }[] = [];
 
-    project.highlights.forEach((h, i) => {
-      filterComplex += `[0:v]trim=start=${h.start}:end=${h.end},setpts=PTS-STARTPTS,scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black[v${i}]; `;
-      filterComplex += `[0:a]atrim=start=${h.start}:end=${h.end},asetpts=PTS-STARTPTS[a${i}]; `;
+    // Limit to 12 segments for mobile stability
+    const highlightsToProcess = project.highlights.slice(0, 12);
+
+    highlightsToProcess.forEach((h, i) => {
+      const speed = h.speed || 1.0;
+      const ptsExpr = speed === 1.0 ? 'PTS-STARTPTS' : `(PTS-STARTPTS)/${speed}`;
+      
+      let vF = `trim=start=${h.start}:end=${h.end},setpts=${ptsExpr},scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black`;
+      let aF = `atrim=start=${h.start}:end=${h.end},asetpts=${ptsExpr}`;
+      if (speed !== 1.0) aF += `,atempo=${speed}`;
+      
+      filterComplex += `[0:v]${vF}[v${i}]; `;
+      filterComplex += `[0:a]${aF}[a${i}]; `;
       vStreams += `[v${i}]`;
       aStreams += `[a${i}]`;
       
-      mapping.push({ start: h.start, end: h.end, offset: currentConcatTime - h.start });
-      currentConcatTime += (h.end - h.start);
+      const durationAtSpeed = (h.end - h.start) / speed;
+      mapping.push({ start: h.start, end: h.end, offset: currentConcatTime - h.start, speed });
+      currentConcatTime += durationAtSpeed;
     });
 
-    filterComplex += `${vStreams}${aStreams}concat=n=${project.highlights.length}:v=1:a=1[v_comp][a_comp]`;
+    filterComplex += `${vStreams}${aStreams}concat=n=${highlightsToProcess.length}:v=1:a=1[v_comp][a_comp]`;
     outputStream = '[v_comp]';
     audioStream = '[a_comp]';
 
     timeAdjustment = (t) => {
       const m = mapping.find(entry => t >= entry.start && t <= entry.end);
-      return m ? t + m.offset : null;
+      if (!m) return null;
+      // Adjusted time = (Time in original clip) / speed + cumulative offset
+      return (t - m.start) / m.speed + (m.offset + m.start);
     };
   }
 
