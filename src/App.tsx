@@ -9,7 +9,9 @@ import { AICopilotConsole } from './components/AICopilotConsole';
 import { Sparkles, Download, Video as VideoIcon, CheckCircle, KeyRound, MessageSquare, Flame } from 'lucide-react';
 import ApiKeySettingsModal from './components/ApiKeySettingsModal';
 import { runAnalyzeVideo } from './utils/geminiClient';
-import { renderVideoInBrowser } from './utils/ffmpegClient';
+
+// NOTE: renderVideoInBrowser is imported DYNAMICALLY inside triggerVideoExport
+// to prevent the 30MB FFmpeg engine from crashing the browser on boot.
 
 const fixDunikTypo = (str: string): string => {
   if (typeof str !== 'string' || !str) return str;
@@ -84,9 +86,14 @@ export default function App() {
   const triggerVideoExport = async () => {
     if (!activeProject) return;
     setIsProcessing(true);
-    setProcessingStage("Initializing Video Engine...");
+    setProcessingStage("Warming Engine (FFmpeg)...");
     try {
+      // DYNAMIC IMPORT: This keeps the 30MB FFmpeg engine out of the main bundle.
+      // It only downloads when the user actually clicks "Bake".
+      const { renderVideoInBrowser } = await import('./utils/ffmpegClient');
+      
       const editedBlob = await renderVideoInBrowser(activeProject, (prg) => {
+        setProcessingProgress(prg);
         setProcessingStage(`Baking video: ${prg}%`);
       });
       
