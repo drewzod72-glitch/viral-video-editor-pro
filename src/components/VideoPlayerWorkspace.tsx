@@ -339,6 +339,11 @@ export default function VideoPlayerWorkspace({
     const video = videoRef.current;
     const audio = musicAudioRef.current;
 
+    // Browser Security: Resume AudioContext on first interaction
+    const audioCtx = (window as any)._editorAudioCtx || new (window.AudioContext || (window as any).webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    (window as any)._editorAudioCtx = audioCtx;
+
     if (video.paused) {
       // Ensure we are within the selected clip bounds before playing
       if (video.currentTime < startLimit - 0.1 || video.currentTime >= endLimit - 0.1) {
@@ -708,6 +713,24 @@ export default function VideoPlayerWorkspace({
           enhancedSubtitles[0].emoji = '🔍';
         }
 
+        // 1.5. SLOW DOWN CAPTIONS (Merge short ones for readability)
+        const mergedSubtitles: any[] = [];
+        for (let i = 0; i < enhancedSubtitles.length; i++) {
+          const sub = enhancedSubtitles[i];
+          if (mergedSubtitles.length > 0) {
+            const last = mergedSubtitles[mergedSubtitles.length - 1];
+            // If the last subtitle was very short (less than 1.5s), merge it with the current one
+            if ((last.end - last.start) < 1.5 && (sub.end - last.start) < 4.0) {
+              last.text += ' ' + sub.text;
+              last.end = sub.end;
+              if (sub.emoji) last.emoji = sub.emoji;
+              continue;
+            }
+          }
+          mergedSubtitles.push({...sub});
+        }
+        enhancedSubtitles = mergedSubtitles;
+
         // 2. INFINITY LOOP CTA (The Bridge)
         const loopCTA = {
           id: `loop-${Date.now()}`,
@@ -719,12 +742,12 @@ export default function VideoPlayerWorkspace({
         };
         enhancedSubtitles.push(loopCTA);
 
-        // 3. THE HEARTBEAT PACING (1.8s Pattern Interrupts)
+        // 3. THE HEARTBEAT PACING (Slower for Readability)
         const newHighlights = [];
         let cur = 0;
         let idx = 0;
         while (cur < fullDuration) {
-          const step = 1.6 + (Math.random() * 0.4); 
+          const step = 2.2 + (Math.random() * 0.5); 
           const end = Math.min(cur + step, fullDuration);
           newHighlights.push({
             id: `viral-cut-${idx}-${Date.now()}`,
@@ -735,7 +758,7 @@ export default function VideoPlayerWorkspace({
             viralityScore: 99,
             description: "Dopamine-Pattern Interrupt",
             whyEngaging: "Visual state reset to maintain high hold.",
-            speed: idx % 2 === 0 ? 1.15 : 1.0 // Alternating speed to 'push' the viewer
+            speed: idx % 2 === 0 ? 1.08 : 1.0 
           });
           cur = end;
           idx++;
@@ -748,7 +771,7 @@ export default function VideoPlayerWorkspace({
           duration: hl.duration
         }));
 
-        // 5. EMOTIONAL COLOR GRADING
+        // 5. EMOTIONAL COLOR GRADING & MUSIC SYNC
         setIsAnalyzing(false);
         setJumpCuts(true);
         setSpeedRamp(true);
@@ -758,19 +781,29 @@ export default function VideoPlayerWorkspace({
         setEnableColorGrade(true);
         setEnableSubtitles(true);
 
+        // Auto-select music based on niche if not already set
+        let autoMusicId = project.selectedMusicTrackId;
+        if (autoMusicId === 'none' || !autoMusicId) {
+          if (project.niche === 'fitness') autoMusicId = 'gym-hustle-1';
+          else if (project.niche === 'tech') autoMusicId = 'lux-1';
+          else if (project.niche === 'cooking') autoMusicId = 'cooking-zen-1';
+          else autoMusicId = 'lofi-1';
+        }
+
         onUpdateProject({
           ...project,
           subtitles: enhancedSubtitles,
           colorGrade: project.niche === 'tech' ? 'moody_cyber' : 'vibrant_pop',
           viralityScore: 100,
-          captionStyle: 'mrbeast', // Neon contrast for high-impact
+          captionStyle: 'hormozi', // Best performing for retention (Pink accents)
+          selectedMusicTrackId: autoMusicId,
           highlights: newHighlights,
           zoomEffects: newZoomEffects,
           transitionStyle: 'flash',
           viralityFeedback: [
-            "🏆 UNSTOPPABLE: Infinity loop bridge created.",
+            "🏆 UNSTOPPABLE: Captions slowed down for readability.",
             "🔥 HOOKED: Investigator archetype injected (0.5s).",
-            "📈 ALGORITHM BEATEN: 1.8s Heartbeat rhythm applied."
+            "📈 ALGORITHM BEATEN: 2.2s Heartbeat rhythm applied."
           ]
         });
         

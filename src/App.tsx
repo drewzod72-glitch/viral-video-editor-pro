@@ -51,12 +51,17 @@ export default function App() {
     try {
       const result = await runAnalyzeVideo({ ...template });
       clearTimeout(watchdog);
+      
+      const p = result.project;
       const newProject: VideoProject = { 
-        ...result.project, 
+        ...p, 
         id: `proj-${Date.now()}`, 
         videoUrl: template.videoUrl, 
         name: fixDunikTypo(template.name),
         niche: template.niche,
+        selectedMusicTrackId: p.selectedMusicTrackId || 'lofi-1',
+        captionStyle: p.captionStyle || 'hormozi',
+        colorGrade: p.colorGrade || 'vibrant_pop',
         createdAt: new Date().toISOString()
       };
       setActiveProject(newProject);

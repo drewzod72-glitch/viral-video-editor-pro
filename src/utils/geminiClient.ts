@@ -250,6 +250,10 @@ const ANALYZE_VIDEO_SCHEMA = {
       properties: { hook: { type: 'INTEGER' }, pacing: { type: 'INTEGER' }, emotion: { type: 'INTEGER' }, visualContrast: { type: 'INTEGER' } }
     },
     viralityFeedback: { type: 'ARRAY', items: { type: 'STRING' } },
+    captionStyle: { type: 'STRING' },
+    selectedMusicTrackId: { type: 'STRING' },
+    colorGrade: { type: 'STRING' },
+    transitionStyle: { type: 'STRING' },
     highlights: {
       type: 'ARRAY',
       items: {
@@ -259,7 +263,7 @@ const ANALYZE_VIDEO_SCHEMA = {
       }
     }
   },
-  required: ['title', 'description', 'subtitles', 'highlights'],
+  required: ['title', 'description', 'subtitles', 'highlights', 'selectedMusicTrackId', 'captionStyle'],
 };
 
 export async function runAnalyzeVideo(params: any): Promise<any> {
@@ -271,10 +275,10 @@ Your task is to re-engineer this video to DOMINATE the algorithm for the "${para
 
 ### PSYCHOLOGICAL RETAINMENT PROTOCOLS:
 1. **0.5s Hook**: Rewrite the first sentence to be a "Pattern Interrupt" (Identity call or curiosity gap).
-2. **1.8s Beat**: Create cuts and zooms every 1.8 seconds. Stagnancy = Death.
-3. **Word-for-Word Pacing**: Use micro-pacing (1.12x speed) during setup talk.
+2. **2.2s Beat**: Create cuts and zooms every 2.2 seconds. Stagnancy = Death. 
+3. **Pacing**: Use micro-pacing (1.05x speed) during setup talk. Do NOT rush.
 4. **Infinity Loop**: Craft the final CTA to flow perfectly back to the first second.
-5. **Captions**: Max 3 words. Use "Hormozi" bold styling. Visualize EVERY noun with an emoji.
+5. **Captions**: 4-6 words per line for readability. High-contrast "Hormozi" styling. Emojis for keywords.
 6. **Sonic Matching**: Select the best "selectedMusicTrackId" from our library based on the vibe:
    - 'lofi-[1-7]': Calm, morning, aesthetic, study.
    - 'hype-[1-7]': High-energy, streetwear, sports, extreme.

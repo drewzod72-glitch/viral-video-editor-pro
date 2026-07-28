@@ -44,9 +44,16 @@ export async function renderVideoInBrowser(
 
       // 1. SETUP HIGH-FIDELITY AUDIO MIXING
       const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      if (audioCtx.state === 'suspended') await audioCtx.resume();
+      
       const dest = audioCtx.createMediaStreamDestination();
       const videoSource = audioCtx.createMediaElementSource(video);
-      videoSource.connect(dest);
+      
+      // Connect original video audio with Gain
+      const vGain = audioCtx.createGain();
+      vGain.gain.value = 1.0; 
+      videoSource.connect(vGain);
+      vGain.connect(dest);
 
       let musicEl: HTMLAudioElement | null = null;
       if (project.selectedMusicTrackId && project.selectedMusicTrackId !== 'none') {
@@ -56,8 +63,8 @@ export async function renderVideoInBrowser(
           musicEl.src = track.url;
           musicEl.crossOrigin = 'anonymous';
           musicEl.volume = 0.35;
-          const musicSource = audioCtx.createMediaElementSource(musicEl);
-          musicSource.connect(dest);
+          const mSource = audioCtx.createMediaElementSource(musicEl);
+          mSource.connect(dest);
         }
       }
 
