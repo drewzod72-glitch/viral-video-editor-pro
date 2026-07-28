@@ -40,17 +40,24 @@ export async function renderVideoInBrowser(
       
       // Audio Capture Setup
       const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      
+      // CRITICAL: video.captureStream() or createMediaElementSource(video) 
+      // sometimes fails if the video is not playing. We ensure it's "live" during capture.
       const videoSource = audioCtx.createMediaElementSource(video);
       const dest = audioCtx.createMediaStreamDestination();
       
       // Connect original video audio
       videoSource.connect(dest);
+      videoSource.connect(audioCtx.destination); // Also play through speakers so user knows it's working
       
       // Setup Background Music if active
       let musicEl: HTMLAudioElement | null = null;
       if (project.selectedMusicTrackId && project.selectedMusicTrackId !== 'none') {
-        const musicTrackUrl = `https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3`; // Fallback or mapping needed
-        // Note: Real music mapping should come from data.ts or props
+        // Find the actual URL from the project or a mapping
+        const musicTrackUrl = project.selectedMusicTrackId.includes('http') 
+          ? project.selectedMusicTrackId 
+          : `https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3`; 
+
         musicEl = new Audio();
         musicEl.src = musicTrackUrl;
         musicEl.crossOrigin = 'anonymous';
@@ -85,6 +92,9 @@ export async function renderVideoInBrowser(
         const segDur = hl.duration || (hl.end - hl.start);
         const fps = 30;
         const frameTime = 1 / fps;
+
+        // Force playback during this segment for real-time audio capture
+        video.play().catch(() => {});
 
         for (let t = 0; t < segDur; t += frameTime) {
           const videoTime = hl.start + t;
