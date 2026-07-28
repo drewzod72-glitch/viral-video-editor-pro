@@ -36,12 +36,26 @@ export async function renderVideoInBrowser(
   
   await ff.writeFile(inputName, videoData);
 
-  // 2. Load Professional Font
-  const fontUrl = 'https://raw.githubusercontent.com/google/fonts/main/ofl/spacegrotesk/static/SpaceGrotesk-Bold.ttf';
-  const fontData = await fetchFile(fontUrl);
-  await ff.writeFile('font.ttf', fontData);
+  // 2. Load Font with Error Handling
+  try {
+    const fontUrl = 'https://raw.githubusercontent.com/google/fonts/main/ofl/spacegrotesk/static/SpaceGrotesk-Bold.ttf';
+    const fontData = await fetchFile(fontUrl);
+    if (!fontData || fontData.length < 1000) {
+      throw new Error('Font download failed');
+    }
+    await ff.writeFile('font.ttf', fontData);
+  } catch (fontErr) {
+    console.warn('[Browser Engine] External font failed, using fallback path...');
+    // In many environments, the font might already be in the public folder
+    try {
+      const fallbackFont = await fetchFile('/fonts/SpaceGrotesk-Bold.ttf');
+      await ff.writeFile('font.ttf', fallbackFont);
+    } catch (e) {
+      console.error('[Browser Engine] No font available. Subtitles will be disabled.');
+    }
+  }
 
-  // 3. Handle Clipping / Smart Cuts
+  // ... Clipping logic ...
   let inputArgs: string[] = ['-i', inputName];
   let filterComplex = '';
   let outputStream = '[v]';
@@ -118,47 +132,32 @@ export async function renderVideoInBrowser(
     };
   }
 
-  // 4. Construct Video Filters (Zooms + Subtitles)
+  // 4. Construct Video Filters (Subtitles Only - Zooms disabled for stability)
   let videoFilters: string[] = [];
   
-  // If not using filter_complex (single clip), we need to scale/pad first
   if (!useFilterComplex) {
     videoFilters.push('scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black');
   }
 
-  // A. Simplified Dynamic Zooms (Limit to 10 for stability)
-  if (project.zoomEffects && project.zoomEffects.length > 0) {
-    let wExpr = 'iw';
-    let hExpr = 'ih';
-    const sortedZooms = [...project.zoomEffects].sort((a, b) => a.timestamp - b.timestamp).slice(0, 10);
-    
-    sortedZooms.forEach((z) => {
-      const adjStart = timeAdjustment(z.timestamp);
-      if (adjStart === null) return;
-      const adjEnd = adjStart + z.duration;
-      wExpr = `if(between(t,${adjStart.toFixed(2)},${adjEnd.toFixed(2)}),iw/${z.scale},${wExpr})`;
-      hExpr = `if(between(t,${adjStart.toFixed(2)},${adjEnd.toFixed(2)}),ih/${z.scale},${hExpr})`;
-    });
-    
-    videoFilters.push(`crop=w='${wExpr}':h='${hExpr}',scale=1080:1920`);
-  }
-
-  // B. Subtitles (Limit to 25 for maximum stability in browser)
+  // B. Subtitles (Limit to 15 for maximum stability in browser)
   if (project.subtitles && project.subtitles.length > 0) {
-    project.subtitles.slice(0, 25).forEach((sub) => {
-      // Very strict sanitization: only alphanumeric and space
-      const safeText = sub.text.toUpperCase()
-        .replace(/[^A-Z0-9 ]/g, "") 
-        .trim();
-      
-      if (!safeText) return;
+    const hasFont = await ff.readFile('font.ttf').then(() => true).catch(() => false);
+    
+    if (hasFont) {
+      project.subtitles.slice(0, 15).forEach((sub) => {
+        const safeText = sub.text.toUpperCase()
+          .replace(/[^A-Z0-9 ]/g, "") 
+          .trim();
+        
+        if (!safeText) return;
 
-      const adjStart = timeAdjustment(sub.start);
-      const adjEnd = timeAdjustment(sub.end);
-      if (adjStart === null || adjEnd === null) return;
+        const adjStart = timeAdjustment(sub.start);
+        const adjEnd = timeAdjustment(sub.end);
+        if (adjStart === null || adjEnd === null) return;
 
-      videoFilters.push(`drawtext=fontfile=font.ttf:text='${safeText}':fontcolor=white:fontsize=70:borderw=4:bordercolor=black:x=(w-text_w)/2:y=h-480:enable='between(t,${adjStart.toFixed(2)},${adjEnd.toFixed(2)})'`);
-    });
+        videoFilters.push(`drawtext=fontfile=font.ttf:text='${safeText}':fontcolor=white:fontsize=75:borderw=5:bordercolor=black:x=(w-text_w)/2:y=h-480:enable='between(t,${adjStart.toFixed(2)},${adjEnd.toFixed(2)})'`);
+      });
+    }
   }
 
   // Final command construction
