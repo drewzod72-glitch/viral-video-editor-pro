@@ -339,7 +339,7 @@ export default function VideoPlayerWorkspace({
     const video = videoRef.current;
     const audio = musicAudioRef.current;
 
-    // Browser Security: Resume AudioContext on first interaction
+    // 1. Audio Context Resume (Vital for iOS)
     try {
       const audioCtx = (window as any)._editorAudioCtx || new (window.AudioContext || (window as any).webkitAudioContext)();
       if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -347,25 +347,28 @@ export default function VideoPlayerWorkspace({
     } catch (e) {}
 
     if (video.paused) {
-      // Ensure we are within the selected clip bounds before playing
+      // 2. Play Video
       if (video.currentTime < startLimit - 0.1 || video.currentTime >= endLimit - 0.1) {
         video.currentTime = startLimit;
       }
       video.play().catch(() => {});
       
-      // SYNC MUSIC PLAYBACK DIRECTLY IN CLICK HANDLER
+      // 3. FORCE MUSIC PLAYBACK (In same gesture)
       if (audio && activeMusicTrack) {
+        console.log(`[Studio] Manually starting music: ${activeMusicTrack.name}`);
         audio.currentTime = Math.max(0, video.currentTime - startLimit);
-        audio.play().catch((err) => {
-          console.warn("Background music play prevented:", err);
+        // Explicitly set source and load to ensure it's fresh
+        if (!audio.src) audio.src = activeMusicTrack.url;
+        audio.play().then(() => {
+          console.log("[Studio] Music play success");
+        }).catch((err) => {
+          console.warn("[Studio] Music play blocked:", err);
         });
       }
       setIsPlaying(true);
     } else {
       video.pause();
-      if (audio) {
-        audio.pause();
-      }
+      if (audio) audio.pause();
       setIsPlaying(false);
     }
   };
