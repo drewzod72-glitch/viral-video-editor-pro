@@ -76,11 +76,11 @@ export async function renderVideoInBrowser(
   const outputData = await ff.readFile('output.mp4');
   
   // Explicitly check for content
-  if (!outputData || outputData.byteLength === 0) {
+  if (!outputData || (outputData instanceof Uint8Array && outputData.length === 0)) {
     throw new Error('Video processing produced an empty file. Try a shorter clip or different template.');
   }
 
-  console.log(`[Browser Engine] Export Success: ${outputData.byteLength} bytes.`);
+  console.log(`[Browser Engine] Export Success: ${outputData instanceof Uint8Array ? outputData.length : 'unknown'} bytes.`);
 
   // Cleanup virtual files
   try {
@@ -89,5 +89,5 @@ export async function renderVideoInBrowser(
     await ff.deleteFile('font.ttf');
   } catch (e) {}
 
-  return new Blob([outputData.buffer], { type: 'video/mp4' });
+  return new Blob([outputData as any], { type: 'video/mp4' });
 }

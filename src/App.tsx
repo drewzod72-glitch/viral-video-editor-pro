@@ -25,6 +25,7 @@ export default function App() {
   const [hasStarted, setHasStarted] = useState(false);
   const [activeProject, setActiveProject] = useState<VideoProject | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [processingProgress, setProcessingProgress] = useState(0);
   const [processingStage, setProcessingStage] = useState('');
   const [activeTab, setActiveTab] = useState<'studio' | 'viral' | 'copilot'>('studio');
   const [downloadReadyInfo, setDownloadReadyInfo] = useState<{ url: string; filename: string } | null>(null);

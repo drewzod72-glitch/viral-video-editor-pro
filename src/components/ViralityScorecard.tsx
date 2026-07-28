@@ -121,4 +121,3 @@ export default function ViralityScorecard({ project, onUpdateProject }: any) {
     </div>
   );
 }
-EOF
