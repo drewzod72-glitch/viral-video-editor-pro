@@ -14,7 +14,7 @@ export async function renderVideoInBrowser(
   onProgress: (progress: number) => void,
   activeClipId: string | null = null
 ): Promise<Blob> {
-  console.log('[Viral Forge] Initializing High-Fidelity Forge Engine V6...');
+  console.log('[Viral Forge] Initializing High-Fidelity Forge Engine V7...');
 
   return new Promise(async (resolve, reject) => {
     try {
@@ -25,11 +25,12 @@ export async function renderVideoInBrowser(
       video.volume = 0;
       video.playsInline = true;
       
-      video.style.position = 'fixed';
-      video.style.left = '-9999px';
-      document.body.appendChild(video);
-
-      await new Promise((r) => (video.onloadedmetadata = r));
+      // Ensure video element is loaded and ready
+      await new Promise((r, rej) => {
+        video.onloadedmetadata = r;
+        video.onerror = () => rej(new Error('Failed to load video source.'));
+        video.load();
+      });
 
       const W = 720; 
       const H = 1280;
@@ -55,7 +56,6 @@ export async function renderVideoInBrowser(
       if (project.selectedMusicTrackId && project.selectedMusicTrackId !== 'none') {
         const track = FREE_MUSIC_TRACKS.find(t => t.id === project.selectedMusicTrackId);
         if (track) {
-          console.log(`[Audio] Mixing background track: ${track.name}`);
           musicEl = new Audio();
           musicEl.src = track.url;
           musicEl.crossOrigin = 'anonymous';
@@ -65,7 +65,7 @@ export async function renderVideoInBrowser(
         }
       }
 
-      // 2. STABLE MIXED STREAM
+      // 2. MIXED STREAM
       const canvasStream = canvas.captureStream(30);
       const mixedStream = new MediaStream([
         canvasStream.getVideoTracks()[0],
@@ -82,17 +82,18 @@ export async function renderVideoInBrowser(
         if (e.data.size > 0) chunks.push(e.data);
       };
       recorder.onstop = () => {
-        document.body.removeChild(video);
-        if (chunks.length === 0) reject(new Error('Recorder produced no data.'));
         resolve(new Blob(chunks, { type: 'video/mp4' }));
       };
+      recorder.onerror = reject;
 
-      recorder.start(100); 
-      if (musicEl) await musicEl.play().catch(e => console.error("Music play failed", e));
+      // 3. PRECISION FRAME-BY-FRAME SYNC
+      recorder.start();
+      if (musicEl) musicEl.play().catch(() => {});
 
-      let currentSegmentIdx = 0;
-      let totalElapsed = 0;
-      const totalTargetDuration = highlights.reduce((s, h) => s + (h.duration || (h.end - h.start)), 0);
+      let totalDuration = highlights.reduce((s, h) => s + (h.duration || (h.end - h.start)), 0);
+      let elapsed = 0;
+      const fps = 30;
+      const frameTime = 1 / fps;
 
       // Pre-process subtitles for READABILITY (Minimum 2.2s display)
       const legibleSubtitles = (project.subtitles || []).map(s => ({
@@ -100,26 +101,34 @@ export async function renderVideoInBrowser(
         displayDuration: Math.max(2.2, s.end - s.start)
       }));
 
-      const renderLoop = async () => {
-        if (currentSegmentIdx >= highlights.length) {
-          setTimeout(() => recorder.stop(), 500);
-          if (musicEl) musicEl.pause();
-          return;
-        }
-
-        const hl = highlights[currentSegmentIdx];
+      for (const hl of highlights) {
         const segDur = hl.duration || (hl.end - hl.start);
-
-        video.currentTime = hl.start;
+        const startTime = hl.start;
+        
+        video.currentTime = startTime;
         await new Promise(r => { video.onseeked = r; });
-        await video.play().catch(() => {});
+        video.play().catch(() => {});
 
-        const checkEnd = () => {
-          const currentTimeInSeg = video.currentTime - hl.start;
-          const globalT = totalElapsed + currentTimeInSeg;
+        for (let t = 0; t < segDur; t += frameTime) {
+          const frameTargetTime = startTime + t;
+          video.currentTime = frameTargetTime;
+          
+          await new Promise(r => {
+            const onSeek = () => { video.removeEventListener('seeked', onSeek); r(null); };
+            video.addEventListener('seeked', onSeek);
+          });
 
-          // 3. DRAWING
+          // Sync music if active
+          if (musicEl) {
+            const expectedMusicTime = elapsed + t;
+            if (Math.abs(musicEl.currentTime - expectedMusicTime) > 0.2) {
+              musicEl.currentTime = expectedMusicTime;
+            }
+          }
+
+          // A. CALCULATE ZOOM
           let scale = 1.0;
+          const globalT = elapsed + t;
           const activeZoom = project.zoomEffects?.find(z => globalT >= z.timestamp && globalT <= z.timestamp + z.duration);
           if (activeZoom) scale = activeZoom.scale;
 
@@ -128,30 +137,22 @@ export async function renderVideoInBrowser(
           const sX = (video.videoWidth - sW) / 2;
           const sY = (video.videoHeight - sH) / 2;
 
+          // B. DRAW VIDEO
           ctx.drawImage(video, sX, sY, sW, sH, 0, 0, W, H);
 
-          // Find legible subtitle (matches against start, but stays on for displayDuration)
+          // C. DRAW PREMIUM SUBTITLES (Legible)
           const sub = legibleSubtitles.find(s => globalT >= s.start && globalT <= (s.start + s.displayDuration));
           if (sub) {
             drawStyledSubtitles(ctx, sub, project, W, H);
           }
 
-          onProgress(Math.min(99, Math.round((globalT / totalTargetDuration) * 100)));
+          onProgress(Math.round(((elapsed + t) / totalDuration) * 100));
+        }
+        elapsed += segDur;
+      }
 
-          if (video.currentTime >= hl.end || video.paused) {
-            video.pause();
-            totalElapsed += segDur;
-            currentSegmentIdx++;
-            renderLoop();
-          } else {
-            requestAnimationFrame(checkEnd);
-          }
-        };
-
-        requestAnimationFrame(checkEnd);
-      };
-
-      renderLoop();
+      recorder.stop();
+      if (musicEl) musicEl.pause();
     } catch (err) {
       reject(err);
     }

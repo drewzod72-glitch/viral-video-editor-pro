@@ -340,9 +340,11 @@ export default function VideoPlayerWorkspace({
     const audio = musicAudioRef.current;
 
     // Browser Security: Resume AudioContext on first interaction
-    const audioCtx = (window as any)._editorAudioCtx || new (window.AudioContext || (window as any).webkitAudioContext)();
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-    (window as any)._editorAudioCtx = audioCtx;
+    try {
+      const audioCtx = (window as any)._editorAudioCtx || new (window.AudioContext || (window as any).webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      (window as any)._editorAudioCtx = audioCtx;
+    } catch (e) {}
 
     if (video.paused) {
       // Ensure we are within the selected clip bounds before playing
@@ -350,6 +352,8 @@ export default function VideoPlayerWorkspace({
         video.currentTime = startLimit;
       }
       video.play().catch(() => {});
+      
+      // SYNC MUSIC PLAYBACK DIRECTLY IN CLICK HANDLER
       if (audio && activeMusicTrack) {
         audio.currentTime = Math.max(0, video.currentTime - startLimit);
         audio.play().catch((err) => {
