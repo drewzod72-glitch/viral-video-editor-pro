@@ -115,7 +115,8 @@ export default function App() {
       setDownloadReadyInfo({ url, filename: `${activeProject.name.replace(/\s+/g, '_')}_edit.mp4` });
     } catch (err: any) {
       console.error('[Export Error]', err);
-      alert('Export failed: ' + err.message);
+      const msg = err?.message || (typeof err === 'string' ? err : 'Unknown hardware error. Try refreshing the page.');
+      alert('Export failed: ' + msg);
     } finally {
       setIsProcessing(false);
     }

@@ -148,10 +148,14 @@ export async function renderVideoInBrowser(
   console.log('[Browser Engine] Executing:', execArgs.join(' '));
   
   try {
-    await ff.exec(execArgs);
+    const result = await ff.exec(execArgs);
+    if (result !== 0) {
+      throw new Error(`FFmpeg process exited with code ${result}. The video file may be incompatible.`);
+    }
   } catch (err: any) {
     console.error('[FFmpeg Error]', err);
-    throw new Error(`Bake failed: ${err.message}. Try a shorter clip.`);
+    const errorMessage = err instanceof Error ? err.message : (typeof err === 'string' ? err : 'Internal Engine Error');
+    throw new Error(`Bake failed: ${errorMessage}. Try a shorter clip or removing some subtitles.`);
   }
 
   const outputData = await ff.readFile('output.mp4');
