@@ -89,24 +89,40 @@ export async function renderVideoInBrowser(
     };
   }
 
-  // 4. Construct Video Filter (Zooms + Subtitles)
-  let vf = useFilterComplex ? '' : `scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black`;
+  // 4. Construct Video Filters (Zooms + Subtitles)
+  let videoFilters: string[] = [];
   
+  // If not using filter_complex (single clip), we need to scale/pad first
+  if (!useFilterComplex) {
+    videoFilters.push('scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black');
+  }
+
+  // A. Dynamic Zooms (Consolidated into one filter for stability)
   if (project.zoomEffects && project.zoomEffects.length > 0) {
-    project.zoomEffects.forEach((z) => {
+    let wExpr = 'iw';
+    let hExpr = 'ih';
+    
+    // Sort zooms by timestamp to ensure correct nesting
+    const sortedZooms = [...project.zoomEffects].sort((a, b) => a.timestamp - b.timestamp);
+    
+    sortedZooms.forEach((z) => {
       const adjStart = timeAdjustment(z.timestamp);
       if (adjStart === null) return;
       const adjEnd = adjStart + z.duration;
       
-      const zoomVf = `if(between(t,${adjStart.toFixed(2)},${adjEnd.toFixed(2)}),iw/${z.scale},iw)`;
-      if (vf) vf += ',';
-      vf += `crop=w='${zoomVf}':h='ih/${z.scale}'`;
+      // Nest the if statements: if(in_range, crop, previous_expr)
+      wExpr = `if(between(t,${adjStart.toFixed(2)},${adjEnd.toFixed(2)}),iw/${z.scale},${wExpr})`;
+      hExpr = `if(between(t,${adjStart.toFixed(2)},${adjEnd.toFixed(2)}),ih/${z.scale},${hExpr})`;
     });
+    
+    videoFilters.push(`crop=w='${wExpr}':h='${hExpr}'`);
+    videoFilters.push(`scale=1080:1920`); // Re-scale to target dimensions after crop
   }
 
-  // Apply Subtitles
+  // B. Subtitles
   if (project.subtitles && project.subtitles.length > 0) {
-    project.subtitles.slice(0, 80).forEach((sub) => {
+    // Limit to 45 subtitles to avoid command line length issues in browser
+    project.subtitles.slice(0, 45).forEach((sub) => {
       const sanitizedText = sub.text.toUpperCase()
         .replace(/[',:;%\[\]]/g, " ")
         .trim();
@@ -116,15 +132,15 @@ export async function renderVideoInBrowser(
       const adjEnd = timeAdjustment(sub.end);
       if (adjStart === null || adjEnd === null) return;
 
-      if (vf) vf += ',';
-      vf += `drawtext=fontfile=font.ttf:text='${sanitizedText}':fontcolor=white:fontsize=70:borderw=4:bordercolor=black:x=(w-text_w)/2:y=h-480:enable='between(t,${adjStart.toFixed(2)},${adjEnd.toFixed(2)})'`;
+      videoFilters.push(`drawtext=fontfile=font.ttf:text='${sanitizedText}':fontcolor=white:fontsize=70:borderw=4:bordercolor=black:x=(w-text_w)/2:y=h-480:enable='between(t,${adjStart.toFixed(2)},${adjEnd.toFixed(2)})'`);
     });
   }
 
   // Final command construction
   const execArgs = [...inputArgs];
+  const vf = videoFilters.join(',');
+
   if (useFilterComplex) {
-    // If we have subtitles/zooms to add ON TOP of the concat result
     if (vf) {
       filterComplex += `; ${outputStream}${vf}[v_final]`;
       outputStream = '[v_final]';
@@ -141,20 +157,21 @@ export async function renderVideoInBrowser(
     '-crf', '28',
     '-c:a', 'aac',
     '-b:a', '128k',
+    '-ar', '44100',
     '-movflags', '+faststart',
     'output.mp4'
   );
 
-  console.log('[Browser Engine] Executing:', execArgs.join(' '));
+  console.log('[Browser Engine] Executing filter chain...');
   
   try {
     const result = await ff.exec(execArgs);
     if (result !== 0) {
-      throw new Error(`FFmpeg process exited with code ${result}. The video file may be incompatible.`);
+      throw new Error(`Engine process failed (Code ${result}). This usually happens if the video format is unsupported or the filter chain is too complex.`);
     }
   } catch (err: any) {
     console.error('[FFmpeg Error]', err);
-    const errorMessage = err instanceof Error ? err.message : (typeof err === 'string' ? err : 'Internal Engine Error');
+    const errorMessage = err instanceof Error ? err.message : (typeof err === 'string' ? err : 'Hardware memory limit reached');
     throw new Error(`Bake failed: ${errorMessage}. Try a shorter clip or removing some subtitles.`);
   }
 
