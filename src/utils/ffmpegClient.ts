@@ -31,28 +31,26 @@ export async function renderVideoInBrowser(
   const videoData = await fetchFile(project.videoUrl);
   
   if (!videoData || videoData.length === 0) {
-    throw new Error('Failed to load video data. The file may be too large or inaccessible.');
+    throw new Error('Failed to load video data. The file may be too large.');
   }
   
+  // CLEAR VIRTUAL FILESYSTEM TO FREE RAM
+  try {
+    const files = await ff.listDir('/');
+    for (const f of files) {
+      if (!f.isDir) await ff.deleteFile(f.name);
+    }
+  } catch (e) {}
+
   await ff.writeFile(inputName, videoData);
 
   // 2. Load Font with Error Handling
   try {
     const fontUrl = 'https://raw.githubusercontent.com/google/fonts/main/ofl/spacegrotesk/static/SpaceGrotesk-Bold.ttf';
     const fontData = await fetchFile(fontUrl);
-    if (!fontData || fontData.length < 1000) {
-      throw new Error('Font download failed');
-    }
     await ff.writeFile('font.ttf', fontData);
   } catch (fontErr) {
-    console.warn('[Browser Engine] External font failed, using fallback path...');
-    // In many environments, the font might already be in the public folder
-    try {
-      const fallbackFont = await fetchFile('/fonts/SpaceGrotesk-Bold.ttf');
-      await ff.writeFile('font.ttf', fallbackFont);
-    } catch (e) {
-      console.error('[Browser Engine] No font available. Subtitles will be disabled.');
-    }
+    console.warn('[Browser Engine] Font load failed, using fallback.');
   }
 
   // ... Clipping logic ...
@@ -68,21 +66,18 @@ export async function renderVideoInBrowser(
 
   let timeAdjustment: (t: number) => number | null = (t) => t;
 
+  // RESOLUTION SETTINGS: 540x960 (Ultra-stable for mobile)
+  const W = 540;
+  const H = 960;
+
   if (selectedClip) {
-    // Single Clip Mode: Timestamps start from 0 at clip.start
     const speed = selectedClip.speed || 1.0;
     const ptsExpr = speed === 1.0 ? 'PTS-STARTPTS' : `(PTS-STARTPTS)/${speed}`;
-    
-    // We apply speed via setpts and atempo
-    let vFilter = `trim=start=${selectedClip.start}:end=${selectedClip.end},setpts=${ptsExpr}`;
-    let aFilter = `atrim=start=${selectedClip.start}:end=${selectedClip.end},asetpts=${ptsExpr}`;
-    if (speed !== 1.0) {
-      // atempo supports 0.5 to 2.0
-      aFilter += `,atempo=${speed}`;
-    }
+    let aFilter = `atrim=start=${selectedClip.start}:end=${selectedClip.end},asetpts=PTS-STARTPTS`;
+    if (speed !== 1.0) aFilter += `,atempo=${speed}`;
     
     useFilterComplex = true;
-    filterComplex = `[0:v]${vFilter},scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black[v_clip]; `;
+    filterComplex = `[0:v]trim=start=${selectedClip.start}:end=${selectedClip.end},setpts=${ptsExpr},scale=${W}:${H}:force_original_aspect_ratio=decrease,pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2:black[v_clip]; `;
     filterComplex += `[0:a]${aFilter}[a_clip]`;
     outputStream = '[v_clip]';
     audioStream = '[a_clip]';
@@ -92,22 +87,18 @@ export async function renderVideoInBrowser(
       return (adj >= 0 && adj <= (selectedClip.duration / speed)) ? adj : null;
     };
   } else if (activeClipId === 'smart-cuts' && project.highlights.length > 0) {
-    // Smart Cuts Mode: Build mapping
     useFilterComplex = true;
     let vStreams = '';
     let aStreams = '';
     let currentConcatTime = 0;
     const mapping: { start: number, end: number, offset: number, speed: number }[] = [];
-
-    // Limit to 12 segments for mobile stability
-    const highlightsToProcess = project.highlights.slice(0, 12);
+    const highlightsToProcess = project.highlights.slice(0, 8); // Even tighter limit for Concat stability
 
     highlightsToProcess.forEach((h, i) => {
       const speed = h.speed || 1.0;
       const ptsExpr = speed === 1.0 ? 'PTS-STARTPTS' : `(PTS-STARTPTS)/${speed}`;
-      
-      let vF = `trim=start=${h.start}:end=${h.end},setpts=${ptsExpr},scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black`;
-      let aF = `atrim=start=${h.start}:end=${h.end},asetpts=${ptsExpr}`;
+      let vF = `trim=start=${h.start}:end=${h.end},setpts=${ptsExpr},scale=${W}:${H}:force_original_aspect_ratio=decrease,pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2:black`;
+      let aF = `atrim=start=${h.start}:end=${h.end},asetpts=PTS-STARTPTS`;
       if (speed !== 1.0) aF += `,atempo=${speed}`;
       
       filterComplex += `[0:v]${vF}[v${i}]; `;
@@ -115,9 +106,8 @@ export async function renderVideoInBrowser(
       vStreams += `[v${i}]`;
       aStreams += `[a${i}]`;
       
-      const durationAtSpeed = (h.end - h.start) / speed;
       mapping.push({ start: h.start, end: h.end, offset: currentConcatTime - h.start, speed });
-      currentConcatTime += durationAtSpeed;
+      currentConcatTime += (h.end - h.start) / speed;
     });
 
     filterComplex += `${vStreams}${aStreams}concat=n=${highlightsToProcess.length}:v=1:a=1[v_comp][a_comp]`;
@@ -126,51 +116,37 @@ export async function renderVideoInBrowser(
 
     timeAdjustment = (t) => {
       const m = mapping.find(entry => t >= entry.start && t <= entry.end);
-      if (!m) return null;
-      // Adjusted time = (Time in original clip) / speed + cumulative offset
-      return (t - m.start) / m.speed + (m.offset + m.start);
+      return m ? (t - m.start) / m.speed + (m.offset + m.start) : null;
     };
   }
 
-  // 4. Construct Video Filters (Subtitles Only - Zooms disabled for stability)
+  // 4. Construct Video Filters (Subtitles Only)
   let videoFilters: string[] = [];
-  
   if (!useFilterComplex) {
-    videoFilters.push('scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black');
+    videoFilters.push(`scale=${W}:${H}:force_original_aspect_ratio=decrease,pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2:black`);
   }
 
-  // B. Subtitles (Limit to 15 for maximum stability in browser)
   if (project.subtitles && project.subtitles.length > 0) {
     const hasFont = await ff.readFile('font.ttf').then(() => true).catch(() => false);
-    
     if (hasFont) {
-      project.subtitles.slice(0, 15).forEach((sub) => {
-        const safeText = sub.text.toUpperCase()
-          .replace(/[^A-Z0-9 ]/g, "") 
-          .trim();
-        
+      project.subtitles.slice(0, 12).forEach((sub) => {
+        const safeText = sub.text.toUpperCase().replace(/[^A-Z0-9 ]/g, "").trim();
         if (!safeText) return;
-
         const adjStart = timeAdjustment(sub.start);
         const adjEnd = timeAdjustment(sub.end);
         if (adjStart === null || adjEnd === null) return;
-
-        videoFilters.push(`drawtext=fontfile=font.ttf:text='${safeText}':fontcolor=white:fontsize=75:borderw=5:bordercolor=black:x=(w-text_w)/2:y=h-480:enable='between(t,${adjStart.toFixed(2)},${adjEnd.toFixed(2)})'`);
+        // Relative Y position for 540p: 480 -> 240
+        videoFilters.push(`drawtext=fontfile=font.ttf:text='${safeText}':fontcolor=white:fontsize=40:borderw=3:bordercolor=black:x=(w-text_w)/2:y=h-220:enable='between(t,${adjStart.toFixed(2)},${adjEnd.toFixed(2)})'`);
       });
     }
   }
 
   // Final command construction
-  const execArgs = [...inputArgs];
   const vf = videoFilters.join(',');
-
+  const execArgs = [...inputArgs];
   if (useFilterComplex) {
-    if (vf) {
-      filterComplex += `; ${outputStream}${vf}[v_final]`;
-      outputStream = '[v_final]';
-    }
-    execArgs.push('-filter_complex', filterComplex);
-    execArgs.push('-map', outputStream, '-map', audioStream);
+    if (vf) { filterComplex += `; ${outputStream}${vf}[v_final]`; outputStream = '[v_final]'; }
+    execArgs.push('-filter_complex', filterComplex, '-map', outputStream, '-map', audioStream);
   } else if (vf) {
     execArgs.push('-vf', vf);
   }
@@ -178,11 +154,11 @@ export async function renderVideoInBrowser(
   execArgs.push(
     '-c:v', 'libx264',
     '-preset', 'ultrafast',
-    '-crf', '30', // Higher compression for memory
-    '-pix_fmt', 'yuv420p', // Standard mobile pixel format
+    '-crf', '32',
+    '-threads', '1', // FORCE SINGLE THREAD FOR STABILITY
+    '-pix_fmt', 'yuv420p',
     '-c:a', 'aac',
-    '-b:a', '96k',
-    '-ar', '44100',
+    '-b:a', '64k', // Lower audio bitrate to save memory
     '-movflags', '+faststart',
     'output.mp4'
   );
