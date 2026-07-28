@@ -11,16 +11,26 @@ export async function renderVideoInBrowser(
   onProgress: (progress: number) => void,
   activeClipId: string | null = null
 ): Promise<Blob> {
-  console.log('[Hardware Engine] Initializing Premium Forge...');
+  console.log('[Hardware Engine] Initializing Real-Time Forge...');
 
   return new Promise(async (resolve, reject) => {
     try {
+      // 1. Setup Video & Canvas
       const video = document.createElement('video');
       video.src = project.videoUrl;
       video.crossOrigin = 'anonymous';
-      video.muted = true;
+      video.muted = false; // Must be unmuted to capture audio on some browsers
+      video.volume = 0;    // But keep it silent for the user
       video.playsInline = true;
       
+      // CRITICAL: Must be in DOM for some browsers to allow captureStream
+      video.style.position = 'fixed';
+      video.style.top = '-9999px';
+      video.style.left = '-9999px';
+      video.style.width = '1px';
+      video.style.height = '1px';
+      document.body.appendChild(video);
+
       await new Promise((r) => (video.onloadedmetadata = r));
 
       const W = 720; 
@@ -28,47 +38,37 @@ export async function renderVideoInBrowser(
       const canvas = document.createElement('canvas');
       canvas.width = W;
       canvas.height = H;
-      const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
+      const ctx = canvas.getContext('2d', { alpha: false });
       if (!ctx) throw new Error('Hardware context failed.');
 
       const highlights = activeClipId === 'smart-cuts' 
         ? project.highlights.slice(0, 10) 
         : (activeClipId ? [project.highlights.find(h => h.id === activeClipId)!] : [{ start: 0, end: video.duration, duration: video.duration }]);
 
-      // 3. Setup Recording with Audio Mixing
+      // 2. Setup Recording with Native Audio Capture
       const canvasStream = canvas.captureStream(30);
       
-      // Audio Capture Setup
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      
-      // CRITICAL: video.captureStream() or createMediaElementSource(video) 
-      // sometimes fails if the video is not playing. We ensure it's "live" during capture.
-      const videoSource = audioCtx.createMediaElementSource(video);
-      const dest = audioCtx.createMediaStreamDestination();
-      
-      // Connect original video audio
-      videoSource.connect(dest);
-      videoSource.connect(audioCtx.destination); // Also play through speakers so user knows it's working
-      
-      // Setup Background Music if active
-      let musicEl: HTMLAudioElement | null = null;
-      if (project.selectedMusicTrackId && project.selectedMusicTrackId !== 'none') {
-        // Find the actual URL from the project or a mapping
-        const musicTrackUrl = project.selectedMusicTrackId.includes('http') 
-          ? project.selectedMusicTrackId 
-          : `https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3`; 
+      // Capture audio directly from the video element's stream
+      let audioTrack: MediaStreamTrack | null = null;
+      try {
+        const videoStream = (video as any).captureStream ? (video as any).captureStream() : (video as any).mozCaptureStream();
+        audioTrack = videoStream.getAudioTracks()[0];
+      } catch (e) {
+        console.warn('[Audio] Direct capture failed, trying AudioContext...');
+      }
 
-        musicEl = new Audio();
-        musicEl.src = musicTrackUrl;
-        musicEl.crossOrigin = 'anonymous';
-        musicEl.volume = 0.4;
-        const musicSource = audioCtx.createMediaElementSource(musicEl);
-        musicSource.connect(dest);
+      // Fallback to AudioContext if direct capture fails
+      if (!audioTrack) {
+        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const dest = audioCtx.createMediaStreamDestination();
+        const source = audioCtx.createMediaElementSource(video);
+        source.connect(dest);
+        audioTrack = dest.stream.getAudioTracks()[0];
       }
 
       const mixedStream = new MediaStream([
-        ...canvasStream.getVideoTracks(),
-        ...dest.stream.getAudioTracks()
+        canvasStream.getVideoTracks()[0],
+        ...(audioTrack ? [audioTrack] : [])
       ]);
 
       const recorder = new MediaRecorder(mixedStream, {
@@ -78,67 +78,71 @@ export async function renderVideoInBrowser(
 
       const chunks: Blob[] = [];
       recorder.ondataavailable = (e) => chunks.push(e.data);
-      recorder.onstop = () => resolve(new Blob(chunks, { type: 'video/mp4' }));
+      recorder.onstop = () => {
+        document.body.removeChild(video);
+        resolve(new Blob(chunks, { type: 'video/mp4' }));
+      };
       recorder.onerror = reject;
 
+      // 3. START REAL-TIME BAKING
       recorder.start();
-
-      if (musicEl) musicEl.play();
-
+      
       let totalDuration = highlights.reduce((s, h) => s + (h.duration || (h.end - h.start)), 0);
-      let elapsed = 0;
+      let currentSegmentIndex = 0;
+      let startTime = Date.now();
+      let elapsedInPreviousSegments = 0;
 
-      for (const hl of highlights) {
-        const segDur = hl.duration || (hl.end - hl.start);
-        const fps = 30;
-        const frameTime = 1 / fps;
-
-        // Force playback during this segment for real-time audio capture
-        video.play().catch(() => {});
-
-        for (let t = 0; t < segDur; t += frameTime) {
-          const videoTime = hl.start + t;
-          video.currentTime = videoTime;
-          
-          // Sync music if needed
-          if (musicEl) {
-            const expectedMusicTime = elapsed + t;
-            if (Math.abs(musicEl.currentTime - expectedMusicTime) > 0.3) {
-              musicEl.currentTime = expectedMusicTime;
-            }
-          }
-
-          await new Promise(r => {
-            const onSeek = () => { video.removeEventListener('seeked', onSeek); r(null); };
-            video.addEventListener('seeked', onSeek);
-          });
-
-          // 1. CALCULATE ZOOM (Perspective Punch)
-          let scale = 1.0;
-          const globalT = elapsed + t;
-          const activeZoom = project.zoomEffects?.find(z => globalT >= z.timestamp && globalT <= z.timestamp + z.duration);
-          if (activeZoom) scale = activeZoom.scale;
-
-          const sW = video.videoWidth / scale;
-          const sH = video.videoHeight / scale;
-          const sX = (video.videoWidth - sW) / 2;
-          const sY = (video.videoHeight - sH) / 2;
-
-          // 2. DRAW FRAME
-          ctx.drawImage(video, sX, sY, sW, sH, 0, 0, W, H);
-
-          // 3. DRAW PREMIUM SUBTITLES
-          const sub = project.subtitles?.find(s => globalT >= s.start && globalT <= s.end);
-          if (sub) {
-            drawStyledSubtitles(ctx, sub, project, W, H);
-          }
-
-          onProgress(Math.round(((elapsed + t) / totalDuration) * 100));
+      const processFrame = async () => {
+        if (currentSegmentIndex >= highlights.length) {
+          recorder.stop();
+          return;
         }
-        elapsed += segDur;
-      }
 
-      recorder.stop();
+        const hl = highlights[currentSegmentIndex];
+        const segDur = hl.duration || (hl.end - hl.start);
+        
+        if (video.paused) {
+          video.currentTime = hl.start;
+          try { await video.play(); } catch(e) {}
+        }
+
+        // Jump to next segment if current one ended
+        if (video.currentTime >= hl.end || video.currentTime < hl.start) {
+          elapsedInPreviousSegments += segDur;
+          currentSegmentIndex++;
+          if (currentSegmentIndex < highlights.length) {
+            video.currentTime = highlights[currentSegmentIndex].start;
+          }
+          requestAnimationFrame(processFrame);
+          return;
+        }
+
+        // DRAW
+        // Calculate zoom
+        let scale = 1.0;
+        const currentGlobalT = elapsedInPreviousSegments + (video.currentTime - hl.start);
+        const activeZoom = project.zoomEffects?.find(z => currentGlobalT >= z.timestamp && currentGlobalT <= z.timestamp + z.duration);
+        if (activeZoom) scale = activeZoom.scale;
+
+        const sW = video.videoWidth / scale;
+        const sH = video.videoHeight / scale;
+        const sX = (video.videoWidth - sW) / 2;
+        const sY = (video.videoHeight - sH) / 2;
+
+        ctx.drawImage(video, sX, sY, sW, sH, 0, 0, W, H);
+
+        // Draw Subtitles
+        const sub = project.subtitles?.find(s => currentGlobalT >= s.start && currentGlobalT <= s.end);
+        if (sub) {
+          drawStyledSubtitles(ctx, sub, project, W, H);
+        }
+
+        onProgress(Math.min(99, Math.round((currentGlobalT / totalDuration) * 100)));
+        requestAnimationFrame(processFrame);
+      };
+
+      requestAnimationFrame(processFrame);
+
     } catch (err) {
       reject(err);
     }
