@@ -179,8 +179,19 @@ async function generateStructuredContent({ apiKey, parts, responseSchema, signal
         if (res.status === 403) {
           throw new Error('API Key Permission Denied. Go to AI Studio and ensure "Generative Language API" is enabled for your project.');
         }
+        
         if (res.status === 429) {
-          throw new Error('Quota Exceeded. You are sending too many requests. Wait 60 seconds.');
+          const errBody = await res.json().catch(() => ({}));
+          const errMsg = errBody?.error?.message || '';
+          
+          if (errMsg.toLowerCase().includes('quota')) {
+            lastError = new Error(`Daily/Minute Quota Exceeded for ${model}. If you are on the Free Tier, Google restricts the number of requests you can make. Try a different API key or wait 60 seconds.`);
+          } else {
+            lastError = new Error(`Rate Limit Exceeded for ${model}. Wait 60 seconds and try again.`);
+          }
+          
+          console.warn(`[Gemini] 429 for ${model}. Trying next...`);
+          continue; 
         }
         
         lastError = new Error(`Gemini [${model}] Error ${res.status}: ${errText.slice(0, 150)}`);
@@ -253,7 +264,8 @@ const ANALYZE_VIDEO_SCHEMA = {
 
 export async function runAnalyzeVideo(params: any): Promise<any> {
   const apiKey = requireApiKey(params.apiKey);
-  const prompt = `You are a Social Media Algorithm Engineer. Analyze this video for niche "${params.niche}". Provide a JSON blueprint with viral titles, short punchy subtitles, jump-cuts (highlights), and 1.2x zoom perspective punches.`;
+  const userInstructions = params.userDescription ? `FOLLOW THESE USER INSTRUCTIONS: ${params.userDescription}` : '';
+  const prompt = `You are a Social Media Algorithm Engineer. Analyze this video for niche "${params.niche}". ${userInstructions} Provide a JSON blueprint with viral titles, short punchy subtitles, jump-cuts (highlights), and 1.2x zoom perspective punches. Ensure all subtitles are shorter than 4 words. Use emojis where appropriate. Ensure highlights cover the most engaging parts of the video.`;
   const parts: any[] = [{ text: prompt }];
 
   if (params.videoFile) {

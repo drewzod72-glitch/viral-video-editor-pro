@@ -96,7 +96,7 @@ export default function App() {
       const editedBlob = await renderVideoInBrowser(activeProject, (prg) => {
         setProcessingProgress(prg);
         setProcessingStage(`Baking video: ${prg}%`);
-      });
+      }, activeClipId);
       
       if (!editedBlob || editedBlob.size < 100) {
         throw new Error('Engine produced an empty file. Try a shorter clip.');
@@ -119,18 +119,38 @@ export default function App() {
 
   if (!hasStarted) {
     return (
-      <div className="min-h-screen bg-[#020617] flex flex-col items-center justify-center p-8 text-center">
-        <div className="w-20 h-20 bg-purple-600/20 rounded-[30px] flex items-center justify-center mb-8 animate-pulse">
-           <Sparkles className="text-purple-500 w-10 h-10" />
+      <div className="min-h-screen bg-[#020617] flex flex-col items-center justify-center p-8 text-center relative overflow-hidden">
+        {/* Animated Background Gradients */}
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-600/20 blur-[120px] rounded-full animate-pulse" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-cyan-600/20 blur-[120px] rounded-full animate-pulse" />
+        
+        <div className="relative z-10 flex flex-col items-center">
+          <div className="w-24 h-24 bg-gradient-to-tr from-purple-600 to-cyan-500 rounded-[35px] flex items-center justify-center mb-10 shadow-[0_0_50px_rgba(139,92,246,0.3)] animate-[bounce_3s_infinite]">
+             <Sparkles className="text-white w-12 h-12" />
+          </div>
+          
+          <h1 className="text-4xl md:text-6xl font-black text-white uppercase tracking-tighter mb-4 leading-none">
+            Viral <span className="bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent">AI Editor</span>
+          </h1>
+          
+          <p className="text-slate-400 text-sm md:text-base max-w-[320px] mb-12 font-medium leading-relaxed tracking-tight">
+            The professional suite for high-retention social media content.
+          </p>
+          
+          <button 
+            onClick={() => setHasStarted(true)}
+            className="group relative w-full max-w-[280px] py-5 bg-white text-black rounded-[24px] font-black text-sm uppercase tracking-widest shadow-[0_20px_40px_rgba(255,255,255,0.1)] transition-all hover:scale-105 active:scale-95 overflow-hidden"
+          >
+            <span className="relative z-10">Launch Studio</span>
+            <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-purple-500 opacity-0 group-hover:opacity-10 transition-opacity" />
+          </button>
+          
+          <div className="mt-8 flex gap-4 opacity-40">
+            <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center"><VideoIcon className="w-4 h-4" /></div>
+            <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center"><Flame className="w-4 h-4" /></div>
+            <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center"><MessageSquare className="w-4 h-4" /></div>
+          </div>
         </div>
-        <h1 className="text-2xl font-black text-white uppercase tracking-tighter mb-4 bg-gradient-to-tr from-purple-400 to-pink-500 bg-clip-text text-transparent">Viral AI Editor</h1>
-        <p className="text-slate-400 text-sm max-w-[280px] mb-10 leading-relaxed">Pro Gold Master: Multimodal Video Intelligence.</p>
-        <button 
-          onClick={() => setHasStarted(true)}
-          className="w-full max-w-[280px] py-4 bg-purple-600 hover:bg-purple-500 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-2xl shadow-purple-500/20 transition-all active:scale-95"
-        >
-          Enter Studio
-        </button>
       </div>
     );
   }
