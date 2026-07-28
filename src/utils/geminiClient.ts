@@ -265,7 +265,13 @@ const ANALYZE_VIDEO_SCHEMA = {
 export async function runAnalyzeVideo(params: any): Promise<any> {
   const apiKey = requireApiKey(params.apiKey);
   const userInstructions = params.userDescription ? `FOLLOW THESE USER INSTRUCTIONS: ${params.userDescription}` : '';
-  const prompt = `You are a Social Media Algorithm Engineer. Analyze this video for niche "${params.niche}". ${userInstructions} Provide a JSON blueprint with viral titles, short punchy subtitles, jump-cuts (highlights), and 1.2x zoom perspective punches. Ensure all subtitles are shorter than 4 words. Use emojis where appropriate. Ensure highlights cover the most engaging parts of the video.`;
+  let prompt = `You are a Social Media Algorithm Engineer. Analyze this video for niche "${params.niche}". ${userInstructions} Provide a JSON blueprint with viral titles, short punchy subtitles, jump-cuts (highlights), and 1.2x zoom perspective punches. Ensure all subtitles are shorter than 4 words. Use emojis where appropriate. Ensure highlights cover the most engaging parts of the video.`;
+  
+  // TEMPLATE FIX: If we have a transcript but no file, pass the transcript to the AI!
+  if (!params.videoFile && params.defaultTranscribe) {
+    prompt += `\n\nVIDEO TRANSCRIPT FOR CONTEXT: ${params.defaultTranscribe}`;
+  }
+
   const parts: any[] = [{ text: prompt }];
 
   if (params.videoFile) {

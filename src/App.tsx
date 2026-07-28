@@ -35,8 +35,16 @@ export default function App() {
   const handleSelectTemplate = async (template: any) => {
     setIsProcessing(true);
     setProcessingStage('AI is analyzing content...');
+    
+    // Watchdog: If analysis takes more than 45s, something is wrong with the quota/network.
+    const watchdog = setTimeout(() => {
+      setIsProcessing(false);
+      alert("AI analysis is taking longer than expected. Please check your API key quota in AI Studio or try again in 60 seconds.");
+    }, 45000);
+
     try {
       const result = await runAnalyzeVideo({ ...template });
+      clearTimeout(watchdog);
       const newProject: VideoProject = { 
         ...result.project, 
         id: `proj-${Date.now()}`, 
@@ -48,6 +56,7 @@ export default function App() {
       setActiveProject(newProject);
       setActiveTab('studio');
     } catch (err: any) {
+      clearTimeout(watchdog);
       alert('AI analysis failed: ' + err.message);
     } finally {
       setIsProcessing(false);
