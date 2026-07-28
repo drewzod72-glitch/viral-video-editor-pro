@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { RAW_VIDEO_TEMPLATES } from '../data';
 import { VideoNiche } from '../types';
-import { Upload } from 'lucide-react';
+import { Upload, Video as VideoIcon, Sparkles, Flame } from 'lucide-react';
 
 export default function NicheSelector({ onSelectTemplate, onUploadCustomFile, isProcessing }: any) {
   const [activeTab, setActiveTab] = useState<'presets' | 'custom'>('presets');
