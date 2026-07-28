@@ -339,32 +339,40 @@ export default function VideoPlayerWorkspace({
     const video = videoRef.current;
     const audio = musicAudioRef.current;
 
-    // 1. Audio Context Resume (Vital for iOS)
+    // 1. UNLOCK AUDIO FOR IOS
+    // We create a global reference to the AudioContext on the first click
     try {
-      const audioCtx = (window as any)._editorAudioCtx || new (window.AudioContext || (window as any).webkitAudioContext)();
-      if (audioCtx.state === 'suspended') audioCtx.resume();
-      (window as any)._editorAudioCtx = audioCtx;
-    } catch (e) {}
+      if (!(window as any)._viralAudioCtx) {
+        (window as any)._viralAudioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        console.log("[Audio] Created Global Context");
+      }
+      if ((window as any)._viralAudioCtx.state === 'suspended') {
+        (window as any)._viralAudioCtx.resume();
+        console.log("[Audio] Context Resumed");
+      }
+    } catch (e) {
+      console.error("[Audio] Context Error:", e);
+    }
 
     if (video.paused) {
-      // 2. Play Video
+      // 2. Sync and Play Video
       if (video.currentTime < startLimit - 0.1 || video.currentTime >= endLimit - 0.1) {
         video.currentTime = startLimit;
       }
-      video.play().catch(() => {});
       
-      // 3. FORCE MUSIC PLAYBACK (In same gesture)
+      // 3. FORCE MUSIC TO LOAD AND PLAY
       if (audio && activeMusicTrack) {
-        console.log(`[Studio] Manually starting music: ${activeMusicTrack.name}`);
+        console.log(`[Studio] Unlocking Music: ${activeMusicTrack.name}`);
+        // Essential: Update src if it changed
+        if (!audio.src.includes(activeMusicTrack.url)) {
+          audio.src = activeMusicTrack.url;
+          audio.load();
+        }
         audio.currentTime = Math.max(0, video.currentTime - startLimit);
-        // Explicitly set source and load to ensure it's fresh
-        if (!audio.src) audio.src = activeMusicTrack.url;
-        audio.play().then(() => {
-          console.log("[Studio] Music play success");
-        }).catch((err) => {
-          console.warn("[Studio] Music play blocked:", err);
-        });
+        audio.play().catch(e => console.warn("[Audio] Music Blocked:", e));
       }
+
+      video.play().catch(e => console.warn("[Video] Play Blocked:", e));
       setIsPlaying(true);
     } else {
       video.pause();
