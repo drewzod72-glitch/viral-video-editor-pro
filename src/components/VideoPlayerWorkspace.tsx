@@ -160,6 +160,18 @@ export default function VideoPlayerWorkspace({
   const [commentCount, setCommentCount] = useState<number>(4938); 
   const [showHeartPop, setShowHeartPop] = useState<{ x: number; y: number; id: number }[]>([]);
 
+  // Music Search & Filter States
+  const [musicSearchQuery, setMusicSearchQuery] = useState('');
+  const [activeMoodFilter, setActiveMoodFilter] = useState<'all' | 'lofi' | 'hype' | 'chill' | 'cinematic'>('all');
+
+  const filteredMusic = FREE_MUSIC_TRACKS.filter((t) => {
+    const matchesSearch = t.name.toLowerCase().includes(musicSearchQuery.toLowerCase()) || 
+                         t.genre.toLowerCase().includes(musicSearchQuery.toLowerCase()) ||
+                         t.artist.toLowerCase().includes(musicSearchQuery.toLowerCase());
+    const matchesMood = activeMoodFilter === 'all' || t.intensity === activeMoodFilter;
+    return matchesSearch && matchesMood;
+  });
+
   // Sync state when project changes
   useEffect(() => {
     setCaptionRotation(project.captionRotation || 0);
@@ -2021,255 +2033,114 @@ export default function VideoPlayerWorkspace({
 
         {/* Audio Mixing background panel */}
         <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1.5">
-            <Music className="w-3.5 h-3.5 text-brand-cyan" />
-            Background Music Loop
-          </h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <Music className="w-3.5 h-3.5 text-brand-cyan" />
+              Sonic Library
+            </h3>
+            <span className="text-[9px] bg-slate-950 px-2 py-0.5 rounded-full border border-slate-800 text-slate-500 font-bold">
+              {FREE_MUSIC_TRACKS.length} TRACKS
+            </span>
+          </div>
 
-          {activeMusicTrack ? (
-            <div className="space-y-4">
-              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 flex justify-between items-center">
-                <div>
-                  <div className="text-xs font-semibold text-white">{activeMusicTrack.name}</div>
-                  <div className="text-[10px] text-slate-400">
-                    Genre: {activeMusicTrack.genre}
-                  </div>
-                </div>
-                <span className="text-[10px] bg-brand-cyan/10 text-brand-cyan border border-brand-cyan/20 px-2 py-0.5 rounded-full capitalize">
-                  {activeMusicTrack.intensity} Mix
-                </span>
-              </div>
-
-              {/* Music Volume adjustor */}
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <div className="flex justify-between text-[11px] text-slate-400">
-                    <span className="flex items-center gap-1.5 font-medium">
-                      Music Level Mix
-                      {autoDucking && activeSubtitle && (
-                        <span className="text-[9px] bg-amber-400/15 text-amber-300 border border-amber-400/20 px-1 py-0.2 rounded font-mono font-bold animate-pulse shrink-0">
-                          ⚡ DUCKED (VOICE)
-                        </span>
-                      )}
-                    </span>
-                    <span>{Math.round(musicVolume * 100)}%</span>
-                  </div>
-                  <input
-                    type="range"
-                    min={0}
-                    max={0.5} // caps background music so it doesn't wash voice spoken transcript
-                    step={0.01}
-                    value={musicVolume}
-                    onChange={(e) => setMusicVolume(Number(e.target.value))}
-                    className="w-full h-1 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-brand-cyan"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/60 text-[11px]">
-                  <div className="space-y-0.5">
-                    <span className="text-slate-300 font-semibold block">Acoustic Auto-Ducking</span>
-                    <span className="text-[10px] text-slate-500 block">Dips music during subtitles for clarity</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setAutoDucking(!autoDucking)}
-                    className={`w-8 h-4.5 rounded-full p-0.5 transition-all duration-200 cursor-pointer ${
-                      autoDucking ? 'bg-brand-cyan' : 'bg-slate-800'
-                    }`}
-                  >
-                    <div
-                      className={`w-3.5 h-3.5 rounded-full bg-white transition-all duration-200 ${
-                        autoDucking ? 'translate-x-3.5' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/60 text-[11px]">
-                  <div className="space-y-0.5">
-                    <span className="text-slate-300 font-semibold block">Continuous Beat Loop</span>
-                    <span className="text-[10px] text-slate-500 block">Keep music looping when video is paused/editing</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setContinuousMusic(!continuousMusic)}
-                    className={`w-8 h-4.5 rounded-full p-0.5 transition-all duration-200 cursor-pointer ${
-                      continuousMusic ? 'bg-brand-cyan' : 'bg-slate-800'
-                    }`}
-                  >
-                    <div
-                      className={`w-3.5 h-3.5 rounded-full bg-white transition-all duration-200 ${
-                        continuousMusic ? 'translate-x-3.5' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                </div>
-              </div>
-
-              {/* Interactive Smart Sound Effects (Context-Aware) */}
-              <div className="mt-4 pt-4 border-t border-slate-800/80 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-brand-cyan animate-pulse" />
-                    <label className="block text-[11px] text-slate-400 font-mono uppercase font-bold">Smart Audio Cues</label>
-                  </div>
-                  <span className="text-[8.5px] bg-brand-cyan/10 border border-brand-cyan/20 text-brand-cyan px-2 py-0.5 rounded-full font-mono">
-                    CONTEXT-AWARE ACTIVE
-                  </span>
-                </div>
-                <p className="text-[10px] text-slate-500 leading-normal">
-                  Our system automatically selects non-annoying soundscapes tailored to your video topic ({project.niche || 'general'}).
-                </p>
-
-                <div className="grid grid-cols-3 gap-1.5 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => onUpdateProject({ ...project, sfxWhooshEnabled: !project.sfxWhooshEnabled })}
-                    className={`p-2 rounded-xl border text-center cursor-pointer transition-all ${
-                      project.sfxWhooshEnabled !== false
-                        ? 'border-brand-cyan bg-brand-cyan/10 text-white font-bold'
-                        : 'border-slate-800 bg-slate-950 text-slate-500'
-                    }`}
-                  >
-                    <div className="text-[14px]">💨</div>
-                    <div className="text-[9px] font-semibold">Whooshes</div>
-                    <span className="text-[8px] text-slate-500 block leading-none font-normal">
-                      {project.sfxWhooshEnabled !== false ? 'ON' : 'OFF'}
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => onUpdateProject({ ...project, sfxPopEnabled: !project.sfxPopEnabled })}
-                    className={`p-2 rounded-xl border text-center cursor-pointer transition-all ${
-                      project.sfxPopEnabled !== false
-                        ? 'border-brand-cyan bg-brand-cyan/10 text-white font-bold'
-                        : 'border-slate-800 bg-slate-950 text-slate-500'
-                    }`}
-                  >
-                    <div className="text-[14px]">📸</div>
-                    <div className="text-[9px] font-semibold">Pop/Shutter</div>
-                    <span className="text-[8px] text-slate-500 block leading-none font-normal">
-                      {project.sfxPopEnabled !== false ? 'ON' : 'OFF'}
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => onUpdateProject({ ...project, sfxImpactEnabled: !project.sfxImpactEnabled })}
-                    className={`p-2 rounded-xl border text-center cursor-pointer transition-all ${
-                      project.sfxImpactEnabled !== false
-                        ? 'border-brand-cyan bg-brand-cyan/10 text-white font-bold'
-                        : 'border-slate-800 bg-slate-950 text-slate-500'
-                    }`}
-                  >
-                    <div className="text-[14px]">💥</div>
-                    <div className="text-[9px] font-semibold">Impacts</div>
-                    <span className="text-[8px] text-slate-500 block leading-none font-normal">
-                      {project.sfxImpactEnabled !== false ? 'ON' : 'OFF'}
-                    </span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Interactive Soundboard Pad */}
-              <div className="mt-4 pt-4 border-t border-slate-800/80">
-                <div className="flex items-center gap-1.5 mb-2.5">
-                  <Zap className="w-3.5 h-3.5 text-brand-purple fill-brand-purple animate-pulse" />
-                  <label className="block text-[11px] text-slate-400 font-mono uppercase font-bold">Interactive Soundboard Pad</label>
-                </div>
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
-                  {[
-                    { type: 'pop', label: '🫧 Pop' },
-                    { type: 'shutter', label: '📸 Shutter' },
-                    { type: 'whoosh', label: '💨 Wind' },
-                    { type: 'bell', label: '🔔 Chime' },
-                    { type: 'swoosh', label: '⚡ Swipe' },
-                    { type: 'laser', label: '🔫 Laser' },
-                  ].map((sfx) => (
-                    <button
-                      key={sfx.type}
-                      type="button"
-                      onClick={() => {
-                        playViralSFX(sfx.type as any);
-                      }}
-                      className="bg-slate-950 hover:bg-slate-800 active:scale-95 text-slate-300 hover:text-white border border-slate-850 p-2 rounded-xl text-[10px] font-bold text-center flex flex-col items-center justify-center gap-1 cursor-pointer transition-all hover:border-brand-purple/40"
-                      title={`Play ${sfx.type} instantly`}
-                    >
-                      <span className="text-[14px]">{sfx.label.split(' ')[0]}</span>
-                      <span className="text-[9px] truncate w-full">{sfx.label.split(' ')[1]}</span>
-                    </button>
-                  ))}
-                </div>
-                <span className="block text-[8.5px] text-slate-500 mt-2 font-sans italic text-center">
-                  These sound effects trigger programmatically on caption arrivals or highlights.
-                </span>
-              </div>
+          {/* Search & Filter Bar */}
+          <div className="space-y-3 mb-4">
+            <div className="relative">
+              <input 
+                type="text"
+                placeholder="Search feeling, genre, or artist..."
+                value={musicSearchQuery}
+                onChange={(e) => setMusicSearchQuery(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-9 py-2 text-xs focus:border-brand-cyan focus:outline-none transition-all placeholder:text-slate-700"
+              />
+              <Sliders className="w-3.5 h-3.5 text-slate-600 absolute left-3 top-1/2 -translate-y-1/2" />
             </div>
-          ) : (
-            <p className="text-xs text-slate-500 italic">No background music loop selected.</p>
-          )}
-
-          <div className="mt-4 pt-4 border-t border-slate-800/60">
-            <label className="block text-[11px] text-slate-500 font-mono uppercase mb-2">Switch Beat Loop</label>
-            <div className="space-y-1.5">
-              <button
-                key="none"
-                onClick={() => {
-                  // 1. Immediately update project globally
-                  onUpdateProject({ ...project, selectedMusicTrackId: 'none' });
-                  
-                  // 2. Pause and clear current audio source
-                  if (musicAudioRef.current) {
-                    musicAudioRef.current.pause();
-                    musicAudioRef.current.src = '';
-                    loadedMusicTrackIdRef.current = null;
-                  }
-                }}
-                className={`w-full text-left p-2 rounded-lg text-xs flex justify-between items-center border transition-all duration-150 ${
-                  project.selectedMusicTrackId === 'none'
-                    ? 'border-brand-pink/40 bg-brand-pink/5 text-slate-100'
-                    : 'border-transparent hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <span>
-                  🚫 No Background Music <span className="text-[10px] text-slate-500">(Mute soundtrack)</span>
-                </span>
-                <span className="text-[10px] text-slate-500 font-mono font-semibold">MUTED</span>
-              </button>
-
-              {FREE_MUSIC_TRACKS.map((t) => (
+            <div className="flex gap-1 overflow-x-auto pb-1 no-scrollbar">
+              {(['all', 'lofi', 'hype', 'chill', 'cinematic'] as const).map((mood) => (
                 <button
-                  key={t.id}
-                  onClick={() => {
-                    // 1. Immediately update project globally
-                    onUpdateProject({ ...project, selectedMusicTrackId: t.id });
-                    
-                    // 2. Play music synchronously in user click gesture to bypass WebKit/Safari lockouts
-                    if (musicAudioRef.current) {
-                      musicAudioRef.current.src = t.url;
-                      musicAudioRef.current.load();
-                      if (isPlaying || continuousMusic) {
-                        musicAudioRef.current.play().catch((err) => {
-                          console.warn("Synchronous audio gesture failed:", err);
-                        });
-                      }
-                    }
-                  }}
-                  className={`w-full text-left p-2 rounded-lg text-xs flex justify-between items-center border transition-all duration-150 ${
-                    project.selectedMusicTrackId === t.id
-                      ? 'border-brand-cyan/40 bg-brand-cyan/5 text-slate-100'
-                      : 'border-transparent hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'
+                  key={mood}
+                  onClick={() => setActiveMoodFilter(mood)}
+                  className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all whitespace-nowrap ${
+                    activeMoodFilter === mood 
+                      ? 'bg-brand-cyan/20 border-brand-cyan text-brand-cyan' 
+                      : 'bg-slate-950 border-slate-800 text-slate-500 hover:text-slate-300'
                   }`}
                 >
-                  <span>
-                    🎧 {t.name} <span className="text-[10px] text-slate-500">by {t.artist}</span>
-                  </span>
-                  <span className="text-[10px] text-slate-500">{t.genre}</span>
+                  {mood}
                 </button>
               ))}
             </div>
           </div>
+
+          <div className="max-h-[250px] overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
+            {filteredMusic.length > 0 ? (
+              filteredMusic.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => {
+                    onUpdateProject({ ...project, selectedMusicTrackId: t.id });
+                    if (musicAudioRef.current) {
+                      musicAudioRef.current.src = t.url;
+                      musicAudioRef.current.load();
+                      if (isPlaying || continuousMusic) {
+                        musicAudioRef.current.play().catch(() => {});
+                      }
+                    }
+                  }}
+                  className={`w-full text-left p-2.5 rounded-xl border transition-all duration-200 group ${
+                    project.selectedMusicTrackId === t.id
+                      ? 'border-brand-cyan bg-brand-cyan/10'
+                      : 'border-transparent hover:bg-slate-800/40'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="min-w-0">
+                      <div className={`text-xs font-bold truncate ${project.selectedMusicTrackId === t.id ? 'text-brand-cyan' : 'text-slate-200'}`}>
+                        {t.name}
+                      </div>
+                      <div className="text-[10px] text-slate-500 truncate">{t.artist} • {t.genre}</div>
+                    </div>
+                    {project.selectedMusicTrackId === t.id && (
+                      <div className="w-1.5 h-1.5 rounded-full bg-brand-cyan animate-pulse shadow-[0_0_8px_#22d3ee]" />
+                    )}
+                  </div>
+                </button>
+              ))
+            ) : (
+              <div className="text-center py-8 opacity-40">
+                <Music className="w-8 h-8 mx-auto mb-2 text-slate-600" />
+                <p className="text-[10px] uppercase font-black">No matches found</p>
+              </div>
+            )}
+          </div>
+
+          {activeMusicTrack && (
+            <div className="mt-4 pt-4 border-t border-slate-800/60 space-y-3">
+              {/* Music Volume adjustor */}
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-[11px] text-slate-400">
+                  <span className="flex items-center gap-1.5 font-medium">
+                    Master Music Mix
+                    {autoDucking && activeSubtitle && (
+                      <span className="text-[9px] bg-amber-400/15 text-amber-300 border border-amber-400/20 px-1 py-0.2 rounded font-mono font-bold animate-pulse shrink-0">
+                        ⚡ DUCKED
+                      </span>
+                    )}
+                  </span>
+                  <span>{Math.round(musicVolume * 100)}%</span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={0.5}
+                  step={0.01}
+                  value={musicVolume}
+                  onChange={(e) => setMusicVolume(Number(e.target.value))}
+                  className="w-full h-1 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-brand-cyan"
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Dynamic Transforms & Lighting grading */}

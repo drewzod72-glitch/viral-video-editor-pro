@@ -32,6 +32,12 @@ export default function App() {
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [activeClipId, setActiveClipId] = useState<string | null>(null);
 
+  // Persistence for Workspace Settings
+  const [musicVolume, setMusicVolume] = useState(0.4);
+  const [enableSubtitles, setEnableSubtitles] = useState(true);
+  const [enableZooms, setEnableZooms] = useState(true);
+  const [enableColorGrade, setEnableColorGrade] = useState(true);
+
   const handleSelectTemplate = async (template: any) => {
     setIsProcessing(true);
     setProcessingStage('AI is analyzing content...');
@@ -212,14 +218,14 @@ export default function App() {
                 project={activeProject} 
                 onUpdateProject={setActiveProject as any} 
                 activeMusicTrack={FREE_MUSIC_TRACKS.find(t => t.id === activeProject.selectedMusicTrackId) || (activeProject.selectedMusicTrackId !== 'none' ? FREE_MUSIC_TRACKS[0] : null)} 
-                musicVolume={0.5} 
-                setMusicVolume={() => {}} 
-                enableSubtitles={true} 
-                setEnableSubtitles={() => {}} 
-                enableZooms={true} 
-                setEnableZooms={() => {}} 
-                enableColorGrade={true} 
-                setEnableColorGrade={() => {}} 
+                musicVolume={musicVolume} 
+                setMusicVolume={setMusicVolume} 
+                enableSubtitles={enableSubtitles} 
+                setEnableSubtitles={setEnableSubtitles} 
+                enableZooms={enableZooms} 
+                setEnableZooms={setEnableZooms} 
+                enableColorGrade={enableColorGrade} 
+                setEnableColorGrade={setEnableColorGrade} 
                 activeClipId={activeClipId} 
                 onClipSelect={setActiveClipId} 
               />
