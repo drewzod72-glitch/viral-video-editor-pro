@@ -35,10 +35,36 @@ export async function renderVideoInBrowser(
         ? project.highlights.slice(0, 10) 
         : (activeClipId ? [project.highlights.find(h => h.id === activeClipId)!] : [{ start: 0, end: video.duration, duration: video.duration }]);
 
-      const stream = canvas.captureStream(30);
+      // 3. Setup Recording with Audio Mixing
+      const canvasStream = canvas.captureStream(30);
       
-      // Standard MP4 recording
-      const recorder = new MediaRecorder(stream, {
+      // Audio Capture Setup
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const videoSource = audioCtx.createMediaElementSource(video);
+      const dest = audioCtx.createMediaStreamDestination();
+      
+      // Connect original video audio
+      videoSource.connect(dest);
+      
+      // Setup Background Music if active
+      let musicEl: HTMLAudioElement | null = null;
+      if (project.selectedMusicTrackId && project.selectedMusicTrackId !== 'none') {
+        const musicTrackUrl = `https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3`; // Fallback or mapping needed
+        // Note: Real music mapping should come from data.ts or props
+        musicEl = new Audio();
+        musicEl.src = musicTrackUrl;
+        musicEl.crossOrigin = 'anonymous';
+        musicEl.volume = 0.4;
+        const musicSource = audioCtx.createMediaElementSource(musicEl);
+        musicSource.connect(dest);
+      }
+
+      const mixedStream = new MediaStream([
+        ...canvasStream.getVideoTracks(),
+        ...dest.stream.getAudioTracks()
+      ]);
+
+      const recorder = new MediaRecorder(mixedStream, {
         mimeType: 'video/mp4;codecs=avc1',
         videoBitsPerSecond: 6000000 
       });
@@ -49,6 +75,8 @@ export async function renderVideoInBrowser(
       recorder.onerror = reject;
 
       recorder.start();
+
+      if (musicEl) musicEl.play();
 
       let totalDuration = highlights.reduce((s, h) => s + (h.duration || (h.end - h.start)), 0);
       let elapsed = 0;
@@ -61,6 +89,15 @@ export async function renderVideoInBrowser(
         for (let t = 0; t < segDur; t += frameTime) {
           const videoTime = hl.start + t;
           video.currentTime = videoTime;
+          
+          // Sync music if needed
+          if (musicEl) {
+            const expectedMusicTime = elapsed + t;
+            if (Math.abs(musicEl.currentTime - expectedMusicTime) > 0.3) {
+              musicEl.currentTime = expectedMusicTime;
+            }
+          }
+
           await new Promise(r => {
             const onSeek = () => { video.removeEventListener('seeked', onSeek); r(null); };
             video.addEventListener('seeked', onSeek);
