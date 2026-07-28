@@ -2,17 +2,17 @@ import { VideoProject, SubtitleItem, getCaptionStyles } from '../types';
 import { FREE_MUSIC_TRACKS } from '../data';
 
 /**
- * PREMIUM VIRAL FORGE ENGINE (V4)
+ * PREMIUM VIRAL FORGE ENGINE (V5)
  * 
- * Engineered for maximum smoothness, high-fidelity audio mixing, 
- * and perfect multi-line subtitle wrapping.
+ * Engineered for maximum smoothness using REAL-TIME SYNC.
+ * Solves the "8s becomes 22s" lag bug by capturing at the natural speed.
  */
 export async function renderVideoInBrowser(
   project: VideoProject,
   onProgress: (progress: number) => void,
   activeClipId: string | null = null
 ): Promise<Blob> {
-  console.log('[Viral Forge] Initializing Premium Stability Engine V4...');
+  console.log('[Viral Forge] Initializing Real-Time Sync Engine V5...');
 
   return new Promise(async (resolve, reject) => {
     try {
@@ -20,9 +20,14 @@ export async function renderVideoInBrowser(
       video.src = project.videoUrl;
       video.crossOrigin = 'anonymous';
       video.muted = false; 
-      video.volume = 0;
+      video.volume = 0.01; // Tiny audible volume for context, but mixed via AudioCtx
       video.playsInline = true;
       
+      // Add to DOM for capture
+      video.style.position = 'fixed';
+      video.style.left = '-9999px';
+      document.body.appendChild(video);
+
       await new Promise((r) => (video.onloadedmetadata = r));
 
       const W = 720; 
@@ -37,30 +42,26 @@ export async function renderVideoInBrowser(
         ? project.highlights.slice(0, 10) 
         : (activeClipId ? [project.highlights.find(h => h.id === activeClipId)!] : [{ start: 0, end: video.duration, duration: video.duration }]);
 
-      // 1. SETUP AUDIO MIXING (High-Precision)
+      // 1. SETUP HIGH-FIDELITY AUDIO MIXING
       const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      await audioCtx.resume(); // Ensure context is active
       const dest = audioCtx.createMediaStreamDestination();
       const videoSource = audioCtx.createMediaElementSource(video);
-      
-      const videoGain = audioCtx.createGain();
-      videoGain.gain.value = 1.0; 
-      videoSource.connect(videoGain);
-      videoGain.connect(dest);
+      videoSource.connect(dest);
 
       let musicEl: HTMLAudioElement | null = null;
       if (project.selectedMusicTrackId && project.selectedMusicTrackId !== 'none') {
-        const trackInfo = FREE_MUSIC_TRACKS.find(t => t.id === project.selectedMusicTrackId);
-        if (trackInfo) {
+        const track = FREE_MUSIC_TRACKS.find(t => t.id === project.selectedMusicTrackId);
+        if (track) {
           musicEl = new Audio();
-          musicEl.src = trackInfo.url; 
+          musicEl.src = track.url;
           musicEl.crossOrigin = 'anonymous';
-          musicEl.volume = 0.35; 
+          musicEl.volume = 0.35;
           const musicSource = audioCtx.createMediaElementSource(musicEl);
           musicSource.connect(dest);
         }
       }
 
+      // 2. MIXED RECORDING STREAM
       const canvasStream = canvas.captureStream(30);
       const mixedStream = new MediaStream([
         canvasStream.getVideoTracks()[0],
@@ -74,68 +75,71 @@ export async function renderVideoInBrowser(
 
       const chunks: Blob[] = [];
       recorder.ondataavailable = (e) => chunks.push(e.data);
-      recorder.onstop = () => resolve(new Blob(chunks, { type: 'video/mp4' }));
-      recorder.onerror = reject;
+      recorder.onstop = () => {
+        document.body.removeChild(video);
+        resolve(new Blob(chunks, { type: 'video/mp4' }));
+      };
 
       recorder.start();
       if (musicEl) musicEl.play();
 
-      let totalDuration = highlights.reduce((s, h) => s + (h.duration || (h.end - h.start)), 0);
-      let elapsed = 0;
-      const fps = 30;
-      const frameTime = 1 / fps;
+      let currentSegmentIdx = 0;
+      let elapsedInPreviousSegments = 0;
+      const totalTargetDuration = highlights.reduce((s, h) => s + (h.duration || (h.end - h.start)), 0);
 
-      for (const hl of highlights) {
-        const segDur = hl.duration || (hl.end - hl.start);
-        const startTime = hl.start;
-        
-        video.currentTime = startTime;
-        await new Promise(r => { video.onseeked = r; });
-        video.play().catch(() => {});
-
-        for (let t = 0; t < segDur; t += frameTime) {
-          const frameTargetTime = startTime + t;
-          video.currentTime = frameTargetTime;
-          
-          await new Promise(r => {
-            const onSeek = () => { video.removeEventListener('seeked', onSeek); r(null); };
-            video.addEventListener('seeked', onSeek);
-          });
-
-          if (musicEl) {
-            const expectedMusicTime = elapsed + t;
-            if (Math.abs(musicEl.currentTime - expectedMusicTime) > 0.2) {
-              musicEl.currentTime = expectedMusicTime;
-            }
-          }
-
-          // A. CALCULATE ZOOM
-          let scale = 1.0;
-          const globalT = elapsed + t;
-          const activeZoom = project.zoomEffects?.find(z => globalT >= z.timestamp && globalT <= z.timestamp + z.duration);
-          if (activeZoom) scale = activeZoom.scale;
-
-          const sW = video.videoWidth / scale;
-          const sH = video.videoHeight / scale;
-          const sX = (video.videoWidth - sW) / 2;
-          const sY = (video.videoHeight - sH) / 2;
-
-          // B. DRAW VIDEO
-          ctx.drawImage(video, sX, sY, sW, sH, 0, 0, W, H);
-
-          // C. DRAW PREMIUM SUBTITLES (Multi-line Wrapped)
-          const sub = project.subtitles?.find(s => globalT >= s.start && globalT <= s.end);
-          if (sub) {
-            drawStyledSubtitles(ctx, sub, project, W, H);
-          }
-
-          onProgress(Math.round(((elapsed + t) / totalDuration) * 100));
+      const renderLoop = async () => {
+        if (currentSegmentIdx >= highlights.length) {
+          recorder.stop();
+          if (musicEl) musicEl.pause();
+          return;
         }
-        elapsed += segDur;
-      }
 
-      recorder.stop();
-      if (musicEl) musicEl.pause();
+        const hl = highlights[currentSegmentIdx];
+        const segDur = hl.duration || (hl.end - hl.start);
+
+        // START SEGMENT
+        if (video.paused) {
+          video.currentTime = hl.start;
+          await new Promise(r => { video.onseeked = r; });
+          await video.play();
+        }
+
+        // SEGMENT END CHECK
+        if (video.currentTime >= hl.end || video.currentTime < hl.start) {
+          video.pause();
+          elapsedInPreviousSegments += segDur;
+          currentSegmentIdx++;
+          renderLoop();
+          return;
+        }
+
+        // --- DRAWING CORE ---
+        let scale = 1.0;
+        const currentSegTime = video.currentTime - hl.start;
+        const globalT = elapsedInPreviousSegments + currentSegTime;
+
+        // Perspective Punch Logic
+        const activeZoom = project.zoomEffects?.find(z => globalT >= z.timestamp && globalT <= z.timestamp + z.duration);
+        if (activeZoom) scale = activeZoom.scale;
+
+        const sW = video.videoWidth / scale;
+        const sH = video.videoHeight / scale;
+        const sX = (video.videoWidth - sW) / 2;
+        const sY = (video.videoHeight - sH) / 2;
+
+        ctx.drawImage(video, sX, sY, sW, sH, 0, 0, W, H);
+
+        // Draw Subtitles
+        const sub = project.subtitles?.find(s => globalT >= s.start && globalT <= s.end);
+        if (sub) {
+          drawStyledSubtitles(ctx, sub, project, W, H);
+        }
+
+        onProgress(Math.min(99, Math.round((globalT / totalTargetDuration) * 100)));
+        requestAnimationFrame(renderLoop);
+      };
+
+      renderLoop();
     } catch (err) {
       reject(err);
     }
@@ -194,7 +198,6 @@ function drawStyledSubtitles(ctx: CanvasRenderingContext2D, sub: SubtitleItem, p
       const bh = style.fontSize + paddingY * 2;
       const r = style.boxRadius || 12;
 
-      // Draw Rounded Box
       ctx.beginPath();
       ctx.moveTo(bx + r, by);
       ctx.lineTo(bx + bw - r, by);
@@ -209,7 +212,6 @@ function drawStyledSubtitles(ctx: CanvasRenderingContext2D, sub: SubtitleItem, p
       ctx.fill();
     }
 
-    // DRAW TEXT WORDS (with Highlight check)
     let currentX = (W - lineWidth) / 2;
     const highlightWords = (sub.highlightWords || []).map(w => w.toUpperCase());
     const lineWords = line.split(' ');
@@ -217,15 +219,12 @@ function drawStyledSubtitles(ctx: CanvasRenderingContext2D, sub: SubtitleItem, p
     lineWords.forEach((word) => {
       const cleanWord = word.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"").toUpperCase();
       const isHighlighted = highlightWords.includes(cleanWord);
-      
       ctx.fillStyle = isHighlighted ? style.highlightColor : style.textColor;
-      
       if (style.strokeWidth > 0) {
         ctx.strokeStyle = style.strokeColor;
         ctx.lineWidth = style.strokeWidth * 2;
         ctx.strokeText(word, currentX + ctx.measureText(word).width / 2, y);
       }
-      
       ctx.fillText(word, currentX + ctx.measureText(word).width / 2, y);
       currentX += ctx.measureText(word + ' ').width;
     });
