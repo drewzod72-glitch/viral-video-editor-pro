@@ -266,37 +266,17 @@ export async function runAnalyzeVideo(params: any): Promise<any> {
   const apiKey = requireApiKey(params.apiKey);
   const userInstructions = params.userDescription ? `USER SPECIFIC GOALS: ${params.userDescription}` : '';
   
-  let prompt = `You are a World-Class Viral Content Architect & Psychology-Driven Social Media Director.
-Your task is to re-engineer this video into an UNSTOPPABLE social media asset for the "${params.niche}" niche.
+  let prompt = `You are a World-Class Viral Architect.
+Your task is to re-engineer this video to DOMINATE the algorithm for the "${params.niche}" niche. ${userInstructions}
 
-### 🧠 RETENTION PSYCHOLOGY PROTOCOLS:
+### PSYCHOLOGICAL RETAINMENT PROTOCOLS:
+1. **0.5s Hook**: Rewrite the first sentence to be a "Pattern Interrupt" (Identity call or curiosity gap).
+2. **1.8s Beat**: Create cuts and zooms every 1.8 seconds. Stagnancy = Death.
+3. **Word-for-Word Pacing**: Use micro-pacing (1.12x speed) during setup talk.
+4. **Infinity Loop**: Craft the final CTA to flow perfectly back to the first second.
+5. **Captions**: Max 3 words. Use "Hormozi" bold styling. Visualize EVERY noun with an emoji.
 
-1. **THE 0.5s DECISION (THE HOOK)**:
-   - Rewrite the first subtitle into one of these high-performing archetypes:
-     * *The Investigator*: "I found the hidden secret to..."
-     * *The Identity Call*: "If you are a [Niche], read this."
-     * *The Pattern Interrupt*: "Everything you know about [Niche] is WRONG."
-   - Start with a 🚨 or 🤫 emoji.
-
-2. **THE 1.8s HEARTBEAT (PACING)**:
-   - Create jump-cuts (highlights) every 1.5 - 2.2 seconds.
-   - Never let a visual stay stagnant.
-   - Alternate zooms: 1.0x -> 1.25x -> 1.1x -> 1.3x.
-
-3. **THE INFINITY LOOP (RETENTION)**:
-   - Identify the very last word/sentence.
-   - Craft the Ending CTA to "bridge" perfectly back to the start.
-   - Goal: Force the algorithm to count 2-3 views per user.
-
-4. **EMOTIONAL MOOD ENGINE**:
-   - Detect the "Vibe". 
-   - Choose "CaptionStyle": 'hormozi' for high-energy, 'minimalist' for luxury, 'comic' for pets/skits.
-   - Choose "ColorGrade": 'vibrant_pop' for food/products, 'moody_cyber' for tech, 'cinematic' for fitness.
-
-5. **SMART COMMENT TRIGGERS**:
-   - Instead of "Follow me", create a polarizing question: "Who else does this? 🙋‍♂️" or "A or B? 👇"
-
-Return a JSON blueprint that implements these protocols exactly.`;
+Return a JSON blueprint optimized for 70%+ completion rates.`;
   
   if (!params.videoFile && params.defaultTranscribe) {
     prompt += `\n\nVIDEO TRANSCRIPT FOR CONTEXT: ${params.defaultTranscribe}`;

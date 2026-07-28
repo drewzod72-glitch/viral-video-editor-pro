@@ -211,7 +211,7 @@ export default function App() {
               <VideoPlayerWorkspace 
                 project={activeProject} 
                 onUpdateProject={setActiveProject as any} 
-                activeMusicTrack={null} 
+                activeMusicTrack={FREE_MUSIC_TRACKS.find(t => t.id === activeProject.selectedMusicTrackId) || null} 
                 musicVolume={0.5} 
                 setMusicVolume={() => {}} 
                 enableSubtitles={true} 

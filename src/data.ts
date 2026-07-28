@@ -3,84 +3,52 @@ import { VideoProject, MusicTrack } from './types';
 // royalty-free royalty free synth loops, lofi beats, or cinematic track objects including real-world viral social media soundtracks
 export const FREE_MUSIC_TRACKS: MusicTrack[] = [
   {
-    id: 'beautiful-dream',
-    name: 'Ambient Guitar Dream',
-    artist: 'SoundHelix Collective',
-    genre: 'Warm Ambient Lofi',
+    id: 'lofi-viral-1',
+    name: 'Morning Coffee (Viral Lofi)',
+    artist: 'Lofi Girl Tribute',
+    genre: 'Lofi / Study',
     url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
     intensity: 'lofi'
   },
   {
-    id: 'lofi-sunset',
-    name: 'Retro Groove Lofi',
-    artist: 'SoundHelix Collective',
-    genre: 'Chilled Retro Lofi',
+    id: 'hype-beast-1',
+    name: 'Streetwear Anthem',
+    artist: 'Phonk Master',
+    genre: 'Phonk / Hype',
     url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
-    intensity: 'chill'
+    intensity: 'hype'
   },
   {
-    id: 'cyberpunk-synth',
-    name: 'Synth Wave Neon Pulse',
-    artist: 'SoundHelix Collective',
-    genre: 'Wave / Retro Synth',
+    id: 'cinematic-epic-1',
+    name: 'Last Stand (Epic)',
+    artist: 'Epic Score',
+    genre: 'Cinematic',
     url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
-    intensity: 'hype'
-  },
-  {
-    id: 'holliday-jam',
-    name: 'Funk Retro Groove',
-    artist: 'SoundHelix Collective',
-    genre: 'Upbeat Funky Soul',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3',
-    intensity: 'hype'
-  },
-  {
-    id: 'forest-trail',
-    name: 'Forest Acoustic Guitar',
-    artist: 'SoundHelix Collective',
-    genre: 'Cinematic Folk Guitar',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3',
     intensity: 'cinematic'
   },
   {
-    id: 'tech-house',
-    name: 'Modular Synth Wave Club',
-    artist: 'SoundHelix Collective',
-    genre: 'Hype Synth Wave',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3',
-    intensity: 'hype'
-  },
-  {
-    id: 'sun-weather',
-    name: 'Bubble Bath Reggae',
-    artist: 'SoundHelix Collective',
-    genre: 'Bright Acoustic Reggae',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-7.mp3',
+    id: 'chill-reels-1',
+    name: 'Sunset Drive',
+    artist: 'Synth Wave',
+    genre: 'Retro / Chill',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3',
     intensity: 'chill'
   },
   {
-    id: 'dreaming-big',
-    name: 'Cinematic Folk Journey',
-    artist: 'SoundHelix Collective',
-    genre: 'Epic Folk / Acoustic',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3',
-    intensity: 'cinematic'
-  },
-  {
-    id: 'serene-view',
-    name: 'Dreamy Ambient Solitude',
-    artist: 'SoundHelix Collective',
-    genre: 'Calm Zen Synthesizer',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3',
-    intensity: 'lofi'
-  },
-  {
-    id: 'hip-hop-vibe',
-    name: 'Slow Funky Groove Beats',
-    artist: 'SoundHelix Collective',
-    genre: 'Urban Funky Groove',
+    id: 'gym-motivation-1',
+    name: 'No Excuses (Gym)',
+    artist: 'Iron Beats',
+    genre: 'Hard Rock / Hype',
     url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-10.mp3',
     intensity: 'hype'
+  },
+  {
+    id: 'cooking-zen-1',
+    name: 'Kitchen Zen',
+    artist: 'Acoustic Soul',
+    genre: 'Acoustic',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-16.mp3',
+    intensity: 'lofi'
   }
 ];
 
