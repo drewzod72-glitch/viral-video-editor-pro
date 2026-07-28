@@ -275,6 +275,15 @@ Your task is to re-engineer this video to DOMINATE the algorithm for the "${para
 3. **Word-for-Word Pacing**: Use micro-pacing (1.12x speed) during setup talk.
 4. **Infinity Loop**: Craft the final CTA to flow perfectly back to the first second.
 5. **Captions**: Max 3 words. Use "Hormozi" bold styling. Visualize EVERY noun with an emoji.
+6. **Sonic Matching**: Select the best "selectedMusicTrackId" from this library:
+   - 'lofi-viral-1': Use for study, slow morning, soft vlog.
+   - 'phonk-hype-1': Use for streetwear, unboxing, fast cuts.
+   - 'cinematic-epic-1': Use for extreme sports, dramatic reveals.
+   - 'chill-reels-1': Use for travel, sunset, aesthetic products.
+   - 'gym-hustle-1': Use for intense workouts, fitness motivation.
+   - 'minimal-unbox-1': Use for tech, minimal aesthetic, clean products.
+   - 'cooking-zen-1': Use for food prep, satisfying kitchen sounds.
+   - 'vibe-vlog-1': Use for daily hustle, city walk, upbeat lifestyle.
 
 Return a JSON blueprint optimized for 70%+ completion rates.`;
   

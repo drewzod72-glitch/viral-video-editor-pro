@@ -4,14 +4,14 @@ import { VideoProject, MusicTrack } from './types';
 export const FREE_MUSIC_TRACKS: MusicTrack[] = [
   {
     id: 'lofi-viral-1',
-    name: 'Morning Coffee (Viral Lofi)',
-    artist: 'Lofi Girl Tribute',
+    name: 'Morning Coffee',
+    artist: 'Lofi Curator',
     genre: 'Lofi / Study',
     url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
     intensity: 'lofi'
   },
   {
-    id: 'hype-beast-1',
+    id: 'phonk-hype-1',
     name: 'Streetwear Anthem',
     artist: 'Phonk Master',
     genre: 'Phonk / Hype',
@@ -20,7 +20,7 @@ export const FREE_MUSIC_TRACKS: MusicTrack[] = [
   },
   {
     id: 'cinematic-epic-1',
-    name: 'Last Stand (Epic)',
+    name: 'Last Stand',
     artist: 'Epic Score',
     genre: 'Cinematic',
     url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
@@ -35,20 +35,36 @@ export const FREE_MUSIC_TRACKS: MusicTrack[] = [
     intensity: 'chill'
   },
   {
-    id: 'gym-motivation-1',
-    name: 'No Excuses (Gym)',
+    id: 'gym-hustle-1',
+    name: 'No Excuses',
     artist: 'Iron Beats',
     genre: 'Hard Rock / Hype',
     url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-10.mp3',
     intensity: 'hype'
   },
   {
+    id: 'minimal-unbox-1',
+    name: 'Clean Reveal',
+    artist: 'Tech Minimalist',
+    genre: 'Electronic / Clean',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-13.mp3',
+    intensity: 'chill'
+  },
+  {
     id: 'cooking-zen-1',
     name: 'Kitchen Zen',
     artist: 'Acoustic Soul',
-    genre: 'Acoustic',
+    genre: 'Acoustic / Warm',
     url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-16.mp3',
     intensity: 'lofi'
+  },
+  {
+    id: 'vibe-vlog-1',
+    name: 'Daily Hustle',
+    artist: 'Urban Beats',
+    genre: 'Hip Hop / Bounce',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3',
+    intensity: 'hype'
   }
 ];
 
