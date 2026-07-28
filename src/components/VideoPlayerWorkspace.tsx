@@ -682,50 +682,50 @@ export default function VideoPlayerWorkspace({
       () => { setAnalyzeStep(3); playViralSFX('pop'); },
       () => { setAnalyzeStep(4); playViralSFX('bell'); },
       () => {
-        // --- THE GOLD MINE UPGRADE: PRO-GRADE EDITING LOGIC ---
+        // --- VIRAL CONTENT ENGINEERING (V3) ---
+        // Protocol: Beat the Algorithm through pattern interrupts and tension building.
         
-        // 1. FILL GAPS: If Gemini didn't subtitle the whole video, we add descriptors.
-        const fullDuration = project.duration || 8;
+        const fullDuration = project.duration || 14;
         let enhancedSubtitles = [...(project.subtitles || [])];
         
-        if (enhancedSubtitles.length > 0) {
-          // Add a descriptor if there's a big gap at the end
-          const lastSub = enhancedSubtitles[enhancedSubtitles.length - 1];
-          if (lastSub.end < fullDuration - 1) {
-            enhancedSubtitles.push({
-              id: `ai-outro-${Date.now()}`,
-              text: "🔥 Follow for more!",
-              start: lastSub.end + 0.1,
-              end: fullDuration,
-              emoji: "🚀",
-              highlightWords: ["Follow"]
-            });
-          }
+        // 1. DYNAMIC HOOK INJECTION
+        if (enhancedSubtitles.length > 0 && !enhancedSubtitles[0].text.includes('🚨')) {
+          enhancedSubtitles[0].text = `🚨 WAIT! ${enhancedSubtitles[0].text}`;
+          enhancedSubtitles[0].highlightWords = ['WAIT!'];
         }
 
-        // 2. GENERATE AGGRESSIVE JUMP CUTS
-        // We limit to the first 10 segments for engine stability on mobile devices.
-        const newHighlights = enhancedSubtitles.slice(0, 10).map((sub, i) => ({
-          id: `ai-cut-${i}-${Date.now()}`,
-          title: i === 0 ? '🔥 Viral Hook' : `Scene ${i + 1}`,
-          start: sub.start,
-          end: sub.end,
-          duration: sub.end - sub.start,
-          viralityScore: 98,
-          description: "AI-Generated Jump Cut",
-          whyEngaging: "Pattern-interrupt sequence with 1.10x pacing.",
-          speed: 1.10
-        }));
+        // 2. AGGRESSIVE PATTERN INTERRUPTS (JUMP CUTS)
+        // We cut every 1.5 to 2.5 seconds to maintain high Dopamine levels.
+        const newHighlights = [];
+        let cur = 0;
+        let idx = 0;
+        while (cur < fullDuration) {
+          const step = 1.5 + Math.random(); // Varied pacing
+          const end = Math.min(cur + step, fullDuration);
+          newHighlights.push({
+            id: `viral-cut-${idx}-${Date.now()}`,
+            title: idx === 0 ? '🔥 THE HOOK' : `Segment ${idx + 1}`,
+            start: cur,
+            end: end,
+            duration: end - cur,
+            viralityScore: 99,
+            description: "Algorithmic Pattern Interrupt",
+            whyEngaging: "Rapid frame shift to reset viewer attention span.",
+            speed: idx % 3 === 0 ? 1.12 : 1.0 // "Micro-pacing" speed ramps
+          });
+          cur = end;
+          idx++;
+        }
 
-        // 3. GENERATE DYNAMIC PERSPECTIVE PUNCHES
-        // Alternates between 1.0x (wide) and 1.25x (zoom) on every beat.
-        const newZoomEffects = enhancedSubtitles.slice(0, 10).map((sub, i) => ({
-          timestamp: sub.start,
+        // 3. PERSPECTIVE PUNCHES (OPTICAL ZOOM)
+        // Alternating zoom depth to simulate a multi-camera setup.
+        const newZoomEffects = newHighlights.map((hl, i) => ({
+          timestamp: hl.start,
           scale: i % 2 === 0 ? 1.25 : 1.0,
-          duration: sub.end - sub.start
+          duration: hl.duration
         }));
 
-        // Complete Optimization!
+        // 4. PRESTIGE STYLING
         setIsAnalyzing(false);
         setJumpCuts(true);
         setSpeedRamp(true);
@@ -735,25 +735,24 @@ export default function VideoPlayerWorkspace({
         setEnableColorGrade(true);
         setEnableSubtitles(true);
 
-        // Pick niche-matching best color grade
-        let optimalGrade: 'cinematic' | 'warm_vintage' | 'vibrant_pop' | 'moody_cyber' = 'cinematic';
-        if (project.niche === 'tech' || project.niche === 'comedy') optimalGrade = 'moody_cyber';
-        else if (project.niche === 'cooking' || project.niche === 'pets') optimalGrade = 'warm_vintage';
-        else if (project.niche === 'fitness' || project.niche === 'unboxing') optimalGrade = 'vibrant_pop';
+        // Algorithm-optimized color grading
+        let optimalGrade: 'cinematic' | 'vibrant_pop' | 'moody_cyber' = 'cinematic';
+        if (project.niche === 'cooking' || project.niche === 'unboxing') optimalGrade = 'vibrant_pop';
+        if (project.niche === 'tech') optimalGrade = 'moody_cyber';
 
         onUpdateProject({
           ...project,
           subtitles: enhancedSubtitles,
           colorGrade: optimalGrade,
           viralityScore: 99,
-          captionRotation: 0,
+          captionStyle: 'hormozi', // Best performing for retention
           highlights: newHighlights,
           zoomEffects: newZoomEffects,
           transitionStyle: 'flash',
           viralityFeedback: [
-            "✨ GOLD MASTER OPTIMIZED! Full-length coverage applied.",
-            "🚀 Jump cuts synchronized to every syllable.",
-            "💥 1.25x Optical Punches added for retention."
+            "🚀 ALGORITHM BEATEN: Pattern interrupts set to 1.8s avg.",
+            "📈 RETENTION MAXIMIZED: 1.12x Micro-pacing enabled.",
+            "💥 ATTENTION LOCKED: Perspective punches synchronized."
           ]
         });
         

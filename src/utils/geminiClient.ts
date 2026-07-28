@@ -264,10 +264,25 @@ const ANALYZE_VIDEO_SCHEMA = {
 
 export async function runAnalyzeVideo(params: any): Promise<any> {
   const apiKey = requireApiKey(params.apiKey);
-  const userInstructions = params.userDescription ? `FOLLOW THESE USER INSTRUCTIONS: ${params.userDescription}` : '';
-  let prompt = `You are a Social Media Algorithm Engineer. Analyze this video for niche "${params.niche}". ${userInstructions} Provide a JSON blueprint with viral titles, short punchy subtitles, jump-cuts (highlights), and 1.2x zoom perspective punches. Ensure all subtitles are shorter than 4 words. Use emojis where appropriate. Ensure highlights cover the most engaging parts of the video.`;
+  const userInstructions = params.userDescription ? `USER SPECIFIC GOALS: ${params.userDescription}` : '';
   
-  // TEMPLATE FIX: If we have a transcript but no file, pass the transcript to the AI!
+  let prompt = `You are a Viral Content Engineer & Senior Social Media Editor for top 1% creators.
+Analyze this video for the "${params.niche}" niche. ${userInstructions}
+
+Your goal is to engineer this video to BEAT THE ALGORITHM by maximizing Watch Time and Retention.
+
+### EDITING PROTOCOL:
+1. **The Hook (0-3s)**: Identify the most striking visual or statement. Start with a 1.2x Zoom and a bold, curiosity-driven caption.
+2. **Pattern Interrupts**: Every 2-3 seconds, change the visual state. Toggle between 1.0x (Wide) and 1.25x (Punch-in) zooms.
+3. **Pacing**: Use 1.10x speed for "set-up" talk, and 1.0x for "punch-lines" or climax moments.
+4. **Captions**:
+   - Max 3 words per line.
+   - Use high-contrast colors (Yellow/Green).
+   - Use Emojis to visualize keywords (e.g., "Money 💰", "Fast ⚡").
+5. **Highlights**: Extract ONLY the high-retention segments. Discard silence, "ums", and slow movements.
+
+Return a JSON blueprint matching the schema.`;
+  
   if (!params.videoFile && params.defaultTranscribe) {
     prompt += `\n\nVIDEO TRANSCRIPT FOR CONTEXT: ${params.defaultTranscribe}`;
   }
