@@ -122,7 +122,8 @@ export default function App() {
       setDownloadReadyInfo({ url, filename: `${activeProject.name.replace(/\s+/g, '_')}_edit.mp4` });
     } catch (err: any) {
       console.error('[Export Error]', err);
-      alert('Bake failed. Please try a shorter segment or close background apps.');
+      const msg = err?.message || (typeof err === 'string' ? err : 'Unknown hardware error. Try refreshing the page.');
+      alert('Export failed: ' + msg);
     } finally {
       setIsProcessing(false);
     }

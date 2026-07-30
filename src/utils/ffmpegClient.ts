@@ -127,21 +127,39 @@ export async function renderVideoInBrowser(
 
       const startNextSegment = async () => {
         if (currentSegIdx >= highlights.length) {
-          setTimeout(() => recorder.stop(), 500);
+          console.log('[Viral Forge] All segments processed, stopping recorder.');
+          setTimeout(() => {
+            if (recorder.state !== 'inactive') recorder.stop();
+          }, 500);
           if (musicEl) musicEl.pause();
           return;
         }
 
         const hl = highlights[currentSegIdx];
+        console.log(`[Viral Forge] Processing segment ${currentSegIdx + 1}/${highlights.length}: ${hl.start}s - ${hl.end}s`);
+        
         video.currentTime = hl.start;
         if (musicEl) musicEl.currentTime = totalElapsed;
         
-        await new Promise(r => video.onseeked = r);
-        await video.play();
-        if (musicEl) musicEl.play().catch(() => {});
+        // Wait for seek and play
+        try {
+          await new Promise((r, rej) => {
+            const timeout = setTimeout(() => rej(new Error('Seek Timeout')), 5000);
+            video.onseeked = () => { clearTimeout(timeout); r(null); };
+          });
+          await video.play();
+          if (musicEl) musicEl.play().catch(e => console.warn('Music play fail:', e));
+        } catch (e) {
+          console.error('[Viral Forge] Segment start failed:', e);
+          reject(new Error(`Segment ${currentSegIdx + 1} failed to load.`));
+          return;
+        }
 
         const frameLoop = () => {
+          if (recorder.state === 'inactive') return;
+
           if (video.currentTime >= hl.end || video.paused) {
+            console.log(`[Viral Forge] Segment ${currentSegIdx + 1} finished.`);
             video.pause();
             totalElapsed += (hl.end - hl.start);
             currentSegIdx++;
