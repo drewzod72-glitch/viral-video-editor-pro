@@ -62,10 +62,18 @@ export async function renderVideoInBrowser(
 
       const totalTargetDuration = highlights.reduce((s, h) => s + (h.duration || (h.end - h.start)), 0);
 
-      // 5. AUDIO ROUTING
+      // 5. AUDIO ROUTING (Defensive)
       const dest = audioCtx.createMediaStreamDestination();
-      const videoSource = audioCtx.createMediaElementSource(video);
-      videoSource.connect(dest);
+      
+      // Use a singleton approach for video audio source to prevent "already connected" errors
+      let videoSource;
+      try {
+        videoSource = (video as any)._audioSource || audioCtx.createMediaElementSource(video);
+        (video as any)._audioSource = videoSource;
+        videoSource.connect(dest);
+      } catch (e) {
+        console.warn('[Audio] Video source connection skipped:', e);
+      }
 
       let musicEl: HTMLAudioElement | null = null;
       if (project.selectedMusicTrackId && project.selectedMusicTrackId !== 'none') {
@@ -79,22 +87,31 @@ export async function renderVideoInBrowser(
         }
       }
 
-      // 6. RECORDER SETUP
+      // 6. RECORDER SETUP (Ultra-Compatible)
       const canvasStream = canvas.captureStream(30);
-      const mixedStream = new MediaStream([
-        canvasStream.getVideoTracks()[0],
-        dest.stream.getAudioTracks()[0]
-      ]);
+      const audioTracks = dest.stream.getAudioTracks();
+      
+      const tracks: MediaStreamTrack[] = [canvasStream.getVideoTracks()[0]];
+      if (audioTracks.length > 0) {
+        tracks.push(audioTracks[0]);
+      } else {
+        console.warn('[Audio] No audio tracks found for mixing.');
+      }
 
-      const mimeType = MediaRecorder.isTypeSupported('video/mp4') 
-        ? 'video/mp4' 
-        : (MediaRecorder.isTypeSupported('video/webm') ? 'video/webm' : '');
+      const mixedStream = new MediaStream(tracks);
 
-      if (!mimeType) throw new Error('Your browser does not support video recording.');
+      // iOS Safari prefers 'video/mp4' without specific codecs sometimes
+      // We check for 'video/mp4' then 'video/webm'
+      let mimeType = 'video/mp4';
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = 'video/webm';
+      }
+
+      console.log(`[Recorder] Using MIME type: ${mimeType}`);
 
       const recorder = new MediaRecorder(mixedStream, {
         mimeType,
-        videoBitsPerSecond: 2500000 // Lowered to 2.5Mbps for mobile hardware stability
+        videoBitsPerSecond: 2000000 // 2Mbps is safe and clear
       });
 
       const chunks: Blob[] = [];
