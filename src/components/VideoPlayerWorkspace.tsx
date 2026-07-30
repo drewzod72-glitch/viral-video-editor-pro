@@ -339,40 +339,37 @@ export default function VideoPlayerWorkspace({
     const video = videoRef.current;
     const audio = musicAudioRef.current;
 
-    // 1. UNLOCK AUDIO FOR IOS
-    // We create a global reference to the AudioContext on the first click
+    // 1. UNLOCK AUDIO (PERMANENT)
     try {
+      const AudioCtxClass = (window as any).AudioContext || (window as any).webkitAudioContext;
       if (!(window as any)._viralAudioCtx) {
-        (window as any)._viralAudioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-        console.log("[Audio] Created Global Context");
+        (window as any)._viralAudioCtx = new AudioCtxClass();
       }
       if ((window as any)._viralAudioCtx.state === 'suspended') {
         (window as any)._viralAudioCtx.resume();
-        console.log("[Audio] Context Resumed");
       }
-    } catch (e) {
-      console.error("[Audio] Context Error:", e);
-    }
+    } catch (e) {}
 
     if (video.paused) {
-      // 2. Sync and Play Video
       if (video.currentTime < startLimit - 0.1 || video.currentTime >= endLimit - 0.1) {
         video.currentTime = startLimit;
       }
       
-      // 3. FORCE MUSIC TO LOAD AND PLAY
+      // 2. FORCE MUSIC SYNC
       if (audio && activeMusicTrack) {
-        console.log(`[Studio] Unlocking Music: ${activeMusicTrack.name}`);
-        // Essential: Update src if it changed
-        if (!audio.src.includes(activeMusicTrack.url)) {
+        // Ensure source is set
+        if (!audio.src || !audio.src.includes(activeMusicTrack.url)) {
           audio.src = activeMusicTrack.url;
           audio.load();
         }
         audio.currentTime = Math.max(0, video.currentTime - startLimit);
-        audio.play().catch(e => console.warn("[Audio] Music Blocked:", e));
+        audio.play().catch(() => {
+          // If blocked, we try again on a small delay
+          setTimeout(() => audio.play().catch(() => {}), 100);
+        });
       }
 
-      video.play().catch(e => console.warn("[Video] Play Blocked:", e));
+      video.play().catch(() => {});
       setIsPlaying(true);
     } else {
       video.pause();
