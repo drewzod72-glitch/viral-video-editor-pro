@@ -1,17 +1,21 @@
+import { VideoProject, SubtitleItem, getCaptionStyles } from '../types';
+import { FREE_MUSIC_TRACKS } from '../data';
+
 /**
- * ULTIMATE VIRAL FORGE ENGINE (V15) - "PIXEL-PERFECT SYNC"
+ * ULTIMATE VIRAL FORGE ENGINE (V15.4) - "THE FINAL FIX"
  * 
  * THE ULTIMATE STABILITY & QUALITY PATCH:
- * 1. Perfect Audio: Uses real-time hardware recording to capture video + music perfectly.
- * 2. Butter-Smooth: Uses 'requestVideoFrameCallback' for 100% sync with the phone's GPU.
- * 3. Studio-Match: Replicates Hormozi Pink/Yellow styles and multi-line wrapping exactly.
+ * 1. Fixed Missing Imports: Restored FREE_MUSIC_TRACKS reference.
+ * 2. Perfect Audio: Uses real-time hardware recording to capture video + music perfectly.
+ * 3. Butter-Smooth: Uses 'requestVideoFrameCallback' for 100% sync with the phone's GPU.
+ * 4. Studio-Match: Replicates Hormozi Pink/Yellow styles and multi-line wrapping exactly.
  */
 export async function renderVideoInBrowser(
   project: VideoProject,
   onProgress: (progress: number) => void,
   activeClipId: string | null = null
 ): Promise<Blob> {
-  console.log('[Viral Forge] Initializing Pixel-Perfect Engine V15...');
+  console.log('[Viral Forge] Initializing Pixel-Perfect Engine V15.4...');
 
   // 1. Audio Unblock & Setup
   const AudioCtxClass = (window as any).AudioContext || (window as any).webkitAudioContext;
@@ -65,7 +69,6 @@ export async function renderVideoInBrowser(
       // 5. AUDIO ROUTING (Defensive)
       const dest = audioCtx.createMediaStreamDestination();
       
-      // Use a singleton approach for video audio source to prevent "already connected" errors
       let videoSource;
       try {
         videoSource = (video as any)._audioSource || audioCtx.createMediaElementSource(video);
@@ -94,24 +97,17 @@ export async function renderVideoInBrowser(
       const tracks: MediaStreamTrack[] = [canvasStream.getVideoTracks()[0]];
       if (audioTracks.length > 0) {
         tracks.push(audioTracks[0]);
-      } else {
-        console.warn('[Audio] No audio tracks found for mixing.');
       }
 
       const mixedStream = new MediaStream(tracks);
-
-      // iOS Safari prefers 'video/mp4' without specific codecs sometimes
-      // We check for 'video/mp4' then 'video/webm'
       let mimeType = 'video/mp4';
       if (!MediaRecorder.isTypeSupported(mimeType)) {
         mimeType = 'video/webm';
       }
 
-      console.log(`[Recorder] Using MIME type: ${mimeType}`);
-
       const recorder = new MediaRecorder(mixedStream, {
         mimeType,
-        videoBitsPerSecond: 2000000 // 2Mbps is safe and clear
+        videoBitsPerSecond: 2500000 
       });
 
       const chunks: Blob[] = [];
@@ -136,12 +132,9 @@ export async function renderVideoInBrowser(
         }
 
         const hl = highlights[currentSegIdx];
-        console.log(`[Viral Forge] Processing segment ${currentSegIdx + 1}/${highlights.length}: ${hl.start}s - ${hl.end}s`);
-        
         video.currentTime = hl.start;
         if (musicEl) musicEl.currentTime = totalElapsed;
         
-        // Wait for seek and play
         try {
           await new Promise((r, rej) => {
             const timeout = setTimeout(() => rej(new Error('Seek Timeout')), 5000);
@@ -159,7 +152,6 @@ export async function renderVideoInBrowser(
           if (recorder.state === 'inactive') return;
 
           if (video.currentTime >= hl.end || video.paused) {
-            console.log(`[Viral Forge] Segment ${currentSegIdx + 1} finished.`);
             video.pause();
             totalElapsed += (hl.end - hl.start);
             currentSegIdx++;
@@ -180,7 +172,6 @@ export async function renderVideoInBrowser(
 
           ctx.drawImage(video, sX, sY, sW, sH, 0, 0, W, H);
 
-          // Subtitles
           const sub = project.subtitles?.find(s => globalT >= s.start && globalT <= s.end);
           if (sub) drawStudioSubtitles(ctx, sub, project, W, H);
 
@@ -256,7 +247,6 @@ function drawStudioSubtitles(ctx: CanvasRenderingContext2D, sub: SubtitleItem, p
       const clean = word.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"").toUpperCase();
       const isH = hWords.includes(clean);
       
-      // STUDIO ACCURACY: Pink highlight for Hormozi, Green for MrBeast
       if (isH) ctx.fillStyle = isHormozi ? '#EC4899' : '#10B981'; 
       else ctx.fillStyle = isHormozi ? '#FBBF24' : '#FFFFFF';
 
