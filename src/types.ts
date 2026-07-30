@@ -69,17 +69,18 @@ export interface VideoProject {
   engineMode?: 'live-gemini' | 'simulated-engine' | 'edge-rules';
   transitionStyle?: 'none' | 'crossfade' | 'glitch' | 'flash' | 'zoom' | 'fade_black' | 'slide_left';
   
-  // FINE-TUNE ENGAGEMENT RAILS (PERSISTENT)
-  jumpCuts?: boolean;
-  speedRamp?: boolean;
-  sfxSparks?: boolean;
-  emojiBounces?: boolean;
-  enableZooms?: boolean;
-  enableSubtitles?: boolean;
-  enableColorGrade?: boolean;
-  autoZoomPunch?: boolean;
-  shakeOnPunch?: boolean;
-  camRecorderHUD?: boolean;
+  // UNIFIED PERSISTENT SETTINGS
+  enableSubtitles: boolean;
+  enableZooms: boolean;
+  enableColorGrade: boolean;
+  musicVolume: number;
+  jumpCuts: boolean;
+  speedRamp: boolean;
+  sfxSparks: boolean;
+  emojiBounces: boolean;
+  autoZoomPunch: boolean;
+  shakeOnPunch: boolean;
+  camRecorderHUD: boolean;
 
   sfxWhooshEnabled?: boolean;
   sfxPopEnabled?: boolean;

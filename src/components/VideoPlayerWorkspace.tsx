@@ -46,14 +46,6 @@ const fixDunikTypo = (str: string): string => {
 interface VideoPlayerWorkspaceProps {
   project: VideoProject;
   activeMusicTrack: MusicTrack | null;
-  musicVolume: number;
-  setMusicVolume: (v: number) => void;
-  enableSubtitles: boolean;
-  setEnableSubtitles: (b: boolean) => void;
-  enableZooms: boolean;
-  setEnableZooms: (b: boolean) => void;
-  enableColorGrade: boolean;
-  setEnableColorGrade: (b: boolean) => void;
   activeClipId: string | null;
   onClipSelect: (clipId: string | null) => void;
   onUpdateProject: (updated: VideoProject) => void;
@@ -64,68 +56,30 @@ interface VideoPlayerWorkspaceProps {
 export default function VideoPlayerWorkspace({
   project,
   activeMusicTrack,
-  musicVolume,
-  setMusicVolume,
-  enableSubtitles,
-  setEnableSubtitles,
-  enableZooms,
-  setEnableZooms,
-  enableColorGrade,
-  setEnableColorGrade,
   activeClipId,
   onClipSelect,
   onUpdateProject,
   requestedSeekTime,
   onSeekConsumed,
 }: VideoPlayerWorkspaceProps) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const musicAudioRef = useRef<HTMLAudioElement>(null);
-  const stageRef = useRef<HTMLDivElement>(null);
-  const loadedMusicTrackIdRef = useRef<string | null>(null);
+  const { 
+    enableSubtitles,
+    enableZooms,
+    enableColorGrade,
+    musicVolume,
+    jumpCuts,
+    speedRamp,
+    sfxSparks,
+    emojiBounces,
+    autoZoomPunch,
+    shakeOnPunch,
+    camRecorderHUD
+  } = project;
 
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [videoDuration, setVideoDuration] = useState(project.duration || 30);
-  const [isMuted, setIsMuted] = useState(false);
-  const [currentZoomScale, setCurrentZoomScale] = useState(1);
-  const [activeSubtitle, setActiveSubtitle] = useState<any>(null);
-  const [autoDucking, setAutoDucking] = useState(true);
-  const [continuousMusic, setContinuousMusic] = useState<boolean>(true); // keeps music playing during edits by default
-  const [captionRotation, setCaptionRotation] = useState<number>(project.captionRotation || 0);
-  const [stageWidth, setStageWidth] = useState<number>(281);
-
-  // Cinematic horizontal transit effects transition states
-  const [transitionActive, setTransitionActive] = useState<boolean>(false);
-  const [transitionType, setTransitionType] = useState<'none' | 'crossfade' | 'glitch' | 'flash' | 'zoom' | 'fade_black' | 'slide_left'>('none');
-
-  // Interactive Clip specific trimming and addition states
-  const [clipEditTitle, setClipEditTitle] = useState<string>('');
-  const [clipEditStart, setClipEditStart] = useState<number>(0);
-  const [clipEditEnd, setClipEditEnd] = useState<number>(10);
-  const [clipEditSpeed, setClipEditSpeed] = useState<number>(1.0);
-
-  const triggerTransition = (type?: 'none' | 'crossfade' | 'glitch' | 'flash' | 'zoom' | 'fade_black' | 'slide_left') => {
-    const t = type || project.transitionStyle || 'flash';
-    if (t === 'none') return;
-    setTransitionType(t);
-    setTransitionActive(true);
-    if (project.sfxWhooshEnabled !== false) {
-      playViralSFX('swoosh');
-    }
-    setTimeout(() => {
-      setTransitionActive(false);
-    }, 450);
-  };
-
-  // Sync local UI states with project object
-  const jumpCuts = project.jumpCuts !== false;
-  const speedRamp = project.speedRamp !== false;
-  const sfxSparks = project.sfxSparks !== false;
-  const emojiBounces = project.emojiBounces !== false;
-  const autoZoomPunch = project.autoZoomPunch !== false;
-  const camRecorderHUD = project.camRecorderHUD === true;
-  const shakeOnPunch = project.shakeOnPunch !== false;
-
+  const setEnableSubtitles = (val: boolean) => onUpdateProject({ ...project, enableSubtitles: val });
+  const setEnableZooms = (val: boolean) => onUpdateProject({ ...project, enableZooms: val });
+  const setEnableColorGrade = (val: boolean) => onUpdateProject({ ...project, enableColorGrade: val });
+  const setMusicVolume = (val: number) => onUpdateProject({ ...project, musicVolume: val });
   const setJumpCuts = (val: boolean) => onUpdateProject({ ...project, jumpCuts: val });
   const setSpeedRamp = (val: boolean) => onUpdateProject({ ...project, speedRamp: val });
   const setSfxSparks = (val: boolean) => onUpdateProject({ ...project, sfxSparks: val });
@@ -134,8 +88,7 @@ export default function VideoPlayerWorkspace({
   const setCamRecorderHUD = (val: boolean) => onUpdateProject({ ...project, camRecorderHUD: val });
   const setShakeOnPunch = (val: boolean) => onUpdateProject({ ...project, shakeOnPunch: val });
 
-  const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
-  const [analyzeStep, setAnalyzeStep] = useState<number>(0);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const [isShaking, setIsShaking] = useState<boolean>(false);
 
   // Sound effects change boundary trackers
@@ -738,7 +691,6 @@ export default function VideoPlayerWorkspace({
           const sub = enhancedSubtitles[i];
           if (mergedSubtitles.length > 0) {
             const last = mergedSubtitles[mergedSubtitles.length - 1];
-            // If the last subtitle was very short (less than 1.5s), merge it with the current one
             if ((last.end - last.start) < 1.5 && (sub.end - last.start) < 4.0) {
               last.text += ' ' + sub.text;
               last.end = sub.end;
@@ -786,46 +738,43 @@ export default function VideoPlayerWorkspace({
         // 4. PERSPECTIVE PUNCHES (Tension Zooming)
         const newZoomEffects = newHighlights.map((hl, i) => ({
           timestamp: hl.start,
-          scale: i % 2 === 0 ? 1.28 : 1.0, // Aggressive punch-ins
+          scale: i % 2 === 0 ? 1.28 : 1.0, 
           duration: hl.duration
         }));
 
-        // 5. EMOTIONAL COLOR GRADING & MUSIC SYNC
-        setIsAnalyzing(false);
-        setJumpCuts(true);
-        setSpeedRamp(true);
-        setSfxSparks(true);
-        setEmojiBounces(true);
-        setEnableZooms(true);
-        setEnableColorGrade(true);
-        setEnableSubtitles(true);
+        // Auto-select music
+        let autoMusicId = 'lofi-1';
+        if (project.niche === 'fitness') autoMusicId = 'gym-hustle-1';
+        else if (project.niche === 'tech') autoMusicId = 'lux-1';
+        else if (project.niche === 'cooking') autoMusicId = 'cooking-zen-1';
 
-        // Auto-select music based on niche if not already set
-        let autoMusicId = project.selectedMusicTrackId;
-        if (autoMusicId === 'none' || !autoMusicId) {
-          if (project.niche === 'fitness') autoMusicId = 'gym-hustle-1';
-          else if (project.niche === 'tech') autoMusicId = 'lux-1';
-          else if (project.niche === 'cooking') autoMusicId = 'cooking-zen-1';
-          else autoMusicId = 'lofi-1';
-        }
-
+        // 5. UPDATE PROJECT WITH ALL PERSISTENT STATES
         onUpdateProject({
           ...project,
           subtitles: enhancedSubtitles,
-          colorGrade: project.niche === 'tech' ? 'moody_cyber' : 'vibrant_pop',
-          viralityScore: 100,
-          captionStyle: 'hormozi', // Best performing for retention (Pink accents)
-          selectedMusicTrackId: autoMusicId,
           highlights: newHighlights,
           zoomEffects: newZoomEffects,
+          captionStyle: 'hormozi',
+          selectedMusicTrackId: autoMusicId,
+          colorGrade: project.niche === 'tech' ? 'moody_cyber' : 'vibrant_pop',
+          viralityScore: 100,
           transitionStyle: 'flash',
-          viralityFeedback: [
-            "🏆 UNSTOPPABLE: Captions slowed down for readability.",
-            "🔥 HOOKED: Investigator archetype injected (0.5s).",
-            "📈 ALGORITHM BEATEN: 2.2s Heartbeat rhythm applied."
-          ]
+          
+          // FORCE SYNC TOGGLES
+          enableSubtitles: true,
+          enableZooms: true,
+          enableColorGrade: true,
+          jumpCuts: true,
+          speedRamp: true,
+          sfxSparks: true,
+          emojiBounces: true,
+          autoZoomPunch: true,
+          shakeOnPunch: true,
+          camRecorderHUD: false,
+          musicVolume: 0.4
         });
         
+        setIsAnalyzing(false);
         playViralSFX('laser');
         onClipSelect('smart-cuts');
         setTimeout(() => {

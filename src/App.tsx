@@ -32,12 +32,6 @@ export default function App() {
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [activeClipId, setActiveClipId] = useState<string | null>(null);
 
-  // Persistence for Workspace Settings
-  const [musicVolume, setMusicVolume] = useState(0.4);
-  const [enableSubtitles, setEnableSubtitles] = useState(true);
-  const [enableZooms, setEnableZooms] = useState(true);
-  const [enableColorGrade, setEnableColorGrade] = useState(true);
-
   const handleSelectTemplate = async (template: any) => {
     setIsProcessing(true);
     setProcessingStage('AI is analyzing content...');
@@ -62,7 +56,20 @@ export default function App() {
         selectedMusicTrackId: p.selectedMusicTrackId || 'lofi-1',
         captionStyle: p.captionStyle || 'hormozi',
         colorGrade: p.colorGrade || 'vibrant_pop',
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        
+        // DEFAULT PERSISTENT SETTINGS
+        enableSubtitles: true,
+        enableZooms: true,
+        enableColorGrade: true,
+        musicVolume: 0.4,
+        jumpCuts: true,
+        speedRamp: true,
+        sfxSparks: true,
+        emojiBounces: true,
+        autoZoomPunch: true,
+        shakeOnPunch: true,
+        camRecorderHUD: false
       };
       setActiveProject(newProject);
       setActiveTab('studio');
@@ -87,13 +94,27 @@ export default function App() {
         videoFile: file,
         videoUrl
       });
+      const p = result.project;
       const newProject: VideoProject = { 
-        ...result.project, 
+        ...p, 
         id: `custom-${Date.now()}`, 
         videoUrl, 
         name: fixDunikTypo(name),
         niche: niche,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+
+        // DEFAULT PERSISTENT SETTINGS
+        enableSubtitles: true,
+        enableZooms: true,
+        enableColorGrade: true,
+        musicVolume: 0.4,
+        jumpCuts: true,
+        speedRamp: true,
+        sfxSparks: true,
+        emojiBounces: true,
+        autoZoomPunch: true,
+        shakeOnPunch: true,
+        camRecorderHUD: false
       };
       setActiveProject(newProject);
       setActiveTab('studio');
@@ -111,16 +132,7 @@ export default function App() {
     try {
       const { renderVideoInBrowser } = await import('./utils/ffmpegClient');
       
-      // Merge UI states into project for the forge
-      const projectForExport = {
-        ...activeProject,
-        enableSubtitles,
-        enableZooms,
-        enableColorGrade,
-        musicVolume
-      };
-
-      const editedBlob = await renderVideoInBrowser(projectForExport as any, (prg) => {
+      const editedBlob = await renderVideoInBrowser(activeProject, (prg) => {
         setProcessingProgress(prg);
         setProcessingStage(`Baking: ${prg}%`);
       }, activeClipId);
@@ -233,14 +245,6 @@ export default function App() {
                 project={activeProject} 
                 onUpdateProject={setActiveProject as any} 
                 activeMusicTrack={FREE_MUSIC_TRACKS.find(t => t.id === activeProject.selectedMusicTrackId) || (activeProject.selectedMusicTrackId !== 'none' ? FREE_MUSIC_TRACKS[0] : null)} 
-                musicVolume={musicVolume} 
-                setMusicVolume={setMusicVolume} 
-                enableSubtitles={enableSubtitles} 
-                setEnableSubtitles={setEnableSubtitles} 
-                enableZooms={enableZooms} 
-                setEnableZooms={setEnableZooms} 
-                enableColorGrade={enableColorGrade} 
-                setEnableColorGrade={setEnableColorGrade} 
                 activeClipId={activeClipId} 
                 onClipSelect={setActiveClipId} 
               />
