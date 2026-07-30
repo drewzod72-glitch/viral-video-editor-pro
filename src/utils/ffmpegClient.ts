@@ -116,11 +116,16 @@ export async function renderVideoInBrowser(
       let totalElapsed = 0;
 
       const finishBake = () => {
-        console.log('[Viral Forge] Finishing bake...');
+        console.log('[Viral Forge] All segments processed, finalizing file...');
+        onProgress(100); // UI feedback: Done!
+        
+        // Finalize recorder
         setTimeout(() => {
-          if (recorder.state !== 'inactive') recorder.stop();
+          if (recorder.state !== 'inactive') {
+            recorder.stop();
+          }
           if (musicEl) musicEl.pause();
-        }, 1000); // 1s buffer for final audio bits
+        }, 300); // Reduced delay for faster "Aha!" moment
       };
 
       const startNextSegment = async () => {
@@ -135,7 +140,7 @@ export async function renderVideoInBrowser(
         
         try {
           await new Promise((r) => {
-            const timeout = setTimeout(() => { console.warn('Seek timeout'); r(null); }, 3000);
+            const timeout = setTimeout(() => { r(null); }, 2000);
             video.onseeked = () => { clearTimeout(timeout); r(null); };
           });
           await video.play();
@@ -149,7 +154,8 @@ export async function renderVideoInBrowser(
         const frameLoop = () => {
           if (recorder.state === 'inactive') return;
 
-          if (video.currentTime >= hl.end || video.paused) {
+          // Epsilon Check (0.05s) to prevent precision hangs at 99.9%
+          if (video.currentTime >= (hl.end - 0.05) || video.paused) {
             video.pause();
             totalElapsed += (hl.end - hl.start);
             currentSegIdx++;
@@ -157,10 +163,11 @@ export async function renderVideoInBrowser(
             return;
           }
 
-          // DRAW
+          // DRAWING
           let scale = 1.0;
           const currentSegTime = video.currentTime - hl.start;
           const globalT = totalElapsed + currentSegTime;
+
           const activeZoom = project.zoomEffects?.find(z => globalT >= z.timestamp && globalT <= z.timestamp + z.duration);
           if (activeZoom) scale = activeZoom.scale;
 
@@ -174,7 +181,9 @@ export async function renderVideoInBrowser(
           const sub = project.subtitles?.find(s => globalT >= s.start && globalT <= s.end);
           if (sub) drawStudioSubtitles(ctx, sub, project, W, H);
 
-          onProgress(Math.min(99, Math.round((globalT / totalTargetDuration) * 100)));
+          // Progress calculation with forced ceiling at 99
+          const progress = Math.min(99, Math.round((globalT / totalTargetDuration) * 100));
+          onProgress(progress);
           
           if ((video as any).requestVideoFrameCallback) {
             (video as any).requestVideoFrameCallback(frameLoop);
