@@ -56,7 +56,9 @@ export async function renderVideoInBrowser(
       // 4. Clips & Duration
       const highlights = activeClipId === 'smart-cuts' 
         ? project.highlights.slice(0, 10) 
-        : (activeClipId ? [project.highlights.find(h => h.id === activeClipId)!] : [{ start: 0, end: video.duration, duration: video.duration }]);
+        : (activeClipId ? [project.highlights.find(h => h.id === activeClipId)!].filter(Boolean) : [{ start: 0, end: video.duration || project.duration || 30, duration: video.duration || project.duration || 30 }]);
+
+      if (highlights.length === 0) throw new Error('No clips found to bake.');
 
       const totalTargetDuration = highlights.reduce((s, h) => s + (h.duration || (h.end - h.start)), 0);
 
@@ -84,9 +86,15 @@ export async function renderVideoInBrowser(
         dest.stream.getAudioTracks()[0]
       ]);
 
+      const mimeType = MediaRecorder.isTypeSupported('video/mp4') 
+        ? 'video/mp4' 
+        : (MediaRecorder.isTypeSupported('video/webm') ? 'video/webm' : '');
+
+      if (!mimeType) throw new Error('Your browser does not support video recording.');
+
       const recorder = new MediaRecorder(mixedStream, {
-        mimeType: 'video/mp4;codecs=avc1',
-        videoBitsPerSecond: 8000000 
+        mimeType,
+        videoBitsPerSecond: 2500000 // Lowered to 2.5Mbps for mobile hardware stability
       });
 
       const chunks: Blob[] = [];
