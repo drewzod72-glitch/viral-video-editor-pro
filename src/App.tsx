@@ -111,7 +111,16 @@ export default function App() {
     try {
       const { renderVideoInBrowser } = await import('./utils/ffmpegClient');
       
-      const editedBlob = await renderVideoInBrowser(activeProject, (prg) => {
+      // Merge UI states into project for the forge
+      const projectForExport = {
+        ...activeProject,
+        enableSubtitles,
+        enableZooms,
+        enableColorGrade,
+        musicVolume
+      };
+
+      const editedBlob = await renderVideoInBrowser(projectForExport as any, (prg) => {
         setProcessingProgress(prg);
         setProcessingStage(`Baking: ${prg}%`);
       }, activeClipId);

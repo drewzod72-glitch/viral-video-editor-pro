@@ -117,18 +117,25 @@ export default function VideoPlayerWorkspace({
     }, 450);
   };
 
-  // New AI Editing & Attention retention states
-  const [jumpCuts, setJumpCuts] = useState<boolean>(true);
-  const [speedRamp, setSpeedRamp] = useState<boolean>(true);
-  const [sfxSparks, setSfxSparks] = useState<boolean>(true);
-  const [emojiBounces, setEmojiBounces] = useState<boolean>(true);
+  // Sync local UI states with project object
+  const jumpCuts = project.jumpCuts !== false;
+  const speedRamp = project.speedRamp !== false;
+  const sfxSparks = project.sfxSparks !== false;
+  const emojiBounces = project.emojiBounces !== false;
+  const autoZoomPunch = project.autoZoomPunch !== false;
+  const camRecorderHUD = project.camRecorderHUD === true;
+  const shakeOnPunch = project.shakeOnPunch !== false;
+
+  const setJumpCuts = (val: boolean) => onUpdateProject({ ...project, jumpCuts: val });
+  const setSpeedRamp = (val: boolean) => onUpdateProject({ ...project, speedRamp: val });
+  const setSfxSparks = (val: boolean) => onUpdateProject({ ...project, sfxSparks: val });
+  const setEmojiBounces = (val: boolean) => onUpdateProject({ ...project, emojiBounces: val });
+  const setAutoZoomPunch = (val: boolean) => onUpdateProject({ ...project, autoZoomPunch: val });
+  const setCamRecorderHUD = (val: boolean) => onUpdateProject({ ...project, camRecorderHUD: val });
+  const setShakeOnPunch = (val: boolean) => onUpdateProject({ ...project, shakeOnPunch: val });
+
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [analyzeStep, setAnalyzeStep] = useState<number>(0);
-
-  // TikTok viral pattern-interrupt autonomic triggers
-  const [autoZoomPunch, setAutoZoomPunch] = useState<boolean>(true);
-  const [camRecorderHUD, setCamRecorderHUD] = useState<boolean>(false);
-  const [shakeOnPunch, setShakeOnPunch] = useState<boolean>(true);
   const [isShaking, setIsShaking] = useState<boolean>(false);
 
   // Sound effects change boundary trackers
