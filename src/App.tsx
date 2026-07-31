@@ -31,18 +31,43 @@ export default function App() {
 
   const handleSelectTemplate = async (template: any) => {
     setIsProcessing(true);
-    setProcessingStage('AI is analyzing content...');
+    setProcessingStage('Initializing AI Editor...');
     
-    // Safety watchdog for initialization
+    let isBypassed = false;
     const watchdog = setTimeout(() => {
+      if (isBypassed) return;
       setIsProcessing(false);
-      alert("Initialization taking longer than expected. Retrying...");
-    }, 45000);
+      alert("AI is taking too long. Opening Manual Mode.");
+      startManualMode(template);
+    }, 15000); // Shorter timeout for faster recovery
+
+    const startManualMode = (tpl: any) => {
+      isBypassed = true;
+      const manualProject: VideoProject = {
+        id: `manual-${Date.now()}`,
+        videoUrl: tpl.videoUrl,
+        name: fixDunikTypo(tpl.name),
+        niche: tpl.niche,
+        title: tpl.name,
+        description: tpl.userDescription || '',
+        subtitles: [],
+        highlights: [{ id: 'full', title: 'Full Clip', start: 0, end: tpl.originalDuration || 30 }],
+        selectedMusicTrackId: 'lofi-1',
+        captionStyle: 'hormozi',
+        colorGrade: 'vibrant_pop',
+        archetype: 'story',
+        viralityScore: 50
+      } as any;
+      setActiveProject(manualProject);
+      setActiveTab('studio');
+      setIsProcessing(false);
+    };
 
     try {
       const result = await runAnalyzeVideo({ ...template });
       clearTimeout(watchdog);
-      
+      if (isBypassed) return;
+
       if (!result || !result.project) throw new Error("AI data empty.");
       
       const p = result.project;
@@ -52,10 +77,6 @@ export default function App() {
         videoUrl: template.videoUrl, 
         name: fixDunikTypo(template.name),
         niche: template.niche,
-        selectedMusicTrackId: p.selectedMusicTrackId || 'lofi-1',
-        captionStyle: p.captionStyle || 'hormozi',
-        colorGrade: p.colorGrade || 'vibrant_pop',
-        archetype: p.archetype || 'story',
         createdAt: new Date().toISOString(),
         enableSubtitles: true, 
         enableZooms: true, 
@@ -73,10 +94,9 @@ export default function App() {
 
       setActiveProject(newProject);
       setActiveTab('studio');
-      setProcessingStage('');
     } catch (err: any) { 
       clearTimeout(watchdog); 
-      alert('AI initialization failed. Please ensure your API Key is correct in Settings.'); 
+      if (!isBypassed) startManualMode(template);
     } finally { 
       setIsProcessing(false); 
     }
@@ -85,17 +105,42 @@ export default function App() {
   const handleUploadCustomFile = async (file: File, name: string, niche: any, description: string, rawTranscribe: string) => {
     const videoUrl = URL.createObjectURL(file);
     setIsProcessing(true);
-    setProcessingStage('Preparing video for AI...');
+    setProcessingStage('Engineering Viral Blueprint...');
     
+    let isBypassed = false;
+    const watchdog = setTimeout(() => {
+      if (isBypassed) return;
+      setIsProcessing(false);
+      alert("AI is taking too long. Entering Manual Mode.");
+      startManualMode();
+    }, 15000);
+
+    const startManualMode = () => {
+      isBypassed = true;
+      const manualProject: VideoProject = {
+        id: `custom-manual-${Date.now()}`,
+        videoUrl,
+        name: fixDunikTypo(name),
+        niche: niche,
+        title: name,
+        description: description || '',
+        subtitles: [],
+        highlights: [{ id: 'full', title: 'Full Clip', start: 0, end: 30 }],
+        selectedMusicTrackId: 'lofi-1',
+        captionStyle: 'hormozi',
+        colorGrade: 'vibrant_pop',
+        archetype: 'story',
+        viralityScore: 50
+      } as any;
+      setActiveProject(manualProject);
+      setActiveTab('studio');
+      setIsProcessing(false);
+    };
+
     try {
-      const result = await runAnalyzeVideo({ 
-        name, 
-        niche, 
-        userDescription: description, 
-        defaultTranscribe: rawTranscribe, 
-        videoFile: file, 
-        videoUrl 
-      });
+      const result = await runAnalyzeVideo({ name, niche, userDescription: description, defaultTranscribe: rawTranscribe, videoFile: file, videoUrl });
+      clearTimeout(watchdog);
+      if (isBypassed) return;
 
       if (!result || !result.project) throw new Error("AI data empty.");
       
@@ -106,7 +151,6 @@ export default function App() {
         videoUrl, 
         name: fixDunikTypo(name),
         niche: niche,
-        archetype: p.archetype || 'story',
         createdAt: new Date().toISOString(),
         enableSubtitles: true, 
         enableZooms: true, 
@@ -124,9 +168,9 @@ export default function App() {
 
       setActiveProject(newProject);
       setActiveTab('studio');
-      setProcessingStage('');
     } catch (err: any) { 
-      alert('Initialization failed. Check your connection or API key.'); 
+      clearTimeout(watchdog);
+      if (!isBypassed) startManualMode();
     } finally { 
       setIsProcessing(false); 
     }
@@ -198,7 +242,15 @@ export default function App() {
         <div className="fixed inset-0 bg-black/90 flex flex-col items-center justify-center z-50 p-6 text-center">
           <div className="w-12 h-12 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mb-4" />
           <h2 className="text-md font-bold uppercase tracking-widest">{processingStage}</h2>
-          <button onClick={() => setIsProcessing(false)} className="mt-8 text-[10px] text-purple-400 font-black uppercase border border-purple-900/50 px-4 py-2 rounded-lg">Cancel</button>
+          <div className="flex gap-4 mt-8">
+            <button onClick={() => setIsProcessing(false)} className="text-[10px] text-slate-500 font-black uppercase border border-slate-800 px-4 py-2 rounded-lg">Cancel</button>
+            <button onClick={() => {
+              setIsProcessing(false);
+              // Force Manual Mode if user is impatient
+              alert("Switching to Manual Mode...");
+              window.location.reload(); // Hard reset is safest if hung
+            }} className="text-[10px] text-purple-400 font-black uppercase border border-purple-900/50 px-4 py-2 rounded-lg">Skip to Studio</button>
+          </div>
         </div>
       )}
       <main className="max-w-5xl mx-auto p-4 md:p-8">

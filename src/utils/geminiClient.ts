@@ -2,12 +2,10 @@ import { getStoredApiKey } from './apiKeyStore';
 import type { SubtitleItem, VideoNiche, CaptionStyle } from '../types';
 
 const MODEL_OPTIONS = [
-  'gemini-3.5-flash', 
-  'gemini-3.1-flash-lite',
-  'gemini-2.0-flash', 
-  'gemini-1.5-flash', 
-  'gemini-flash-latest',
-  'gemini-1.5-pro'
+  'gemini-1.5-flash',
+  'gemini-1.5-flash-8b',
+  'gemini-1.5-pro',
+  'gemini-2.0-flash-exp'
 ];
 
 const GEMINI_API_ROOT = 'https://generativelanguage.googleapis.com/v1beta/models';
@@ -36,27 +34,40 @@ async function captureVideoSnapshots(file: File, count: number = 3): Promise<str
     video.preload = 'metadata';
     video.muted = true;
     video.playsInline = true;
+    video.setAttribute('webkit-playsinline', 'true'); // Required for iOS
     const url = URL.createObjectURL(file);
     video.src = url;
+    
+    // SAFETY TIMEOUT: If video doesn't load in 5s, resolve empty
+    const safetyTimer = setTimeout(() => {
+      URL.revokeObjectURL(url);
+      resolve([]);
+    }, 5000);
+
     video.onloadedmetadata = async () => {
+      clearTimeout(safetyTimer);
       const duration = video.duration;
       const timestamps = Array.from({ length: count }, (_, i) => (duration * (i + 1)) / (count + 1));
       try {
         for (const t of timestamps) {
           video.currentTime = t;
-          await new Promise(r => { video.addEventListener('seeked', () => r(null), { once: true }); });
+          await new Promise(r => { 
+            const timeout = setTimeout(r, 2000); // 2s max per frame
+            video.addEventListener('seeked', () => { clearTimeout(timeout); r(null); }, { once: true }); 
+          });
           const MAX_W = 640;
           const scale = Math.min(1, MAX_W / video.videoWidth);
-          canvas.width = video.videoWidth * scale;
-          canvas.height = video.videoHeight * scale;
+          canvas.width = (video.videoWidth || 640) * scale;
+          canvas.height = (video.videoHeight || 360) * scale;
           context?.drawImage(video, 0, 0, canvas.width, canvas.height);
-          snapshots.push(canvas.toDataURL('image/jpeg', 0.5).split(',')[1]);
+          const data = canvas.toDataURL('image/jpeg', 0.5);
+          if (data.includes(',')) snapshots.push(data.split(',')[1]);
         }
         URL.revokeObjectURL(url);
         resolve(snapshots);
-      } catch (err) { URL.revokeObjectURL(url); reject(err); }
+      } catch (err) { URL.revokeObjectURL(url); resolve([]); }
     };
-    video.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Snapshot failed. Device out of memory.')); };
+    video.onerror = () => { clearTimeout(safetyTimer); URL.revokeObjectURL(url); resolve([]); };
   });
 }
 
