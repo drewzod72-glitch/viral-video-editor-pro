@@ -30,49 +30,25 @@ export default function App() {
   const [activeClipId, setActiveClipId] = useState<string | null>(null);
 
   const handleSelectTemplate = async (template: any) => {
+    // Reset any previous hang
     setIsProcessing(true);
-    setProcessingStage('Initializing AI Editor...');
+    setProcessingStage('Forging AI Blueprint...');
     
-    let isBypassed = false;
-    const watchdog = setTimeout(() => {
-      if (isBypassed) return;
-      setIsProcessing(false);
-      alert("AI is taking too long. Opening Manual Mode.");
-      startManualMode(template);
-    }, 15000); // Shorter timeout for faster recovery
-
-    const startManualMode = (tpl: any) => {
-      isBypassed = true;
-      const manualProject: VideoProject = {
-        id: `manual-${Date.now()}`,
-        videoUrl: tpl.videoUrl,
-        name: fixDunikTypo(tpl.name),
-        niche: tpl.niche,
-        title: tpl.name,
-        description: tpl.userDescription || '',
-        subtitles: [],
-        highlights: [{ id: 'full', title: 'Full Clip', start: 0, end: tpl.originalDuration || 30 }],
-        selectedMusicTrackId: 'lofi-1',
-        captionStyle: 'hormozi',
-        colorGrade: 'vibrant_pop',
-        archetype: 'story',
-        viralityScore: 50
-      } as any;
-      setActiveProject(manualProject);
-      setActiveTab('studio');
-      setIsProcessing(false);
-    };
+    const forceReset = setTimeout(() => {
+       setIsProcessing(false);
+       alert("Network connection slow. Entering Studio...");
+       const fallback: any = { ...template, id: `fb-${Date.now()}`, title: template.name, subtitles: [], highlights: [{id:'1', start:0, end:30}] };
+       setActiveProject(fallback);
+    }, 12000);
 
     try {
       const result = await runAnalyzeVideo({ ...template });
-      clearTimeout(watchdog);
-      if (isBypassed) return;
-
-      if (!result || !result.project) throw new Error("AI data empty.");
+      clearTimeout(forceReset);
       
-      const p = result.project;
+      if (!result?.project) throw new Error("Empty AI Response");
+      
       const newProject: VideoProject = { 
-        ...p, 
+        ...result.project, 
         id: `proj-${Date.now()}`, 
         videoUrl: template.videoUrl, 
         name: fixDunikTypo(template.name),
@@ -83,11 +59,11 @@ export default function App() {
         enableColorGrade: true, 
         musicVolume: 0.4,
         jumpCuts: true, 
-        speedRamp: p.archetype === 'hype', 
+        speedRamp: result.project.archetype === 'hype', 
         sfxSparks: true, 
         emojiBounces: true,
         autoZoomPunch: true, 
-        shakeOnPunch: p.archetype === 'hype', 
+        shakeOnPunch: result.project.archetype === 'hype', 
         camRecorderHUD: false,
         captionPosition: 'bottom'
       };
@@ -95,8 +71,9 @@ export default function App() {
       setActiveProject(newProject);
       setActiveTab('studio');
     } catch (err: any) { 
-      clearTimeout(watchdog); 
-      if (!isBypassed) startManualMode(template);
+      clearTimeout(forceReset);
+      setActiveProject({ ...template, id: `proj-${Date.now()}`, title: template.name, subtitles: [], highlights: [] } as any);
+      setActiveTab('studio');
     } finally { 
       setIsProcessing(false); 
     }

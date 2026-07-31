@@ -26,48 +26,61 @@ function requireApiKey(explicitKey?: string): string {
 }
 
 async function captureVideoSnapshots(file: File, count: number = 3): Promise<string[]> {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const video = document.createElement('video');
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
-    const snapshots: string[] = [];
     video.preload = 'metadata';
     video.muted = true;
     video.playsInline = true;
-    video.setAttribute('webkit-playsinline', 'true'); // Required for iOS
+    video.setAttribute('webkit-playsinline', 'true');
+    
     const url = URL.createObjectURL(file);
     video.src = url;
-    
-    // SAFETY TIMEOUT: If video doesn't load in 5s, resolve empty
-    const safetyTimer = setTimeout(() => {
-      URL.revokeObjectURL(url);
-      resolve([]);
-    }, 5000);
 
-    video.onloadedmetadata = async () => {
-      clearTimeout(safetyTimer);
-      const duration = video.duration;
-      const timestamps = Array.from({ length: count }, (_, i) => (duration * (i + 1)) / (count + 1));
+    const cleanup = () => {
+      URL.revokeObjectURL(url);
+      video.remove();
+    };
+
+    // THE V18.4 READYSTATE PROTOCOL
+    const checkReady = async () => {
+      let attempts = 0;
+      while (video.readyState < 2 && attempts < 30) {
+        await new Promise(r => setTimeout(r, 100));
+        attempts++;
+      }
+      
       try {
-        for (const t of timestamps) {
-          video.currentTime = t;
-          await new Promise(r => { 
-            const timeout = setTimeout(r, 2000); // 2s max per frame
-            video.addEventListener('seeked', () => { clearTimeout(timeout); r(null); }, { once: true }); 
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        const snapshots: string[] = [];
+        const duration = video.duration || 10;
+        
+        for (let i = 1; i <= count; i++) {
+          video.currentTime = (duration * i) / (count + 1);
+          await new Promise(r => {
+            const t = setTimeout(r, 1000); // 1s max per seek
+            video.onseeked = () => { clearTimeout(t); r(null); };
           });
-          const MAX_W = 640;
-          const scale = Math.min(1, MAX_W / video.videoWidth);
-          canvas.width = (video.videoWidth || 640) * scale;
-          canvas.height = (video.videoHeight || 360) * scale;
-          context?.drawImage(video, 0, 0, canvas.width, canvas.height);
+          
+          canvas.width = 640;
+          canvas.height = 360;
+          context?.drawImage(video, 0, 0, 640, 360);
           const data = canvas.toDataURL('image/jpeg', 0.5);
           if (data.includes(',')) snapshots.push(data.split(',')[1]);
         }
-        URL.revokeObjectURL(url);
+        cleanup();
         resolve(snapshots);
-      } catch (err) { URL.revokeObjectURL(url); resolve([]); }
+      } catch (e) {
+        cleanup();
+        resolve([]); // Fail gracefully to manual mode
+      }
     };
-    video.onerror = () => { clearTimeout(safetyTimer); URL.revokeObjectURL(url); resolve([]); };
+
+    video.onloadedmetadata = checkReady;
+    video.onerror = () => { cleanup(); resolve([]); };
+    
+    // Safety Force-Start
+    setTimeout(() => { if (video.readyState < 2) checkReady(); }, 3000);
   });
 }
 
