@@ -56,7 +56,7 @@ export default function VideoPlayerWorkspace({
   requestedSeekTime,
   onSeekConsumed,
 }: VideoPlayerWorkspaceProps) {
-  // Destructure persistent settings from project
+  // Destructure persistent settings
   const { 
     enableSubtitles = true,
     enableZooms = true,
@@ -89,32 +89,42 @@ export default function VideoPlayerWorkspace({
   const [isShaking, setIsShaking] = useState<boolean>(false);
   const [isMuted, setIsMuted] = useState(false);
 
-  // Social Stats & Mockups
+  // Social & Mockups
   const [mockupMode, setMockupMode] = useState<'none' | 'tiktok' | 'reels' | 'shorts'>('none');
   const [showSafeZone, setShowSafeZone] = useState<boolean>(false);
   const [showHeartPop, setShowHeartPop] = useState<{ x: number; y: number; id: number }[]>([]);
 
-  // Music Search & Filter States
+  // Music Search
   const [musicSearchQuery, setMusicSearchQuery] = useState('');
   const [activeMoodFilter, setActiveMoodFilter] = useState<'all' | 'lofi' | 'hype' | 'chill' | 'cinematic'>('all');
 
   const filteredMusic = FREE_MUSIC_TRACKS.filter((t) => {
     const matchesSearch = t.name.toLowerCase().includes(musicSearchQuery.toLowerCase()) || 
-                         t.genre.toLowerCase().includes(musicSearchQuery.toLowerCase());
+                         t.genre.toLowerCase().includes(musicSearchQuery.toLowerCase()) ||
+                         t.artist.toLowerCase().includes(musicSearchQuery.toLowerCase());
     const matchesMood = activeMoodFilter === 'all' || t.intensity === activeMoodFilter;
     return matchesSearch && matchesMood;
   });
 
   const updateSettings = (updates: Partial<VideoProject>) => onUpdateProject({ ...project, ...updates });
 
-  // Sync Audio Volume
+  useEffect(() => {
+    if (!stageRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      for (let entry of entries) {
+        if (entry.contentRect && entry.contentRect.width > 0) setStageWidth(entry.contentRect.width);
+      }
+    });
+    observer.observe(stageRef.current);
+    return () => observer.disconnect();
+  }, []);
+
   useEffect(() => {
     if (musicAudioRef.current) {
       musicAudioRef.current.volume = isMuted ? 0 : (activeSubtitle ? musicVolume * 0.25 : musicVolume);
     }
   }, [musicVolume, isMuted, activeSubtitle]);
 
-  // Handle Music Source
   useEffect(() => {
     if (musicAudioRef.current && activeMusicTrack) {
       if (loadedMusicTrackIdRef.current !== activeMusicTrack.id) {
@@ -134,8 +144,7 @@ export default function VideoPlayerWorkspace({
   const togglePlay = () => {
     if (!videoRef.current) return;
     const video = videoRef.current;
-    
-    // Unlock Audio Context for iOS
+    const audio = musicAudioRef.current;
     try {
       const AudioCtxClass = (window as any).AudioContext || (window as any).webkitAudioContext;
       if (!(window as any)._viralAudioCtx) (window as any)._viralAudioCtx = new AudioCtxClass();
@@ -144,10 +153,16 @@ export default function VideoPlayerWorkspace({
 
     if (video.paused) {
       if (video.currentTime < startLimit - 0.1 || video.currentTime >= endLimit - 0.1) video.currentTime = startLimit;
+      if (audio && activeMusicTrack) {
+        if (!audio.src || !audio.src.includes(activeMusicTrack.url)) { audio.src = activeMusicTrack.url; audio.load(); }
+        audio.currentTime = Math.max(0, video.currentTime - startLimit);
+        audio.play().catch(() => setTimeout(() => audio.play().catch(() => {}), 150));
+      }
       video.play().catch(() => {});
       setIsPlaying(true);
     } else {
       video.pause();
+      if (audio) audio.pause();
       setIsPlaying(false);
     }
   };
@@ -162,13 +177,8 @@ export default function VideoPlayerWorkspace({
       if (currentHlIdx !== -1) {
         const currentHl = project.highlights[currentHlIdx];
         if (t >= currentHl.end - 0.05) {
-          if (currentHlIdx < project.highlights.length - 1) {
-            videoRef.current.currentTime = project.highlights[currentHlIdx + 1].start;
-          } else {
-            videoRef.current.currentTime = project.highlights[0].start;
-            videoRef.current.pause();
-            setIsPlaying(false);
-          }
+          if (currentHlIdx < project.highlights.length - 1) videoRef.current.currentTime = project.highlights[currentHlIdx + 1].start;
+          else { videoRef.current.currentTime = project.highlights[0].start; videoRef.current.pause(); setIsPlaying(false); }
         }
       }
     } else if (activeClipId !== 'smart-cuts' && t >= endLimit) {
@@ -203,63 +213,43 @@ export default function VideoPlayerWorkspace({
       () => setAnalyzeStep(2),
       () => setAnalyzeStep(3),
       () => {
-        // --- EXPERT DIRECTOR INTELLIGENCE (V5) ---
         const fullDuration = videoDuration || 14;
         let enhancedSubtitles = [...(project.subtitles || [])];
-        
         if (enhancedSubtitles.length > 0) {
           enhancedSubtitles[0].text = `🤫 THE SECRET TO ${enhancedSubtitles[0].text.toUpperCase()}`;
           enhancedSubtitles[0].highlightWords = ['SECRET'];
         }
-
+        const mergedSubtitles: any[] = [];
+        for (let i = 0; i < enhancedSubtitles.length; i++) {
+          const sub = enhancedSubtitles[i];
+          if (mergedSubtitles.length > 0) {
+            const last = mergedSubtitles[mergedSubtitles.length - 1];
+            if ((last.end - last.start) < 2.0 && (sub.end - last.start) < 4.5) {
+              last.text += ' ' + sub.text; last.end = sub.end; continue;
+            }
+          }
+          mergedSubtitles.push({...sub});
+        }
+        enhancedSubtitles = mergedSubtitles;
         const newHighlights = [];
         let cur = 0;
         let idx = 0;
         while (cur < fullDuration) {
           const step = 2.2 + Math.random();
           const end = Math.min(cur + step, fullDuration);
-          newHighlights.push({
-            id: `viral-cut-${idx}`,
-            title: idx === 0 ? '🚨 THE HOOK' : `Scene ${idx + 1}`,
-            start: cur,
-            end: end,
-            duration: end - cur,
-            viralityScore: 100,
-            description: "Viral Interrupt",
-            whyEngaging: "High pace",
-            speed: idx % 2 === 0 ? 1.08 : 1.0
-          });
-          cur = end;
-          idx++;
+          newHighlights.push({ id: `v-${idx}-${Date.now()}`, title: idx === 0 ? '🚨 HOOK' : `Scene ${idx + 1}`, start: cur, end: end, duration: end - cur, viralityScore: 100, description: "Viral Pacing", whyEngaging: "High Hold", speed: idx % 2 === 0 ? 1.08 : 1.0 });
+          cur = end; idx++;
         }
-        
         const newZoomEffects = newHighlights.map((hl, i) => ({ timestamp: hl.start, scale: i % 2 === 0 ? 1.28 : 1.0, duration: hl.duration }));
-
-        updateSettings({
-          subtitles: enhancedSubtitles,
-          highlights: newHighlights,
-          zoomEffects: newZoomEffects,
-          captionStyle: 'hormozi',
-          colorGrade: 'vibrant_pop',
-          viralityScore: 100,
-          enableSubtitles: true,
-          enableZooms: true,
-          enableColorGrade: true,
-          jumpCuts: true,
-          speedRamp: true,
-          autoZoomPunch: true,
-          shakeOnPunch: true,
-          selectedMusicTrackId: project.niche === 'fitness' ? 'gym-hustle-1' : 'lofi-1'
+        onUpdateProject({
+          ...project, subtitles: enhancedSubtitles, highlights: newHighlights, zoomEffects: newZoomEffects,
+          captionStyle: 'hormozi', colorGrade: 'vibrant_pop', viralityScore: 100,
+          enableSubtitles: true, enableZooms: true, enableColorGrade: true, jumpCuts: true, speedRamp: true, sfxSparks: true, emojiBounces: true, autoZoomPunch: true, shakeOnPunch: true,
         });
-        
-        setIsAnalyzing(false);
-        onClipSelect('smart-cuts');
+        setIsAnalyzing(false); onClipSelect('smart-cuts');
       }
     ];
-    setTimeout(steps[0], 650);
-    setTimeout(steps[1], 1300);
-    setTimeout(steps[2], 2000);
-    setTimeout(steps[3], 2600);
+    setTimeout(steps[0], 650); setTimeout(steps[1], 1300); setTimeout(steps[2], 2000); setTimeout(steps[3], 2600);
   };
 
   const renderStyledText = () => {
@@ -268,10 +258,9 @@ export default function VideoPlayerWorkspace({
     const correctedText = fixDunikTypo(text);
     const parts = correctedText.split(' ');
     const styles = getCaptionStyles(project.captionStyle || 'hormozi', text.length, stageWidth || 281);
-    
     return (
       <div className="flex flex-col items-center justify-center text-center max-w-[90%] px-2 mx-auto">
-        <div style={{ fontFamily: styles.fontFamily, textTransform: styles.textTransform, backgroundColor: styles.hasBox ? styles.boxBg : 'transparent', borderRadius: `${styles.boxRadius}px`, padding: styles.hasBox ? `${styles.boxPaddingY}px ${styles.boxPaddingX}px` : 0 }} className="flex flex-wrap items-center justify-center">
+        <div style={{ fontFamily: styles.fontFamily, textTransform: styles.textTransform, backgroundColor: styles.hasBox ? styles.boxBg : 'transparent', borderRadius: `${styles.boxRadius}px`, padding: styles.hasBox ? `${styles.boxPaddingY}px ${styles.boxPaddingX}px` : 0 }} className="flex flex-wrap items-center justify-center transition-all duration-150">
           {parts.map((word, idx) => {
             const clean = word.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"").toLowerCase();
             const isH = highlightWords.some(h => clean.includes(h.toLowerCase()));
@@ -283,22 +272,30 @@ export default function VideoPlayerWorkspace({
     );
   };
 
+  const handleStageDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const newHeart = { x: e.clientX - rect.left, y: e.clientY - rect.top, id: Date.now() };
+    setShowHeartPop((prev) => [...prev, newHeart]);
+    setTimeout(() => setShowHeartPop((prev) => prev.filter((h) => h.id !== newHeart.id)), 850);
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
       <div className="lg:col-span-3 flex flex-col bg-slate-950 border border-slate-900 rounded-2xl overflow-hidden shadow-2xl relative">
         <div className="bg-slate-900/80 p-3.5 border-b border-slate-905 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs backdrop-blur-md">
-           <div className="flex items-center gap-2"><Smartphone className="w-4 h-4 text-brand-purple" /> <span className="font-extrabold uppercase font-display tracking-wider text-slate-200">Social Simulator</span></div>
+           <div className="flex items-center gap-2"><Smartphone className="w-4 h-4 text-brand-purple" /> <span className="font-extrabold uppercase tracking-wider text-slate-200">Social Simulator</span></div>
            <div className="flex gap-2">
              {(['none', 'tiktok', 'reels', 'shorts'] as const).map(m => (
-               <button key={m} onClick={() => setMockupMode(m)} className={`px-3 py-1 rounded-md text-[11px] font-bold transition-all ${mockupMode === m ? 'bg-brand-purple text-white shadow-md' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/50'}`}>{m}</button>
+               <button key={m} onClick={() => setMockupMode(m)} className={`px-3 py-1 rounded-md text-[11px] font-bold transition-all ${mockupMode === m ? 'bg-brand-purple text-white shadow-md' : 'text-slate-400 hover:text-slate-200'}`}>{m}</button>
              ))}
            </div>
         </div>
 
-        <div id="video-preview-stage" ref={stageRef} className="relative aspect-[9/16] h-[500px] max-h-[60vh] max-w-[281px] mx-auto flex items-center justify-center bg-zinc-950 rounded-2xl overflow-hidden shadow-[0_8px_48px_rgba(0,0,0,0.95)] border border-slate-900/80 my-4 cursor-pointer">
+        <div id="video-preview-stage" ref={stageRef} onDoubleClick={handleStageDoubleClick} className="relative aspect-[9/16] h-[500px] max-h-[60vh] max-w-[281px] mx-auto flex items-center justify-center bg-zinc-950 rounded-2xl overflow-hidden shadow-[0_8px_48px_rgba(0,0,0,0.95)] border border-slate-900/80 my-4 cursor-pointer">
           <video ref={videoRef} src={project.videoUrl} onTimeUpdate={handleTimeUpdate} onLoadedMetadata={() => setVideoDuration(videoRef.current?.duration || 30)} playsInline style={{ transform: `scale(${currentZoomScale})` }} className={`w-full h-full object-cover transition-all duration-300 ${enableColorGrade && project.colorGrade !== 'none' ? `filter-${project.colorGrade}` : ''} ${isShaking ? 'animate-[rumble]' : ''}`} />
           {enableSubtitles && activeSubtitle && <div className={`absolute left-0 right-0 pointer-events-none flex items-center justify-center px-4 z-20 ${project.captionPosition === 'top' ? 'top-16' : project.captionPosition === 'center' ? 'top-1/2 -translate-y-1/2' : 'bottom-28'}`}>{renderStyledText()}</div>}
-          {!isPlaying && <div onClick={togglePlay} className="absolute inset-0 bg-slate-950/45 flex items-center justify-center cursor-pointer group z-10"><div className="w-13 h-13 rounded-full bg-brand-purple text-white flex items-center justify-center shadow-2xl transform group-hover:scale-110 transition-all"><Play className="w-5.5 h-5.5 fill-white translate-x-0.5" /></div></div>}
+          {showHeartPop.map((h) => <div key={h.id} style={{ left: h.x, top: h.y }} className="absolute pointer-events-none z-50 animate-heart-pop"><Heart className="w-16 h-16 text-brand-pink fill-brand-pink" /></div>)}
+          {!isPlaying && <div onClick={togglePlay} className="absolute inset-0 bg-slate-950/45 flex items-center justify-center cursor-pointer z-10"><div className="w-13 h-13 rounded-full bg-brand-purple text-white flex items-center justify-center shadow-2xl transform group-hover:scale-110"><Play className="w-5.5 h-5.5 fill-white translate-x-0.5" /></div></div>}
         </div>
 
         <div className="bg-slate-900/60 p-4 border-t border-slate-900 backdrop-blur-md">
@@ -312,6 +309,20 @@ export default function VideoPlayerWorkspace({
             <div className="flex gap-1 bg-slate-950 p-1 rounded-xl"><button onClick={() => onClipSelect(null)} className={`px-3 py-1 rounded-lg text-xs ${activeClipId === null ? 'bg-slate-800 text-white' : 'text-slate-400'}`}>Full</button>{project.highlights.length > 0 && <button onClick={() => onClipSelect('smart-cuts')} className={`px-3 py-1 rounded-lg text-xs font-bold ${activeClipId === 'smart-cuts' ? 'bg-brand-purple text-white shadow-lg' : 'text-brand-cyan'}`}>AI Smart Cuts</button>}</div>
           </div>
         </div>
+
+        <div id="clip-cuts-trimmer-control" className="mt-4 bg-slate-900/40 p-4 rounded-2xl border border-slate-800/80 backdrop-blur-md">
+           <div className="flex items-center justify-between mb-3">
+             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5"><Scissors className="w-3.5 h-3.5 text-brand-purple" /> Timeline Clips</h3>
+             <button onClick={handleAddCustomClip} className="px-2.5 py-1 text-[10px] bg-brand-cyan/25 text-brand-cyan rounded-lg font-bold transition-all">+ Cut Moment</button>
+           </div>
+           {activeClipId && activeClipId !== 'smart-cuts' && (
+             <div className="space-y-3 bg-slate-950/60 p-3.5 rounded-xl border border-slate-800/60">
+               <input type="text" value={fixDunikTypo(clipEditTitle)} onChange={(e) => setClipEditTitle(e.target.value)} className="w-full bg-slate-950 text-slate-200 text-xs px-2.5 py-1.5 rounded-lg border border-slate-800" />
+               <button onClick={handleApplyTrim} className="w-full py-1.5 rounded-lg bg-brand-purple text-white font-bold text-xs">Apply Trim</button>
+             </div>
+           )}
+        </div>
+        <div className="mt-6"><ThumbnailGenerator project={project} currentTime={currentTime} videoRef={videoRef} onUpdateProject={onUpdateProject} /></div>
       </div>
 
       <div className="space-y-4">
@@ -325,7 +336,7 @@ export default function VideoPlayerWorkspace({
         </div>
 
         <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl">
-          <div className="flex items-center justify-between mb-4"><h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5"><Music className="w-3.5 h-3.5 text-brand-cyan" /> Sonic Library</h3><span className="text-[9px] bg-slate-950 px-2 py-0.5 rounded-full text-slate-500 font-bold">{FREE_MUSIC_TRACKS.length} TRACKS</span></div>
+          <div className="flex items-center justify-between mb-4"><h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5"><Music className="w-3.5 h-3.5 text-brand-cyan" /> Sonic Library</h3></div>
           <div className="space-y-3 mb-4">
             <div className="relative">
               <input type="text" placeholder="Search feeling..." value={musicSearchQuery} onChange={(e) => setMusicSearchQuery(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-9 py-2 text-xs focus:border-brand-cyan focus:outline-none transition-all placeholder:text-slate-700" />
@@ -335,12 +346,15 @@ export default function VideoPlayerWorkspace({
               {(['all', 'lofi', 'hype', 'chill', 'cinematic'] as const).map(m => <button key={m} onClick={() => setActiveMoodFilter(m)} className={`px-2 py-1 rounded-full text-[8px] font-black uppercase border transition-all ${activeMoodFilter === m ? 'bg-brand-cyan/20 border-brand-cyan text-brand-cyan' : 'bg-slate-950 border-slate-800 text-slate-500'}`}>{m}</button>)}
             </div>
           </div>
-          <div className="max-h-[150px] overflow-y-auto space-y-1.5 custom-scrollbar">
+          <div className="max-h-[150px] overflow-y-auto space-y-1.5 custom-scrollbar pr-1">
             {filteredMusic.map(t => (
-              <button key={t.id} onClick={() => updateSettings({ selectedMusicTrackId: t.id })} className={`w-full text-left p-2 rounded-xl border transition-all ${project.selectedMusicTrackId === t.id ? 'border-brand-cyan bg-brand-cyan/10 text-brand-cyan' : 'border-transparent hover:bg-slate-800/40 text-slate-200'}`}><div className="text-xs font-bold truncate">{t.name}</div><div className="text-[8px] text-slate-500">{t.artist}</div></button>
+              <button key={t.id} onClick={() => { updateSettings({ selectedMusicTrackId: t.id }); if (musicAudioRef.current) { musicAudioRef.current.src = t.url; musicAudioRef.current.load(); if (isPlaying) musicAudioRef.current.play().catch(() => {}); } }} className={`w-full text-left p-2.5 rounded-xl border transition-all ${project.selectedMusicTrackId === t.id ? 'border-brand-cyan bg-brand-cyan/10 text-brand-cyan' : 'border-transparent hover:bg-slate-800/40 text-slate-200'}`}><div className="text-xs font-bold truncate">{t.name}</div></button>
             ))}
           </div>
-          <div className="mt-4 pt-4 border-t border-slate-800/60"><div className="flex justify-between text-[11px] text-slate-400 mb-1.5"><span>Mix Level</span><span>{Math.round(musicVolume * 100)}%</span></div><input type="range" min={0} max={0.5} step={0.01} value={musicVolume} onChange={(e) => updateSettings({ musicVolume: Number(e.target.value) })} className="w-full h-1 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-brand-cyan" /></div>
+          <div className="mt-4 pt-4 border-t border-slate-800/60 space-y-3">
+             <div className="flex justify-between text-[11px] text-slate-400 mb-1.5"><span>Mix Level</span><span>{Math.round(musicVolume * 100)}%</span></div>
+             <input type="range" min={0} max={0.5} step={0.01} value={musicVolume} onChange={(e) => updateSettings({ musicVolume: Number(e.target.value) })} className="w-full h-1 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-brand-cyan" />
+          </div>
         </div>
 
         <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-4 font-sans">
@@ -357,7 +371,7 @@ export default function VideoPlayerWorkspace({
               { label: 'Camera Rumble', val: shakeOnPunch, key: 'shakeOnPunch' },
               { label: 'Color Grade', val: enableColorGrade, key: 'enableColorGrade' }
             ].map(rail => (
-              <div key={rail.label} className="flex items-center justify-between bg-slate-950 p-2.5 rounded-xl border border-slate-950 hover:border-slate-800"><span className="text-[11px] text-slate-200 font-semibold">{rail.label}</span><button onClick={() => updateSettings({ [rail.key]: !rail.val })} className={`w-8 h-4.5 rounded-full p-0.5 transition-all ${rail.val ? 'bg-brand-cyan' : 'bg-slate-800'}`}><div className={`w-3.5 h-3.5 rounded-full bg-white transition-all ${rail.val ? 'translate-x-3.5' : 'translate-x-0'}`} /></button></div>
+              <div key={rail.label} className="flex items-center justify-between bg-slate-950 p-2.5 rounded-xl border border-slate-950 transition-all hover:border-slate-800"><span className="text-[11px] text-slate-200 font-semibold">{rail.label}</span><button onClick={() => updateSettings({ [rail.key]: !rail.val })} className={`w-8 h-4.5 rounded-full p-0.5 transition-all ${rail.val ? 'bg-brand-cyan' : 'bg-slate-800'}`}><div className={`w-3.5 h-3.5 rounded-full bg-white transition-all ${rail.val ? 'translate-x-3.5' : 'translate-x-0'}`} /></button></div>
             ))}
           </div>
         </div>
