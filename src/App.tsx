@@ -32,8 +32,14 @@ export default function App() {
   const handleSelectTemplate = async (template: any) => {
     setIsProcessing(true);
     setProcessingStage('AI is analyzing content...');
+    const watchdog = setTimeout(() => {
+      setIsProcessing(false);
+      alert("Analysis timed out. Please check your API key or try again.");
+    }, 90000);
+
     try {
       const result = await runAnalyzeVideo({ ...template });
+      clearTimeout(watchdog);
       if (!result || !result.project) throw new Error("AI data empty.");
       const p = result.project;
       const newProject: VideoProject = { 
@@ -53,11 +59,7 @@ export default function App() {
       };
       setActiveProject(newProject);
       setActiveTab('studio');
-    } catch (err: any) {
-      alert('AI analysis failed: ' + err.message);
-    } finally {
-      setIsProcessing(false);
-    }
+    } catch (err: any) { clearTimeout(watchdog); alert('AI analysis failed: ' + err.message); } finally { setIsProcessing(false); }
   };
 
   const handleUploadCustomFile = async (file: File, name: string, niche: any, description: string, rawTranscribe: string) => {
@@ -82,11 +84,7 @@ export default function App() {
       };
       setActiveProject(newProject);
       setActiveTab('studio');
-    } catch (err: any) {
-      alert('Upload failed: ' + err.message);
-    } finally {
-      setIsProcessing(false);
-    }
+    } catch (err: any) { alert('Upload failed: ' + err.message); } finally { setIsProcessing(false); }
   };
 
   const triggerVideoExport = async () => {
@@ -101,11 +99,7 @@ export default function App() {
       }, activeClipId);
       if (!editedBlob) throw new Error('Bake failed.');
       setDownloadReadyInfo({ url: URL.createObjectURL(editedBlob), filename: `${activeProject.name.replace(/\s+/g, '_')}_edit.mp4` });
-    } catch (err: any) {
-      alert('Export failed: ' + (err.message || 'Error'));
-    } finally {
-      setIsProcessing(false);
-    }
+    } catch (err: any) { alert('Export failed: ' + (err.message || 'Error')); } finally { setIsProcessing(false); }
   };
 
   const updateProject = (updated: Partial<VideoProject>) => {
@@ -164,7 +158,7 @@ export default function App() {
                </div>
             </div>
             {activeTab === 'studio' && <VideoPlayerWorkspace project={activeProject} onUpdateProject={updateProject as any} activeMusicTrack={FREE_MUSIC_TRACKS.find(t => t.id === activeProject.selectedMusicTrackId) || null} activeClipId={activeClipId} onClipSelect={setActiveClipId} />}
-            {activeTab === 'viral' && <ViralityScorecard project={activeProject} onUpdateProject={updateProject as any} />}
+            {activeTab === 'viral' && <ViralityScorecard project={activeProject} onUpdateProject={setActiveProject as any} />}
             {activeTab === 'copilot' && <AICopilotConsole project={activeProject} onUpdateProject={updateProject} onUpdateSubtitles={(subs) => updateProject({ subtitles: subs })} />}
           </div>
         )}
