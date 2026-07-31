@@ -70,8 +70,9 @@ export default function VideoPlayerWorkspace({
     shakeOnPunch = true,
     camRecorderHUD = false,
     captionRotation = 0,
-    captionPosition = 'bottom'
-  } = project;
+    captionPosition = 'bottom',
+    highlights = []
+  } = project || {};
 
   // Local helper for state updates
   const updateSettings = (updates: Partial<VideoProject>) => onUpdateProject({ ...project, ...updates });
@@ -83,7 +84,7 @@ export default function VideoPlayerWorkspace({
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [videoDuration, setVideoDuration] = useState(project.duration || 30);
+  const [videoDuration, setVideoDuration] = useState(project?.duration || 30);
   const [currentZoomScale, setCurrentZoomScale] = useState(1);
   const [activeSubtitle, setActiveSubtitle] = useState<any>(null);
   const [stageWidth, setStageWidth] = useState<number>(281);
@@ -91,6 +92,9 @@ export default function VideoPlayerWorkspace({
   const [analyzeStep, setAnalyzeStep] = useState<number>(0);
   const [isShaking, setIsShaking] = useState<boolean>(false);
   const [isMuted, setIsMuted] = useState(false);
+  
+  // Custom Trimmer State (to prevent ReferenceError on delete/apply)
+  const [clipEditTitle, setClipEditTitle] = useState('');
   
   // Internal behavior settings
   const autoDucking = true;
@@ -148,9 +152,36 @@ export default function VideoPlayerWorkspace({
     }
   }, [activeMusicTrack, isPlaying, continuousMusic]);
 
-  const selectedClip = project.highlights.find((c) => c.id === activeClipId);
+  const selectedClip = highlights?.find((c: any) => c.id === activeClipId);
   const startLimit = selectedClip ? selectedClip.start : 0;
-  const endLimit = selectedClip ? selectedClip.end : (project.duration || 30);
+  const endLimit = selectedClip ? selectedClip.end : (project?.duration || 30);
+
+  // Helper functions for Trimmer
+  const handleAddCustomClip = () => {
+    const newId = `clip-${Date.now()}`;
+    const newHl = {
+      id: newId,
+      title: 'New Cut',
+      start: currentTime,
+      end: Math.min(currentTime + 5, videoDuration),
+      viralityScore: 85
+    };
+    onUpdateProject({ ...project, highlights: [...(highlights || []), newHl] });
+    onClipSelect(newId);
+  };
+
+  const handleApplyTrim = () => {
+    if (!activeClipId) return;
+    const updatedHls = highlights.map((h: any) => 
+      h.id === activeClipId ? { ...h, title: clipEditTitle || h.title } : h
+    );
+    onUpdateProject({ ...project, highlights: updatedHls });
+  };
+
+  const handleDeleteClip = (id: string) => {
+    onUpdateProject({ ...project, highlights: highlights.filter((h: any) => h.id !== id) });
+    onClipSelect(null);
+  };
 
   const togglePlay = () => {
     if (!videoRef.current) return;
