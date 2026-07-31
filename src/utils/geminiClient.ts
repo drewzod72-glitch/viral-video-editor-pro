@@ -2,12 +2,12 @@ import { getStoredApiKey } from './apiKeyStore';
 import type { SubtitleItem, VideoNiche, CaptionStyle } from '../types';
 
 const MODEL_OPTIONS = [
-  'gemini-2.0-flash', 
-  'gemini-1.5-flash', 
   'gemini-3.5-flash', 
   'gemini-3.1-flash-lite',
-  'gemini-1.5-pro',
-  'gemini-flash-latest'
+  'gemini-2.0-flash', 
+  'gemini-1.5-flash', 
+  'gemini-flash-latest',
+  'gemini-1.5-pro'
 ];
 
 const GEMINI_API_ROOT = 'https://generativelanguage.googleapis.com/v1beta/models';
@@ -141,27 +141,44 @@ const ANALYZE_VIDEO_SCHEMA = {
     },
     viralityScore: { type: 'INTEGER' },
     viralityFeedback: { type: 'ARRAY', items: { type: 'STRING' } },
+    captionStyle: { type: 'STRING' },
+    selectedMusicTrackId: { type: 'STRING' },
+    colorGrade: { type: 'STRING' },
+    transitionStyle: { type: 'STRING' },
+    archetype: { type: 'STRING', description: "The editing vibe: 'hype', 'cinematic', 'minimal', or 'story'." },
+    pacingSpeed: { type: 'NUMBER', description: "Recommended playback rate (e.g. 1.1 for hype, 1.0 for cinematic)." },
     highlights: {
       type: 'ARRAY',
       items: { type: 'OBJECT', properties: { id: { type: 'STRING' }, title: { type: 'STRING' }, start: { type: 'NUMBER' }, end: { type: 'NUMBER' }, duration: { type: 'NUMBER' }, speed: { type: 'NUMBER' } }, required: ['id', 'title', 'start', 'end'] }
     }
   },
-  required: ['title', 'description', 'subtitles', 'highlights'],
+  required: ['title', 'description', 'subtitles', 'highlights', 'selectedMusicTrackId', 'captionStyle', 'archetype'],
 };
 
 export async function runAnalyzeVideo(params: any): Promise<any> {
   const apiKey = requireApiKey(params.apiKey);
   const userInstructions = params.userDescription ? `USER SPECIFIC GOALS: ${params.userDescription}` : '';
-  const prompt = `You are a World-Class Viral Architect. Your task is to re-engineer this video to DOMINATE the algorithm for the "${params.niche}" niche. ${userInstructions}
+  const prompt = `You are a World-Class Creative Director & Viral Strategist. 
+Your task is to analyze this video and provide a custom-tailored editing blueprint. 
+DO NOT apply a robotic pattern. Instead, use your "Creative Intuition" to match the editing to the video's soul, energy, and context.
 
-### PSYCHOLOGICAL RETAINMENT PROTOCOLS:
-1. **0.5s Hook**: Rewrite the first sentence to be a "Pattern Interrupt" (Identity call or curiosity gap).
-2. **2.2s Beat**: Create cuts and zooms every 2.2 seconds. Stagnancy = Death.
-3. **Word-for-Word Pacing**: Use micro-pacing (1.12x speed) during setup talk.
-4. **Infinity Loop**: Craft the final CTA to flow perfectly back to the first second.
-5. **Captions**: Max 4 words. Use "Hormozi" bold styling. Visualize EVERY noun with an emoji.
+### 🎥 DIRECTIONAL PROTOCOL:
+1. **ENERGY ANALYSIS**: Is this video high-energy (gym/unboxing) or low-energy (vlog/nature)? 
+   - If Hype: Use fast cuts (1.5-2s), 'hormozi' style, and aggressive zooms.
+   - If Cinematic: Use long holds (4s+), 'minimalist' style, and soft slow zooms.
+   - If Story: Use cuts that follow the narrative beats.
 
-Return a JSON blueprint matching the schema.`;
+2. **CONTEXTUAL HOOKS**: Rewrite the first sentence into a viral "Open Loop" that fits the niche naturally. No generic templates.
+3. **SUBTITLE WRAPPING**: Group words for readability. Max 4 words per line.
+4. **MUSIC MATCHING**: Choose the best "selectedMusicTrackId" from the library:
+   - 'hype-[1-7]': Energy, sports, fast unboxings.
+   - 'lofi-[1-7]': Vlogs, relaxing, study, slow cooking.
+   - 'epic-[1-7]': Dramatic reveals, high stakes.
+   - 'lux-[1-7]': Beauty, fashion, tech, minimal products.
+
+5. **THE INFINITY LOOP**: If the video is under 30s, ensure the ending CTA bridges back to the start sentence to force a rewatch.
+
+Return a JSON blueprint that feels hand-edited, expert, and purposeful.`;
 
   const parts: any[] = [{ text: prompt }];
   if (params.videoFile) {

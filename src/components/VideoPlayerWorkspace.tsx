@@ -22,9 +22,13 @@ import {
   Share2,
   Disc,
   Wand2,
-  Zap,
+  TrendingUp,
+  Video,
+  Activity,
+  AlertTriangle,
   Flame,
-  CheckCircle2
+  CheckCircle2,
+  Zap
 } from 'lucide-react';
 
 const fixDunikTypo = (str: string): string => {
@@ -222,52 +226,43 @@ export default function VideoPlayerWorkspace({
       () => setAnalyzeStep(2),
       () => setAnalyzeStep(3),
       () => {
-        // --- THE UNSTOPPABLE PSYCHOLOGY ENGINE ---
+        // --- EXPERT DIRECTOR INTELLIGENCE (V5) ---
+        // Protocol: Instead of hardcoded rules, we follow the AI's "Intuitive Blueprint."
+        
         const fullDuration = videoDuration || 14;
         let enhancedSubtitles = [...(project.subtitles || [])];
         
-        // 1. INVESTIGATOR HOOK
-        if (enhancedSubtitles.length > 0) {
-          enhancedSubtitles[0].text = `🤫 THE SECRET TO ${enhancedSubtitles[0].text.toUpperCase()}`;
-          enhancedSubtitles[0].highlightWords = ['SECRET'];
-        }
-
-        // 2. INFINITY LOOP BRIDGE
-        const loopCTA = {
-          id: `loop-${Date.now()}`,
-          text: "AND THAT IS WHY...",
-          start: fullDuration - 1.5,
-          end: fullDuration,
-          emoji: "🔁",
-          highlightWords: ["WHY"]
-        };
-        enhancedSubtitles.push(loopCTA);
-
-        // 3. HEARTBEAT PACING (2.2s Rule)
+        // AI already identified the archetype during Forge. 
+        // We now fine-tune the pacing based on that Vibe.
+        const vibe = (project as any).archetype || 'story';
+        const pacingStep = vibe === 'hype' ? 1.8 : (vibe === 'cinematic' ? 4.0 : 2.5);
+        
+        // 1. SMART PACING
         const newHighlights = [];
         let cur = 0;
         let idx = 0;
         while (cur < fullDuration) {
-          const step = 2.0 + (Math.random() * 0.4);
+          const step = pacingStep + (Math.random() * 0.5);
           const end = Math.min(cur + step, fullDuration);
           newHighlights.push({
             id: `viral-cut-${idx}`,
-            title: idx === 0 ? '🚨 THE HOOK' : `Scene ${idx + 1}`,
+            title: idx === 0 ? '🔥 THE HOOK' : `Scene ${idx + 1}`,
             start: cur,
             end: end,
             duration: end - cur,
             viralityScore: 100,
-            description: "Pattern Interrupt",
-            whyEngaging: "Rapid Pacing",
-            speed: idx % 2 === 0 ? 1.08 : 1.0
+            description: `Archetype: ${vibe}`,
+            whyEngaging: "Contextual flow",
+            speed: (vibe === 'hype' && idx % 2 === 0) ? 1.10 : 1.0
           });
           cur = end;
           idx++;
         }
         
+        // 2. CONTEXTUAL ZOOMS
         const newZoomEffects = newHighlights.map((hl, i) => ({ 
           timestamp: hl.start, 
-          scale: i % 2 === 0 ? 1.28 : 1.0, 
+          scale: (vibe === 'hype' && i % 2 === 0) ? 1.25 : (vibe === 'cinematic' ? 1.1 : 1.0), 
           duration: hl.duration 
         }));
 
@@ -276,17 +271,14 @@ export default function VideoPlayerWorkspace({
           subtitles: enhancedSubtitles,
           highlights: newHighlights,
           zoomEffects: newZoomEffects,
-          captionStyle: 'hormozi',
-          colorGrade: 'vibrant_pop',
-          viralityScore: 100,
+          // Respect the AI's chosen style but ensure retention rails are ON
           enableSubtitles: true,
           enableZooms: true,
           enableColorGrade: true,
           jumpCuts: true,
-          speedRamp: true,
+          speedRamp: vibe === 'hype',
           autoZoomPunch: true,
-          shakeOnPunch: true,
-          selectedMusicTrackId: project.niche === 'fitness' ? 'gym-hustle-1' : 'lofi-1'
+          shakeOnPunch: vibe === 'hype',
         });
         
         setIsAnalyzing(false);
@@ -322,7 +314,7 @@ export default function VideoPlayerWorkspace({
   return (
     <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
       <div className="lg:col-span-3 flex flex-col bg-slate-950 border border-slate-900 rounded-2xl overflow-hidden shadow-2xl relative">
-        <div className="bg-slate-900/80 p-3.5 border-b border-slate-905 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs backdrop-blur-md">
+        <div className="bg-slate-900/80 p-3.5 border-b border-slate-905 flex items-center justify-between gap-3 text-xs backdrop-blur-md">
            <div className="flex items-center gap-2"><Smartphone className="w-4 h-4 text-brand-purple" /> <span className="font-extrabold uppercase font-display tracking-wider text-slate-200">Social Simulator</span></div>
            <div className="flex gap-2">
              {(['none', 'tiktok', 'reels', 'shorts'] as const).map(m => (
