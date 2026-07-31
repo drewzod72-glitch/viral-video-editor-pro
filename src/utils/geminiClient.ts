@@ -197,8 +197,40 @@ Return a JSON blueprint that feels hand-edited, expert, and purposeful.`;
 
 export async function runCopilotOptimize(params: any): Promise<any> {
   const apiKey = requireApiKey(params.apiKey);
-  const prompt = `Optimize subtitles: ${JSON.stringify(params.subtitles)}. Task: ${params.actionType}. Return JSON { subtitles, title, description, advice }.`;
-  const res = await generateStructuredContent({ apiKey, parts: [{ text: prompt }], responseSchema: { type: 'OBJECT', properties: { subtitles: { type: 'ARRAY', items: { type: 'OBJECT', properties: { id: { type: 'STRING' }, text: { type: 'STRING' }, start: { type: 'NUMBER' }, end: { type: 'NUMBER' } } } }, title: { type: 'STRING' }, description: { type: 'STRING' }, advice: { type: 'STRING' } } } });
+  
+  const isStyleClone = params.command?.includes('CLONE VIRAL STYLE');
+  
+  const prompt = isStyleClone 
+    ? `VIRE ENGINE ACTIVATED. 
+       REFERENCE LINK: ${params.command}
+       Current Project: ${params.title}
+       
+       TASK: You are a professional editor mimicking a viral creator. 
+       1. Identify the 'Energy Signature' of the niche. 
+       2. Re-write subtitles to match viral 'pacing loops'.
+       3. Choose the perfect 'captionStyle' (hormozi/mrbeast/minimalist).
+       4. Set the 'archetype' to hype or cinematic.
+       
+       Return JSON { subtitles, title, description, advice, captionStyle, archetype }.`
+    : `Optimize subtitles: ${JSON.stringify(params.subtitles)}. Task: ${params.actionType}. Return JSON { subtitles, title, description, advice }.`;
+
+  const responseSchema = {
+    type: 'OBJECT',
+    properties: {
+      subtitles: { type: 'ARRAY', items: { type: 'OBJECT', properties: { id: { type: 'STRING' }, text: { type: 'STRING' }, start: { type: 'NUMBER' }, end: { type: 'NUMBER' } } } },
+      title: { type: 'STRING' },
+      description: { type: 'STRING' },
+      advice: { type: 'STRING' },
+      captionStyle: { type: 'STRING' },
+      archetype: { type: 'STRING' }
+    }
+  };
+
+  const res = await generateStructuredContent({ 
+    apiKey, 
+    parts: [{ text: prompt }], 
+    responseSchema 
+  });
   return { success: true, ...res };
 }
 

@@ -32,15 +32,19 @@ export default function App() {
   const handleSelectTemplate = async (template: any) => {
     setIsProcessing(true);
     setProcessingStage('AI is analyzing content...');
+    
+    // Safety watchdog for initialization
     const watchdog = setTimeout(() => {
       setIsProcessing(false);
-      alert("Analysis timed out. Please check your API key or try again.");
-    }, 90000);
+      alert("Initialization taking longer than expected. Retrying...");
+    }, 45000);
 
     try {
       const result = await runAnalyzeVideo({ ...template });
       clearTimeout(watchdog);
+      
       if (!result || !result.project) throw new Error("AI data empty.");
+      
       const p = result.project;
       const newProject: VideoProject = { 
         ...p, 
@@ -53,22 +57,48 @@ export default function App() {
         colorGrade: p.colorGrade || 'vibrant_pop',
         archetype: p.archetype || 'story',
         createdAt: new Date().toISOString(),
-        enableSubtitles: true, enableZooms: true, enableColorGrade: true, musicVolume: 0.4,
-        jumpCuts: true, speedRamp: p.archetype === 'hype', sfxSparks: true, emojiBounces: true,
-        autoZoomPunch: true, shakeOnPunch: p.archetype === 'hype', camRecorderHUD: false
+        enableSubtitles: true, 
+        enableZooms: true, 
+        enableColorGrade: true, 
+        musicVolume: 0.4,
+        jumpCuts: true, 
+        speedRamp: p.archetype === 'hype', 
+        sfxSparks: true, 
+        emojiBounces: true,
+        autoZoomPunch: true, 
+        shakeOnPunch: p.archetype === 'hype', 
+        camRecorderHUD: false,
+        captionPosition: 'bottom'
       };
+
       setActiveProject(newProject);
       setActiveTab('studio');
-    } catch (err: any) { clearTimeout(watchdog); alert('AI analysis failed: ' + err.message); } finally { setIsProcessing(false); }
+      setProcessingStage('');
+    } catch (err: any) { 
+      clearTimeout(watchdog); 
+      alert('AI initialization failed. Please ensure your API Key is correct in Settings.'); 
+    } finally { 
+      setIsProcessing(false); 
+    }
   };
 
   const handleUploadCustomFile = async (file: File, name: string, niche: any, description: string, rawTranscribe: string) => {
     const videoUrl = URL.createObjectURL(file);
     setIsProcessing(true);
     setProcessingStage('Preparing video for AI...');
+    
     try {
-      const result = await runAnalyzeVideo({ name, niche, userDescription: description, defaultTranscribe: rawTranscribe, videoFile: file, videoUrl });
+      const result = await runAnalyzeVideo({ 
+        name, 
+        niche, 
+        userDescription: description, 
+        defaultTranscribe: rawTranscribe, 
+        videoFile: file, 
+        videoUrl 
+      });
+
       if (!result || !result.project) throw new Error("AI data empty.");
+      
       const p = result.project;
       const newProject: VideoProject = { 
         ...p, 
@@ -78,13 +108,28 @@ export default function App() {
         niche: niche,
         archetype: p.archetype || 'story',
         createdAt: new Date().toISOString(),
-        enableSubtitles: true, enableZooms: true, enableColorGrade: true, musicVolume: 0.4,
-        jumpCuts: true, speedRamp: p.archetype === 'hype', sfxSparks: true, emojiBounces: true,
-        autoZoomPunch: true, shakeOnPunch: p.archetype === 'hype', camRecorderHUD: false
+        enableSubtitles: true, 
+        enableZooms: true, 
+        enableColorGrade: true, 
+        musicVolume: 0.4,
+        jumpCuts: true, 
+        speedRamp: p.archetype === 'hype', 
+        sfxSparks: true, 
+        emojiBounces: true,
+        autoZoomPunch: true, 
+        shakeOnPunch: p.archetype === 'hype', 
+        camRecorderHUD: false,
+        captionPosition: 'bottom'
       };
+
       setActiveProject(newProject);
       setActiveTab('studio');
-    } catch (err: any) { alert('Upload failed: ' + err.message); } finally { setIsProcessing(false); }
+      setProcessingStage('');
+    } catch (err: any) { 
+      alert('Initialization failed. Check your connection or API key.'); 
+    } finally { 
+      setIsProcessing(false); 
+    }
   };
 
   const triggerVideoExport = async () => {

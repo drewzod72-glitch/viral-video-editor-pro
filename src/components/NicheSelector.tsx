@@ -26,7 +26,8 @@ export default function NicheSelector({ onSelectTemplate, onUploadCustomFile, is
       alert("Please choose a video file first by tapping the upload box.");
       return;
     }
-    onUploadCustomFile(selectedFileObj, customFileName, selectedNiche, customDescription || 'Analyze this video and make it viral', '', null);
+    // Correctly call handleUploadCustomFile with all required parameters
+    onUploadCustomFile(selectedFileObj, customFileName, selectedNiche, customDescription || 'Analyze this video and make it viral', '');
   };
 
   return (

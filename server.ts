@@ -1060,8 +1060,16 @@ app.post('/api/render-project', upload.single('videoFile'), async (req, res) => 
         vf += ',deshake';
       }
 
-      // 3. Scale and fit vertically to 1080x1920 (TikTok optimization viewport)
-      vf += ',scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black';
+      // 3. Scale and fit vertically (Standard 1080p or Pro 4K)
+      const isProExport = req.body.isProExport === 'true' || req.body.isProExport === true;
+      const targetRes = isProExport ? '2160:3840' : '1080:1920';
+      
+      vf += `,scale=${targetRes}:force_original_aspect_ratio=decrease,pad=${targetRes}:(ow-iw)/2:(oh-ih)/2:black`;
+
+      // 4. Pro Motion Smoothing (Paid Feature - 60FPS conversion)
+      if (isProExport) {
+        vf += `,minterpolate=fps=60:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1`;
+      }
 
       // 4. Premium color grading (high-contrast, luxury vibrant look)
       if (colorGrade !== 'none') {

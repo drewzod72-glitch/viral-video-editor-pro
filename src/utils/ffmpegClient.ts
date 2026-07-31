@@ -142,21 +142,52 @@ export async function renderVideoInBrowser(
 
         ctx.drawImage(video, zoomX, zoomY, zoomW, zoomH, 0, 0, W, H);
 
-        // SUBTITLES
+        // SUBTITLES (High-Retention Two-Tone Matrix)
         const sub = project.subtitles?.find(s => globalT >= s.start && globalT <= s.end);
         if (sub) {
           const style = getCaptionStyles(project.captionStyle || 'hormozi', sub.text.length, W);
           ctx.font = `900 ${style.fontSize}px sans-serif`;
           ctx.textAlign = 'center';
-          ctx.fillStyle = '#FBFF00';
-          ctx.shadowColor = 'black';
-          ctx.shadowBlur = 8;
+          ctx.textBaseline = 'middle';
+          
+          const text = sub.text.toUpperCase();
+          const words = text.split(' ');
+          const x = W / 2;
           
           let y = H * 0.75;
           if (project.captionPosition === 'top') y = H * 0.15;
           else if (project.captionPosition === 'center') y = H * 0.5;
 
-          ctx.fillText(sub.text.toUpperCase(), W/2, y);
+          // Draw background box if style requires it
+          if (style.hasBox) {
+            ctx.fillStyle = style.boxBg || 'rgba(0,0,0,0.8)';
+            const metrics = ctx.measureText(text);
+            const padX = 20; const padY = 10;
+            ctx.fillRect(x - metrics.width/2 - padX, y - style.fontSize/2 - padY, metrics.width + padX*2, style.fontSize + padY*2);
+          }
+
+          // Individual Word Highlighting
+          let currentX = x - ctx.measureText(text).width / 2;
+          words.forEach((word, i) => {
+            const isHighlight = sub.highlightWords?.some(hw => word.toLowerCase().includes(hw.toLowerCase())) || i === 0;
+            
+            if (isHighlight) {
+              ctx.fillStyle = (i % 2 === 0) ? '#FBFF00' : '#FF00FF'; // Yellow & Pink Matrix
+            } else {
+              ctx.fillStyle = (style.textColor || '#FFFFFF');
+            }
+
+            ctx.shadowColor = 'black';
+            ctx.shadowBlur = 10;
+            ctx.shadowOffsetX = 4;
+            ctx.shadowOffsetY = 4;
+
+            const wordWidth = ctx.measureText(word).width;
+            ctx.fillText(word, currentX + wordWidth / 2, y);
+            
+            ctx.shadowBlur = 0; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
+            currentX += ctx.measureText(word + ' ').width;
+          });
         }
 
         onProgress(Math.min(99, Math.round((globalT / totalTargetDuration) * 100)));

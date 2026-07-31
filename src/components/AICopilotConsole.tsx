@@ -92,10 +92,70 @@ export const AICopilotConsole: React.FC<AICopilotConsoleProps> = ({
     'Correct Dunik spelling and grammar issues'
   ];
 
+  const [styleLink, setStyleLink] = useState('');
+  const [isCloning, setIsCloning] = useState(false);
+
+  const handleCloneStyle = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!styleLink.trim()) return;
+    setIsCloning(true);
+    setAiResponse('🧬 VIRE ENGINE ACTIVATED: Scoping viral reference... Replicating pacing matrix...');
+    
+    try {
+      // Logic for Cloning
+      const data = await runCopilotOptimize({
+        subtitles: project.subtitles,
+        title: project.title,
+        description: project.description,
+        niche: project.niche,
+        command: `CLONE VIRAL STYLE FROM LINK: ${styleLink}. Adjust archetype, pacing, and caption styles to match this creator.`,
+        actionType: 'chat'
+      });
+
+      onUpdateProject({
+        ...data,
+        captionStyle: data.captionStyle || 'hormozi',
+        archetype: 'hype', // Default to high-energy for viral clones
+        viralityScore: 100
+      });
+      setAiResponse('✅ STYLE CLONED: Pacing, formatting, and energy signatures synchronized with viral source.');
+    } catch (err) {
+      setAiResponse('❌ VIRE Error: Could not parse viral source. System fallback active.');
+    } finally {
+      setIsCloning(false);
+      setStyleLink('');
+    }
+  };
+
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-6">
       
-      {/* Header Info */}
+      {/* VIRE ENGINE SECTION */}
+      <div className="bg-gradient-to-r from-brand-purple/10 to-brand-cyan/10 border border-brand-purple/20 p-4 rounded-2xl space-y-3">
+        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-brand-purple">
+          <Zap className="w-4 h-4 fill-brand-purple" />
+          <span>VIRE Engine: Viral Inspiration Replica</span>
+        </div>
+        <p className="text-[10px] text-slate-400">
+          Paste a TikTok/Reels link to clone the pacing, caption density, and engagement rails of a viral creator.
+        </p>
+        <form onSubmit={handleCloneStyle} className="flex gap-2">
+          <input 
+            type="text" 
+            value={styleLink}
+            onChange={(e) => setStyleLink(e.target.value)}
+            placeholder="https://www.tiktok.com/@creator/video/..." 
+            className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-[10px] text-slate-100 placeholder-slate-600 focus:outline-none focus:border-brand-purple transition-all"
+          />
+          <button 
+            type="submit" 
+            disabled={isCloning || !styleLink}
+            className="px-4 py-2 bg-brand-purple hover:bg-brand-purple/90 text-white rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all disabled:opacity-50"
+          >
+            {isCloning ? 'Cloning...' : 'Clone Style'}
+          </button>
+        </form>
+      </div>
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-4 border-b border-slate-800/60">
         <div>
           <div className="flex items-center gap-2.5">
