@@ -92,6 +92,29 @@ export default function VideoPlayerWorkspace({
   const [analyzeStep, setAnalyzeStep] = useState<number>(0);
 
   const videoRef = useRef<HTMLVideoElement>(null);
+  const musicAudioRef = useRef<HTMLAudioElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const loadedMusicTrackIdRef = useRef<string | null>(null);
+
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [videoDuration, setVideoDuration] = useState(project.duration || 30);
+  const [isMuted, setIsMuted] = useState(false);
+  const [currentZoomScale, setCurrentZoomScale] = useState(1);
+  const [activeSubtitle, setActiveSubtitle] = useState<any>(null);
+  const [autoDucking, setAutoDucking] = useState(true);
+  const [continuousMusic, setContinuousMusic] = useState<boolean>(true); 
+  const [captionRotation, setCaptionRotation] = useState<number>(project.captionRotation || 0);
+  const [stageWidth, setStageWidth] = useState<number>(281);
+
+  const [transitionActive, setTransitionActive] = useState<boolean>(false);
+  const [transitionType, setTransitionType] = useState<'none' | 'crossfade' | 'glitch' | 'flash' | 'zoom' | 'fade_black' | 'slide_left'>('none');
+
+  const [clipEditTitle, setClipEditTitle] = useState<string>('');
+  const [clipEditStart, setClipEditStart] = useState<number>(0);
+  const [clipEditEnd, setClipEditEnd] = useState<number>(10);
+  const [clipEditSpeed, setClipEditSpeed] = useState<number>(1.0);
+
   const [isShaking, setIsShaking] = useState<boolean>(false);
 
   // Sound effects change boundary trackers
