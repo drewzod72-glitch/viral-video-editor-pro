@@ -98,6 +98,11 @@ export default function App() {
         videoFile: file,
         videoUrl
       });
+      
+      if (!result || !result.project) {
+        throw new Error("The AI provided an invalid blueprint. Please try again.");
+      }
+
       const p = result.project;
       const newProject: VideoProject = { 
         ...p, 
@@ -105,6 +110,9 @@ export default function App() {
         videoUrl, 
         name: fixDunikTypo(name),
         niche: niche,
+        selectedMusicTrackId: p.selectedMusicTrackId || 'lofi-1',
+        captionStyle: p.captionStyle || 'hormozi',
+        colorGrade: p.colorGrade || 'vibrant_pop',
         createdAt: new Date().toISOString(),
 
         // DEFAULT PERSISTENT SETTINGS
@@ -123,7 +131,8 @@ export default function App() {
       setActiveProject(newProject);
       setActiveTab('studio');
     } catch (err: any) {
-      alert('Custom upload failed: ' + err.message);
+      console.error("[Analysis Error]", err);
+      alert('AI analysis failed: ' + err.message);
     } finally {
       setIsProcessing(false);
     }

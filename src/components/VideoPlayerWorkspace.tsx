@@ -88,6 +88,9 @@ export default function VideoPlayerWorkspace({
   const setCamRecorderHUD = (val: boolean) => onUpdateProject({ ...project, camRecorderHUD: val });
   const setShakeOnPunch = (val: boolean) => onUpdateProject({ ...project, shakeOnPunch: val });
 
+  const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
+  const [analyzeStep, setAnalyzeStep] = useState<number>(0);
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isShaking, setIsShaking] = useState<boolean>(false);
 
