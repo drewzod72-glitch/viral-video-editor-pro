@@ -22,13 +22,9 @@ import {
   Share2,
   Disc,
   Wand2,
-  TrendingUp,
-  Video,
-  Activity,
-  AlertTriangle,
+  Zap,
   Flame,
-  CheckCircle2,
-  Zap
+  CheckCircle2
 } from 'lucide-react';
 
 const fixDunikTypo = (str: string): string => {
@@ -60,6 +56,7 @@ export default function VideoPlayerWorkspace({
   requestedSeekTime,
   onSeekConsumed,
 }: VideoPlayerWorkspaceProps) {
+  // Destructure persistent settings from project
   const { 
     enableSubtitles = true,
     enableZooms = true,
@@ -71,7 +68,9 @@ export default function VideoPlayerWorkspace({
     emojiBounces = true,
     autoZoomPunch = true,
     shakeOnPunch = true,
-    camRecorderHUD = false
+    camRecorderHUD = false,
+    captionRotation = 0,
+    captionPosition = 'bottom'
   } = project;
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -90,10 +89,12 @@ export default function VideoPlayerWorkspace({
   const [isShaking, setIsShaking] = useState<boolean>(false);
   const [isMuted, setIsMuted] = useState(false);
 
+  // Social Stats & Mockups
   const [mockupMode, setMockupMode] = useState<'none' | 'tiktok' | 'reels' | 'shorts'>('none');
   const [showSafeZone, setShowSafeZone] = useState<boolean>(false);
   const [showHeartPop, setShowHeartPop] = useState<{ x: number; y: number; id: number }[]>([]);
 
+  // Music Search & Filter States
   const [musicSearchQuery, setMusicSearchQuery] = useState('');
   const [activeMoodFilter, setActiveMoodFilter] = useState<'all' | 'lofi' | 'hype' | 'chill' | 'cinematic'>('all');
 
@@ -104,29 +105,16 @@ export default function VideoPlayerWorkspace({
     return matchesSearch && matchesMood;
   });
 
-  const triggerTransition = (type?: string) => {
-    const t = type || project.transitionStyle || 'flash';
-    if (t === 'none') return;
-    if (project.sfxWhooshEnabled !== false) playViralSFX('swoosh');
-  };
+  const updateSettings = (updates: Partial<VideoProject>) => onUpdateProject({ ...project, ...updates });
 
-  useEffect(() => {
-    if (!stageRef.current) return;
-    const observer = new ResizeObserver((entries) => {
-      for (let entry of entries) {
-        if (entry.contentRect && entry.contentRect.width > 0) setStageWidth(entry.contentRect.width);
-      }
-    });
-    observer.observe(stageRef.current);
-    return () => observer.disconnect();
-  }, []);
-
+  // Sync Audio Volume
   useEffect(() => {
     if (musicAudioRef.current) {
       musicAudioRef.current.volume = isMuted ? 0 : (activeSubtitle ? musicVolume * 0.25 : musicVolume);
     }
   }, [musicVolume, isMuted, activeSubtitle]);
 
+  // Handle Music Source
   useEffect(() => {
     if (musicAudioRef.current && activeMusicTrack) {
       if (loadedMusicTrackIdRef.current !== activeMusicTrack.id) {
@@ -146,8 +134,8 @@ export default function VideoPlayerWorkspace({
   const togglePlay = () => {
     if (!videoRef.current) return;
     const video = videoRef.current;
-    const audio = musicAudioRef.current;
-
+    
+    // Unlock Audio Context for iOS
     try {
       const AudioCtxClass = (window as any).AudioContext || (window as any).webkitAudioContext;
       if (!(window as any)._viralAudioCtx) (window as any)._viralAudioCtx = new AudioCtxClass();
@@ -156,21 +144,10 @@ export default function VideoPlayerWorkspace({
 
     if (video.paused) {
       if (video.currentTime < startLimit - 0.1 || video.currentTime >= endLimit - 0.1) video.currentTime = startLimit;
-      if (audio && activeMusicTrack) {
-        if (!audio.src || !audio.src.includes(activeMusicTrack.url)) {
-           audio.src = activeMusicTrack.url;
-           audio.load();
-        }
-        audio.currentTime = Math.max(0, video.currentTime - startLimit);
-        audio.play().catch(() => {
-           setTimeout(() => audio.play().catch(() => {}), 100);
-        });
-      }
       video.play().catch(() => {});
       setIsPlaying(true);
     } else {
       video.pause();
-      if (audio) audio.pause();
       setIsPlaying(false);
     }
   };
@@ -227,58 +204,52 @@ export default function VideoPlayerWorkspace({
       () => setAnalyzeStep(3),
       () => {
         // --- EXPERT DIRECTOR INTELLIGENCE (V5) ---
-        // Protocol: Instead of hardcoded rules, we follow the AI's "Intuitive Blueprint."
-        
         const fullDuration = videoDuration || 14;
         let enhancedSubtitles = [...(project.subtitles || [])];
         
-        // AI already identified the archetype during Forge. 
-        // We now fine-tune the pacing based on that Vibe.
-        const vibe = (project as any).archetype || 'story';
-        const pacingStep = vibe === 'hype' ? 1.8 : (vibe === 'cinematic' ? 4.0 : 2.5);
-        
-        // 1. SMART PACING
+        if (enhancedSubtitles.length > 0) {
+          enhancedSubtitles[0].text = `🤫 THE SECRET TO ${enhancedSubtitles[0].text.toUpperCase()}`;
+          enhancedSubtitles[0].highlightWords = ['SECRET'];
+        }
+
         const newHighlights = [];
         let cur = 0;
         let idx = 0;
         while (cur < fullDuration) {
-          const step = pacingStep + (Math.random() * 0.5);
+          const step = 2.2 + Math.random();
           const end = Math.min(cur + step, fullDuration);
           newHighlights.push({
             id: `viral-cut-${idx}`,
-            title: idx === 0 ? '🔥 THE HOOK' : `Scene ${idx + 1}`,
+            title: idx === 0 ? '🚨 THE HOOK' : `Scene ${idx + 1}`,
             start: cur,
             end: end,
             duration: end - cur,
             viralityScore: 100,
-            description: `Archetype: ${vibe}`,
-            whyEngaging: "Contextual flow",
-            speed: (vibe === 'hype' && idx % 2 === 0) ? 1.10 : 1.0
+            description: "Viral Interrupt",
+            whyEngaging: "High pace",
+            speed: idx % 2 === 0 ? 1.08 : 1.0
           });
           cur = end;
           idx++;
         }
         
-        // 2. CONTEXTUAL ZOOMS
-        const newZoomEffects = newHighlights.map((hl, i) => ({ 
-          timestamp: hl.start, 
-          scale: (vibe === 'hype' && i % 2 === 0) ? 1.25 : (vibe === 'cinematic' ? 1.1 : 1.0), 
-          duration: hl.duration 
-        }));
+        const newZoomEffects = newHighlights.map((hl, i) => ({ timestamp: hl.start, scale: i % 2 === 0 ? 1.28 : 1.0, duration: hl.duration }));
 
-        onUpdateProject({
-          ...project,
+        updateSettings({
           subtitles: enhancedSubtitles,
           highlights: newHighlights,
           zoomEffects: newZoomEffects,
-          // Respect the AI's chosen style but ensure retention rails are ON
+          captionStyle: 'hormozi',
+          colorGrade: 'vibrant_pop',
+          viralityScore: 100,
           enableSubtitles: true,
           enableZooms: true,
           enableColorGrade: true,
           jumpCuts: true,
-          speedRamp: vibe === 'hype',
+          speedRamp: true,
           autoZoomPunch: true,
-          shakeOnPunch: vibe === 'hype',
+          shakeOnPunch: true,
+          selectedMusicTrackId: project.niche === 'fitness' ? 'gym-hustle-1' : 'lofi-1'
         });
         
         setIsAnalyzing(false);
@@ -294,12 +265,13 @@ export default function VideoPlayerWorkspace({
   const renderStyledText = () => {
     if (!activeSubtitle) return null;
     const { text, emoji, highlightWords = [] } = activeSubtitle;
-    const parts = fixDunikTypo(text).split(' ');
-    const styles = getCaptionStyles(project.captionStyle || 'hormozi', text.length, stageWidth);
+    const correctedText = fixDunikTypo(text);
+    const parts = correctedText.split(' ');
+    const styles = getCaptionStyles(project.captionStyle || 'hormozi', text.length, stageWidth || 281);
     
     return (
       <div className="flex flex-col items-center justify-center text-center max-w-[90%] px-2 mx-auto">
-        <div style={{ fontFamily: styles.fontFamily, textTransform: styles.textTransform, backgroundColor: styles.hasBox ? styles.boxBg : 'transparent', borderRadius: `${styles.boxRadius}px`, padding: styles.hasBox ? `${styles.boxPaddingY}px ${styles.boxPaddingX}px` : 0 }} className="flex flex-wrap items-center justify-center transition-all duration-150">
+        <div style={{ fontFamily: styles.fontFamily, textTransform: styles.textTransform, backgroundColor: styles.hasBox ? styles.boxBg : 'transparent', borderRadius: `${styles.boxRadius}px`, padding: styles.hasBox ? `${styles.boxPaddingY}px ${styles.boxPaddingX}px` : 0 }} className="flex flex-wrap items-center justify-center">
           {parts.map((word, idx) => {
             const clean = word.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"").toLowerCase();
             const isH = highlightWords.some(h => clean.includes(h.toLowerCase()));
@@ -314,7 +286,7 @@ export default function VideoPlayerWorkspace({
   return (
     <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
       <div className="lg:col-span-3 flex flex-col bg-slate-950 border border-slate-900 rounded-2xl overflow-hidden shadow-2xl relative">
-        <div className="bg-slate-900/80 p-3.5 border-b border-slate-905 flex items-center justify-between gap-3 text-xs backdrop-blur-md">
+        <div className="bg-slate-900/80 p-3.5 border-b border-slate-905 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs backdrop-blur-md">
            <div className="flex items-center gap-2"><Smartphone className="w-4 h-4 text-brand-purple" /> <span className="font-extrabold uppercase font-display tracking-wider text-slate-200">Social Simulator</span></div>
            <div className="flex gap-2">
              {(['none', 'tiktok', 'reels', 'shorts'] as const).map(m => (
@@ -347,18 +319,28 @@ export default function VideoPlayerWorkspace({
           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1.5"><Tv className="w-3.5 h-3.5 text-brand-purple" /> AI Subtitles</h3>
           <div className="grid grid-cols-2 gap-2">
             {(['mrbeast', 'hormozi', 'minimalist', 'impact', 'comic'] as const).map(style => (
-              <button key={style} onClick={() => onUpdateProject({ ...project, captionStyle: style })} className={`p-2 rounded-xl text-left border text-xs capitalize transition-all ${project.captionStyle === style ? 'border-brand-purple bg-brand-purple/10 text-white font-semibold' : 'border-slate-800 bg-slate-950 text-slate-400'}`}>{style}</button>
+              <button key={style} onClick={() => updateSettings({ captionStyle: style })} className={`p-2 rounded-xl text-left border text-xs capitalize transition-all ${project.captionStyle === style ? 'border-brand-purple bg-brand-purple/10 text-white font-semibold' : 'border-slate-800 bg-slate-950 text-slate-400'}`}>{style}</button>
             ))}
           </div>
         </div>
 
         <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl">
-          <div className="flex items-center justify-between mb-4"><h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5"><Music className="w-3.5 h-3.5 text-brand-cyan" /> Sonic Library</h3></div>
+          <div className="flex items-center justify-between mb-4"><h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5"><Music className="w-3.5 h-3.5 text-brand-cyan" /> Sonic Library</h3><span className="text-[9px] bg-slate-950 px-2 py-0.5 rounded-full text-slate-500 font-bold">{FREE_MUSIC_TRACKS.length} TRACKS</span></div>
+          <div className="space-y-3 mb-4">
+            <div className="relative">
+              <input type="text" placeholder="Search feeling..." value={musicSearchQuery} onChange={(e) => setMusicSearchQuery(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-9 py-2 text-xs focus:border-brand-cyan focus:outline-none transition-all placeholder:text-slate-700" />
+              <Sliders className="w-3.5 h-3.5 text-slate-600 absolute left-3 top-1/2 -translate-y-1/2" />
+            </div>
+            <div className="flex gap-1 overflow-x-auto pb-1 no-scrollbar">
+              {(['all', 'lofi', 'hype', 'chill', 'cinematic'] as const).map(m => <button key={m} onClick={() => setActiveMoodFilter(m)} className={`px-2 py-1 rounded-full text-[8px] font-black uppercase border transition-all ${activeMoodFilter === m ? 'bg-brand-cyan/20 border-brand-cyan text-brand-cyan' : 'bg-slate-950 border-slate-800 text-slate-500'}`}>{m}</button>)}
+            </div>
+          </div>
           <div className="max-h-[150px] overflow-y-auto space-y-1.5 custom-scrollbar">
-            {FREE_MUSIC_TRACKS.map(t => (
-              <button key={t.id} onClick={() => onUpdateProject({ ...project, selectedMusicTrackId: t.id })} className={`w-full text-left p-2 rounded-xl border transition-all ${project.selectedMusicTrackId === t.id ? 'border-brand-cyan bg-brand-cyan/10 text-brand-cyan' : 'border-transparent hover:bg-slate-800/40 text-slate-200'}`}><div className="text-xs font-bold truncate">{t.name}</div></button>
+            {filteredMusic.map(t => (
+              <button key={t.id} onClick={() => updateSettings({ selectedMusicTrackId: t.id })} className={`w-full text-left p-2 rounded-xl border transition-all ${project.selectedMusicTrackId === t.id ? 'border-brand-cyan bg-brand-cyan/10 text-brand-cyan' : 'border-transparent hover:bg-slate-800/40 text-slate-200'}`}><div className="text-xs font-bold truncate">{t.name}</div><div className="text-[8px] text-slate-500">{t.artist}</div></button>
             ))}
           </div>
+          <div className="mt-4 pt-4 border-t border-slate-800/60"><div className="flex justify-between text-[11px] text-slate-400 mb-1.5"><span>Mix Level</span><span>{Math.round(musicVolume * 100)}%</span></div><input type="range" min={0} max={0.5} step={0.01} value={musicVolume} onChange={(e) => updateSettings({ musicVolume: Number(e.target.value) })} className="w-full h-1 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-brand-cyan" /></div>
         </div>
 
         <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-4 font-sans">
@@ -375,7 +357,7 @@ export default function VideoPlayerWorkspace({
               { label: 'Camera Rumble', val: shakeOnPunch, key: 'shakeOnPunch' },
               { label: 'Color Grade', val: enableColorGrade, key: 'enableColorGrade' }
             ].map(rail => (
-              <div key={rail.label} className="flex items-center justify-between bg-slate-950 p-2.5 rounded-xl border border-slate-950 hover:border-slate-800"><span className="text-[11px] text-slate-200 font-semibold">{rail.label}</span><button onClick={() => onUpdateProject({ ...project, [rail.key]: !rail.val })} className={`w-8 h-4.5 rounded-full p-0.5 transition-all ${rail.val ? 'bg-brand-cyan' : 'bg-slate-800'}`}><div className={`w-3.5 h-3.5 rounded-full bg-white transition-all ${rail.val ? 'translate-x-3.5' : 'translate-x-0'}`} /></button></div>
+              <div key={rail.label} className="flex items-center justify-between bg-slate-950 p-2.5 rounded-xl border border-slate-950 hover:border-slate-800"><span className="text-[11px] text-slate-200 font-semibold">{rail.label}</span><button onClick={() => updateSettings({ [rail.key]: !rail.val })} className={`w-8 h-4.5 rounded-full p-0.5 transition-all ${rail.val ? 'bg-brand-cyan' : 'bg-slate-800'}`}><div className={`w-3.5 h-3.5 rounded-full bg-white transition-all ${rail.val ? 'translate-x-3.5' : 'translate-x-0'}`} /></button></div>
             ))}
           </div>
         </div>
