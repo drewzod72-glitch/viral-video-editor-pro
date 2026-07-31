@@ -2,12 +2,11 @@ import { getStoredApiKey } from './apiKeyStore';
 import type { SubtitleItem, VideoNiche, CaptionStyle } from '../types';
 
 const MODEL_OPTIONS = [
+  'gemini-3.5-flash', 
+  'gemini-3.1-flash-lite',
   'gemini-2.0-flash', 
   'gemini-1.5-flash', 
-  'gemini-1.5-pro', 
-  'gemini-flash-latest',
-  'gemini-3.5-flash', 
-  'gemini-3.1-flash-lite'
+  'gemini-flash-latest'
 ];
 const GEMINI_API_ROOT = 'https://generativelanguage.googleapis.com/v1beta/models';
 const GEMINI_UPLOAD_ROOT = 'https://generativelanguage.googleapis.com/upload/v1beta/files';

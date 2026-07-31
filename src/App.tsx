@@ -36,16 +36,20 @@ export default function App() {
     setIsProcessing(true);
     setProcessingStage('AI is analyzing content...');
     
-    // Watchdog: If analysis takes more than 45s, something is wrong with the quota/network.
+    // Watchdog: Increased to 90s for complex viral engineering
     const watchdog = setTimeout(() => {
       setIsProcessing(false);
-      alert("AI analysis is taking longer than expected. Please check your API key quota in AI Studio or try again in 60 seconds.");
-    }, 45000);
+      alert("The social algorithm is taking longer than expected to solve. Please ensure your API key is valid and try again in 60 seconds.");
+    }, 90000);
 
     try {
       const result = await runAnalyzeVideo({ ...template });
       clearTimeout(watchdog);
       
+      if (!result || !result.project) {
+        throw new Error("The AI provided an invalid blueprint. Please try again.");
+      }
+
       const p = result.project;
       const newProject: VideoProject = { 
         ...p, 
