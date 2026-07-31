@@ -30,17 +30,35 @@ try {
 // Load environment variables
 dotenv.config();
 
-// Output frame width used for every rendered short (9:16 @ 1080x1920).
-// Caption metrics are resolved against this exact width so the burned-in
-// captions match the browser preview pixel-for-pixel (see captionStyleConfig.ts).
-const RENDER_FRAME_WIDTH = 1080;
-
 const app = express();
-// Render (and most cloud hosts) assign their own port via process.env.PORT
-// and expect the app to bind to it — a hardcoded port here means the
-// platform's health check never succeeds and the service never comes up.
-// 3000 remains the local/AI-Studio-sandbox dev default.
 const PORT = process.env.PORT || 3000;
+
+// PROXY ENDPOINT FOR MUSIC (Fixes Safari CORS / Silent Export)
+app.get('/api/music-proxy', async (req, res) => {
+  const { url } = req.query;
+  if (!url) return res.status(400).send('Missing url');
+
+  try {
+    const musicUrl = decodeURIComponent(url as string);
+    console.log(`[Music Proxy] Fetching: ${musicUrl}`);
+    
+    const response = await axios({
+      method: 'get',
+      url: musicUrl,
+      responseType: 'stream',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'
+      }
+    });
+
+    res.setHeader('Content-Type', 'audio/mpeg');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    response.data.pipe(res);
+  } catch (err: any) {
+    console.error(`[Music Proxy Error] ${err.message}`);
+    res.status(500).send('Failed to proxy music');
+  }
+});
 
 // Global CORS configuration for maximum iframe and sandbox compatibility
 app.use((req, res, next) => {
