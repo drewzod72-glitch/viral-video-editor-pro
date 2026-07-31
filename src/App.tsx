@@ -93,12 +93,28 @@ export default function App() {
     setProcessingStage("Initializing Native Forge...");
     try {
       const { renderVideoInBrowser } = await import('./utils/ffmpegClient');
-      const editedBlob = await renderVideoInBrowser(activeProject, (prg) => {
+      const rawBlob = await renderVideoInBrowser(activeProject, (prg) => {
         setProcessingProgress(prg);
         setProcessingStage(`Baking: ${prg}%`);
       }, activeClipId);
-      if (!editedBlob) throw new Error('Bake failed.');
-      setDownloadReadyInfo({ url: URL.createObjectURL(editedBlob), filename: `${activeProject.name.replace(/\s+/g, '_')}_edit.mp4` });
+      
+      if (!rawBlob) throw new Error('Bake failed.');
+
+      // Finalize with Server Transcode for Smooth Download compatibility
+      setProcessingStage("Optimizing for Social Media...");
+      const response = await fetch('/api/transcode', {
+        method: 'POST',
+        headers: { 'Content-Type': rawBlob.type },
+        body: rawBlob
+      });
+
+      if (!response.ok) throw new Error('Transcode failed.');
+      const finalBlob = await response.blob();
+      
+      setDownloadReadyInfo({ 
+        url: URL.createObjectURL(finalBlob), 
+        filename: `${activeProject.name.replace(/\s+/g, '_')}_viral.mp4` 
+      });
     } catch (err: any) { alert('Export failed: ' + (err.message || 'Error')); } finally { setIsProcessing(false); }
   };
 
