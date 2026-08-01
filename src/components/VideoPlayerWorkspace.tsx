@@ -56,6 +56,9 @@ export default function VideoPlayerWorkspace({
   requestedSeekTime,
   onSeekConsumed,
 }: VideoPlayerWorkspaceProps) {
+  // Safety check for project object
+  if (!project) return <div className="p-20 text-center uppercase font-black text-slate-500">Loading Workspace...</div>;
+
   // Destructure persistent settings with fallbacks to prevent ReferenceErrors
   const { 
     enableSubtitles = true,
@@ -70,9 +73,11 @@ export default function VideoPlayerWorkspace({
     shakeOnPunch = true,
     camRecorderHUD = false,
     captionRotation = 0,
-    captionPosition = 'bottom',
-    highlights = []
-  } = project || {};
+    captionPosition = 'bottom'
+  } = project;
+
+  // Use a local internal reference for highlights to avoid ReferenceError
+  const activeHighlights = project.highlights || [];
 
   // Local helper for state updates
   const updateSettings = (updates: Partial<VideoProject>) => onUpdateProject({ ...project, ...updates });
@@ -152,9 +157,9 @@ export default function VideoPlayerWorkspace({
     }
   }, [activeMusicTrack, isPlaying, continuousMusic]);
 
-  const selectedClip = highlights?.find((c: any) => c.id === activeClipId);
+  const selectedClip = activeHighlights.find((c: any) => c.id === activeClipId);
   const startLimit = selectedClip ? selectedClip.start : 0;
-  const endLimit = selectedClip ? selectedClip.end : (project?.duration || 30);
+  const endLimit = selectedClip ? selectedClip.end : (project.duration || 30);
 
   // Helper functions for Trimmer
   const handleAddCustomClip = () => {
@@ -166,20 +171,20 @@ export default function VideoPlayerWorkspace({
       end: Math.min(currentTime + 5, videoDuration),
       viralityScore: 85
     };
-    onUpdateProject({ ...project, highlights: [...(highlights || []), newHl] });
+    onUpdateProject({ ...project, highlights: [...activeHighlights, newHl] });
     onClipSelect(newId);
   };
 
   const handleApplyTrim = () => {
     if (!activeClipId) return;
-    const updatedHls = highlights.map((h: any) => 
+    const updatedHls = activeHighlights.map((h: any) => 
       h.id === activeClipId ? { ...h, title: clipEditTitle || h.title } : h
     );
     onUpdateProject({ ...project, highlights: updatedHls });
   };
 
   const handleDeleteClip = (id: string) => {
-    onUpdateProject({ ...project, highlights: highlights.filter((h: any) => h.id !== id) });
+    onUpdateProject({ ...project, highlights: activeHighlights.filter((h: any) => h.id !== id) });
     onClipSelect(null);
   };
 

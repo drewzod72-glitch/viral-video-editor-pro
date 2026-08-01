@@ -116,6 +116,15 @@ async function uploadVideoToFileApi(apiKey: string, file: File): Promise<string>
   return uploadData.file.uri;
 }
 
+export class GeminiApiError extends Error {
+  status?: number;
+  constructor(message: string, status?: number) {
+    super(message);
+    this.name = 'GeminiApiError';
+    this.status = status;
+  }
+}
+
 async function generateStructuredContent({ apiKey, parts, responseSchema, signal }: any): Promise<any> {
   let lastError: any = null;
   for (const model of MODEL_OPTIONS) {
@@ -131,17 +140,36 @@ async function generateStructuredContent({ apiKey, parts, responseSchema, signal
           generationConfig: { responseMimeType: 'application/json', responseSchema },
         }),
       });
+
       if (!res.ok) {
-        if (res.status === 429) { console.warn(`[Gemini] ${model} overloaded. Falling back...`); continue; }
+        if (res.status === 401 || res.status === 403) {
+          throw new GeminiApiError('Your Gemini API Key is invalid or expired. Please update it in Settings.', res.status);
+        }
+        if (res.status === 429) { 
+          console.warn(`[Gemini] ${model} overloaded. Falling back...`); 
+          lastError = new GeminiApiError('Rate limit exceeded. Please wait a moment.', 429);
+          continue; 
+        }
+        if (res.status === 404) {
+          console.warn(`[Gemini] ${model} not found. Falling back...`);
+          lastError = new GeminiApiError(`Model ${model} not available on this key.`, 404);
+          continue;
+        }
         const errText = await res.text().catch(() => 'Error');
-        lastError = new Error(`Gemini Error ${res.status}: ${errText.slice(0, 100)}`);
+        lastError = new GeminiApiError(`Gemini Error ${res.status}: ${errText.slice(0, 100)}`, res.status);
         continue;
       }
+
       const data = await res.json();
       const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!text) continue;
       return JSON.parse(text);
-    } catch (err: any) { lastError = err; if (err.message === 'Aborted') throw err; continue; }
+    } catch (err: any) { 
+      if (err instanceof GeminiApiError && (err.status === 401 || err.status === 403)) throw err;
+      lastError = err; 
+      if (err.message === 'Aborted') throw err; 
+      continue; 
+    }
   }
   throw lastError || new Error('All AI models failed.');
 }

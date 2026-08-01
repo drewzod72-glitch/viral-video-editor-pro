@@ -30,22 +30,13 @@ export default function App() {
   const [activeClipId, setActiveClipId] = useState<string | null>(null);
 
   const handleSelectTemplate = async (template: any) => {
-    // Reset any previous hang
     setIsProcessing(true);
-    setProcessingStage('Forging AI Blueprint...');
+    setProcessingStage('Verifying API Health & Analyzing...');
     
-    const forceReset = setTimeout(() => {
-       setIsProcessing(false);
-       alert("Network connection slow. Entering Studio...");
-       const fallback: any = { ...template, id: `fb-${Date.now()}`, title: template.name, subtitles: [], highlights: [{id:'1', start:0, end:30}] };
-       setActiveProject(fallback);
-    }, 12000);
-
     try {
       const result = await runAnalyzeVideo({ ...template });
-      clearTimeout(forceReset);
       
-      if (!result?.project) throw new Error("Empty AI Response");
+      if (!result?.project) throw new Error("Analysis timed out.");
       
       const newProject: VideoProject = { 
         ...result.project, 
@@ -53,101 +44,75 @@ export default function App() {
         videoUrl: template.videoUrl, 
         name: fixDunikTypo(template.name),
         niche: template.niche,
-        createdAt: new Date().toISOString(),
         enableSubtitles: true, 
         enableZooms: true, 
         enableColorGrade: true, 
         musicVolume: 0.4,
         jumpCuts: true, 
-        speedRamp: result.project.archetype === 'hype', 
-        sfxSparks: true, 
-        emojiBounces: true,
         autoZoomPunch: true, 
-        shakeOnPunch: result.project.archetype === 'hype', 
-        camRecorderHUD: false,
         captionPosition: 'bottom'
       };
 
       setActiveProject(newProject);
       setActiveTab('studio');
     } catch (err: any) { 
-      clearTimeout(forceReset);
-      setActiveProject({ ...template, id: `proj-${Date.now()}`, title: template.name, subtitles: [], highlights: [] } as any);
-      setActiveTab('studio');
+      console.error("AI Error:", err);
+      const isAuthError = err.message.toLowerCase().includes('key') || err.message.includes('401') || err.message.includes('403');
+      
+      if (isAuthError) {
+        alert(`🔑 API KEY ERROR: ${err.message}`);
+        setShowApiKeyModal(true);
+      } else {
+        alert(`⚠️ SYSTEM BUSY: ${err.message}. Entering Manual Mode.`);
+        const manual: any = { ...template, id: `m-${Date.now()}`, title: template.name, subtitles: [], highlights: [{id:'1', start:0, end:30}] };
+        setActiveProject(manual);
+        setActiveTab('studio');
+      }
     } finally { 
       setIsProcessing(false); 
     }
   };
 
-  const handleUploadCustomFile = async (file: File, name: string, niche: any, description: string, rawTranscribe: string) => {
+  const handleUploadCustomFile = async (file: File, name: string, niche: any, description: string) => {
     const videoUrl = URL.createObjectURL(file);
     setIsProcessing(true);
-    setProcessingStage('Engineering Viral Blueprint...');
-    
-    let isBypassed = false;
-    const watchdog = setTimeout(() => {
-      if (isBypassed) return;
-      setIsProcessing(false);
-      alert("AI is taking too long. Entering Manual Mode.");
-      startManualMode();
-    }, 15000);
-
-    const startManualMode = () => {
-      isBypassed = true;
-      const manualProject: VideoProject = {
-        id: `custom-manual-${Date.now()}`,
-        videoUrl,
-        name: fixDunikTypo(name),
-        niche: niche,
-        title: name,
-        description: description || '',
-        subtitles: [],
-        highlights: [{ id: 'full', title: 'Full Clip', start: 0, end: 30 }],
-        selectedMusicTrackId: 'lofi-1',
-        captionStyle: 'hormozi',
-        colorGrade: 'vibrant_pop',
-        archetype: 'story',
-        viralityScore: 50
-      } as any;
-      setActiveProject(manualProject);
-      setActiveTab('studio');
-      setIsProcessing(false);
-    };
+    setProcessingStage('Verifying API Health & Processing...');
 
     try {
-      const result = await runAnalyzeVideo({ name, niche, userDescription: description, defaultTranscribe: rawTranscribe, videoFile: file, videoUrl });
-      clearTimeout(watchdog);
-      if (isBypassed) return;
-
-      if (!result || !result.project) throw new Error("AI data empty.");
+      const result = await runAnalyzeVideo({ name, niche, userDescription: description, videoFile: file, videoUrl });
       
-      const p = result.project;
+      if (!result?.project) throw new Error("Processing timed out.");
+      
       const newProject: VideoProject = { 
-        ...p, 
+        ...result.project, 
         id: `custom-${Date.now()}`, 
         videoUrl, 
         name: fixDunikTypo(name),
         niche: niche,
-        createdAt: new Date().toISOString(),
         enableSubtitles: true, 
         enableZooms: true, 
         enableColorGrade: true, 
         musicVolume: 0.4,
         jumpCuts: true, 
-        speedRamp: p.archetype === 'hype', 
-        sfxSparks: true, 
-        emojiBounces: true,
         autoZoomPunch: true, 
-        shakeOnPunch: p.archetype === 'hype', 
-        camRecorderHUD: false,
         captionPosition: 'bottom'
       };
 
       setActiveProject(newProject);
       setActiveTab('studio');
     } catch (err: any) { 
-      clearTimeout(watchdog);
-      if (!isBypassed) startManualMode();
+      console.error("AI Error:", err);
+      const isAuthError = err.message.toLowerCase().includes('key') || err.message.includes('401') || err.message.includes('403');
+      
+      if (isAuthError) {
+        alert(`🔑 API KEY ERROR: ${err.message}`);
+        setShowApiKeyModal(true);
+      } else {
+        alert(`⚠️ SYSTEM BUSY: ${err.message}. Entering Manual Mode.`);
+        const manual: any = { id: `m-${Date.now()}`, videoUrl, name, niche, title: name, subtitles: [], highlights: [] };
+        setActiveProject(manual);
+        setActiveTab('studio');
+      }
     } finally { 
       setIsProcessing(false); 
     }
