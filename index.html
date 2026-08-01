@@ -3,18 +3,23 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>Viral AI Video Editor • Smart Auto-Editor</title>
+    <title>Viral AI Video Editor</title>
     <style>
-      body { margin: 0; background-color: #020617; }
-      #root:empty::after {
-        content: 'Initializing AI Editor...';
+      body { margin: 0; background-color: #020617; color: white; font-family: sans-serif; }
+      #root { min-height: 100vh; }
+      .boot-loading {
         position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-        color: #94a3b8; font-family: sans-serif; font-size: 14px; letter-spacing: 1px; text-transform: uppercase;
+        text-align: center;
       }
     </style>
   </head>
   <body>
-    <div id="root">Loading Editor...</div>
+    <div id="root">
+      <div class="boot-loading">
+        <h2 style="font-weight: 900; letter-spacing: -1px;">VIRAL FORGE</h2>
+        <p style="color: #64748b; font-size: 12px; text-transform: uppercase;">Booting Studio Engine...</p>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -9,6 +9,7 @@ import { AICopilotConsole } from './components/AICopilotConsole';
 import { Sparkles, Download, Video as VideoIcon, CheckCircle, KeyRound } from 'lucide-react';
 import ApiKeySettingsModal from './components/ApiKeySettingsModal';
 import { runAnalyzeVideo } from './utils/geminiClient';
+import { getStoredApiKey } from './utils/apiKeyStore';
 
 const fixDunikTypo = (str: string): string => {
   if (typeof str !== 'string' || !str) return str;
@@ -42,8 +43,8 @@ export default function App() {
   }, [hasStarted]);
 
   const handleSelectTemplate = async (template: any) => {
-    // V19.2 GOLD MASTER: INSTANT MOUNT
-    // Set project immediately so the UI changes and unblocks the user
+    // V19.5: ZERO-DELAY MOUNT
+    // We set the project immediately. The Studio UI will handle the 'Loading' state internally.
     const initialProject: VideoProject = {
       id: `proj-${Date.now()}`,
       videoUrl: template.videoUrl,
@@ -52,7 +53,7 @@ export default function App() {
       title: template.name,
       description: template.userDescription || '',
       subtitles: [],
-      highlights: [{ id: '1', title: 'Full Clip', start: 0, end: 30 }],
+      highlights: [{ id: '1', title: 'Full Clip', start: 0, end: template.originalDuration || 30 }],
       selectedMusicTrackId: 'lofi-1',
       captionStyle: 'hormozi',
       colorGrade: 'vibrant_pop',
@@ -70,9 +71,9 @@ export default function App() {
     setActiveProject(initialProject);
     setActiveTab('studio');
     
-    // Run AI in background (Do NOT block the UI)
+    // AI Analysis happens strictly in the background.
     setIsProcessing(true);
-    setProcessingStage('Verifying AI Blueprint...');
+    setProcessingStage('Verifying API Key & AI Engine...');
 
     try {
       const result = await runAnalyzeVideo({ ...template });
@@ -80,11 +81,14 @@ export default function App() {
         setActiveProject(prev => ({ ...prev, ...result.project, viralityScore: 99 } as any));
       }
     } catch (err: any) {
-      console.error("AI Background Error:", err);
-      // IF KEY IS EXPIRED, ALERT THE USER
-      if (err.message.includes('expired') || err.message.includes('Key')) {
-         alert(`🔑 AI KEY EXPIRED: ${err.message}. Studio is running in MANUAL MODE.`);
-         setShowApiKeyModal(true);
+      console.error("AI Logic Error:", err);
+      // CHECK FOR EXPIRED KEY
+      const key = getStoredApiKey();
+      if (!key || !key.startsWith('AIza')) {
+        alert("🔑 API KEY EXPIRED or INVALID. Please update your Gemini Key in Settings.");
+        setShowApiKeyModal(true);
+      } else {
+        alert("⚠️ AI System busy. Manual Mode active.");
       }
     } finally {
       setIsProcessing(false);
