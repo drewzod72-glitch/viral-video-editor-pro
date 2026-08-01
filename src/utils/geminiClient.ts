@@ -210,11 +210,6 @@ const ANALYZE_VIDEO_SCHEMA = {
 export async function runAnalyzeVideo(params: any): Promise<any> {
   const apiKey = requireApiKey(params.apiKey);
   
-  // VALIDATE KEY FORMAT BEFORE STARTING
-  if (!apiKey.startsWith('AIza')) {
-    throw new GeminiApiError('Invalid Gemini API Key format. It should start with AIza.');
-  }
-
   const prompt = `You are a World-Class Creative Director & Viral Strategist. 
 Analyze this video and provide a hand-edited blueprint. 
 Return JSON { title, description, subtitles, highlights, selectedMusicTrackId, captionStyle, archetype }.`;
@@ -240,8 +235,8 @@ Return JSON { title, description, subtitles, highlights, selectedMusicTrackId, c
     const project = await generateStructuredContent({ apiKey, parts, responseSchema: ANALYZE_VIDEO_SCHEMA, signal: params.signal });
     return { success: true, mode: 'live-gemini', project };
   } catch (err: any) {
-    // CATCH EXPIRED KEY
-    if (err.message.includes('401') || err.message.includes('expired') || err.message.includes('key')) {
+    // CATCH EXPIRED OR INVALID KEY BASED ON ACTUAL API ERROR
+    if (err.message.includes('401') || err.message.includes('403') || err.message.includes('expired') || err.message.includes('key')) {
       throw new GeminiApiError('Your Gemini API Key is expired or invalid. Please check Google AI Studio.');
     }
     throw err;

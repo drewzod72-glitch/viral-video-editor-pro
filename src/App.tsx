@@ -31,13 +31,9 @@ export default function App() {
   const [activeClipId, setActiveClipId] = useState<string | null>(null);
 
   useEffect(() => {
-    // V19.2: Initial Health Check
+    // V19.7: Initial Health Check (No longer restrictive on prefix)
     const key = getStoredApiKey();
-    if (key) {
-      if (!key.startsWith('AIza')) {
-        alert("⚠️ Your stored API key format is invalid. Please update it in Settings.");
-      }
-    } else if (hasStarted) {
+    if (!key && hasStarted) {
       setShowApiKeyModal(true);
     }
   }, [hasStarted]);

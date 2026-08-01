@@ -102,7 +102,7 @@ export default function ApiKeySettingsModal({ isOpen, onClose, onKeySaved }: Api
                 spellCheck={false}
                 value={inputValue}
                 onChange={(e) => { setInputValue(e.target.value); setValidationError(null); }}
-                placeholder="AIza..."
+                placeholder="Paste key here..."
                 className="w-full bg-slate-950 border border-slate-800 focus:border-brand-purple rounded-xl px-3.5 py-2.5 pr-10 text-xs text-white placeholder-slate-600 font-mono focus:outline-none transition-colors"
               />
               <button
