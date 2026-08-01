@@ -8,7 +8,14 @@ export default defineConfig({
     tailwindcss(),
   ],
   build: {
+    target: 'es2020', // Better compatibility for iPhone 11 (iOS 13+)
     outDir: 'dist',
     emptyOutDir: true,
+  },
+  server: {
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'require-corp',
+    }
   }
 });

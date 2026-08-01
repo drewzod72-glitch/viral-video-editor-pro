@@ -209,42 +209,43 @@ const ANALYZE_VIDEO_SCHEMA = {
 
 export async function runAnalyzeVideo(params: any): Promise<any> {
   const apiKey = requireApiKey(params.apiKey);
-  const userInstructions = params.userDescription ? `USER SPECIFIC GOALS: ${params.userDescription}` : '';
-  const prompt = `You are a World-Class Creative Director & Viral Strategist. 
-Your task is to analyze this video and provide a custom-tailored editing blueprint. 
-DO NOT apply a robotic pattern. Instead, use your "Creative Intuition" to match the editing to the video's soul, energy, and context.
-
-### 🎥 DIRECTIONAL PROTOCOL:
-1. **ENERGY ANALYSIS**: Is this video high-energy (gym/unboxing) or low-energy (vlog/nature)? 
-   - If Hype: Use fast cuts (1.5-2s), 'hormozi' style, and aggressive zooms.
-   - If Cinematic: Use long holds (4s+), 'minimalist' style, and soft slow zooms.
-   - If Story: Use cuts that follow the narrative beats.
-
-2. **CONTEXTUAL HOOKS**: Rewrite the first sentence into a viral "Open Loop" that fits the niche naturally. No generic templates.
-3. **SUBTITLE WRAPPING**: Group words for readability. Max 4 words per line.
-4. **MUSIC MATCHING**: Choose the best "selectedMusicTrackId" from the library:
-   - 'hype-[1-7]': Energy, sports, fast unboxings.
-   - 'lofi-[1-7]': Vlogs, relaxing, study, slow cooking.
-   - 'epic-[1-7]': Dramatic reveals, high stakes.
-   - 'lux-[1-7]': Beauty, fashion, tech, minimal products.
-
-5. **THE INFINITY LOOP**: If the video is under 30s, ensure the ending CTA bridges back to the start sentence to force a rewatch.
-
-Return a JSON blueprint that feels hand-edited, expert, and purposeful.`;
-
-  const parts: any[] = [{ text: prompt }];
-  if (params.videoFile) {
-    if (params.videoFile.size < FILE_API_THRESHOLD_BYTES) {
-      const snapshots = await captureVideoSnapshots(params.videoFile);
-      snapshots.forEach(data => parts.push({ inlineData: { mimeType: 'image/jpeg', data } }));
-    } else {
-      const fileUri = await uploadVideoToFileApi(apiKey, params.videoFile);
-      parts.push({ fileData: { mimeType: params.videoFile.type || 'video/mp4', fileUri } });
-    }
+  
+  // VALIDATE KEY FORMAT BEFORE STARTING
+  if (!apiKey.startsWith('AIza')) {
+    throw new GeminiApiError('Invalid Gemini API Key format. It should start with AIza.');
   }
 
-  const project = await generateStructuredContent({ apiKey, parts, responseSchema: ANALYZE_VIDEO_SCHEMA, signal: params.signal });
-  return { success: true, mode: 'live-gemini', project };
+  const prompt = `You are a World-Class Creative Director & Viral Strategist. 
+Analyze this video and provide a hand-edited blueprint. 
+Return JSON { title, description, subtitles, highlights, selectedMusicTrackId, captionStyle, archetype }.`;
+
+  const parts: any[] = [{ text: prompt }];
+  
+  try {
+    if (params.videoFile) {
+      if (params.videoFile.size < FILE_API_THRESHOLD_BYTES) {
+        // DEFENSIVE SNAPSHOTS: If this fails, AI still runs on text/niche
+        try {
+          const snapshots = await captureVideoSnapshots(params.videoFile);
+          snapshots.forEach(data => parts.push({ inlineData: { mimeType: 'image/jpeg', data } }));
+        } catch (e) {
+          console.warn("Snapshot capture failed, proceeding with text only", e);
+        }
+      } else {
+        const fileUri = await uploadVideoToFileApi(apiKey, params.videoFile);
+        parts.push({ fileData: { mimeType: params.videoFile.type || 'video/mp4', fileUri } });
+      }
+    }
+
+    const project = await generateStructuredContent({ apiKey, parts, responseSchema: ANALYZE_VIDEO_SCHEMA, signal: params.signal });
+    return { success: true, mode: 'live-gemini', project };
+  } catch (err: any) {
+    // CATCH EXPIRED KEY
+    if (err.message.includes('401') || err.message.includes('expired') || err.message.includes('key')) {
+      throw new GeminiApiError('Your Gemini API Key is expired or invalid. Please check Google AI Studio.');
+    }
+    throw err;
+  }
 }
 
 export async function runCopilotOptimize(params: any): Promise<any> {
