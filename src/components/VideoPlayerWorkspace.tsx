@@ -8,9 +8,9 @@ const fixDunikTypo = (str: string) => str?.replace(/dunik/gi, 'Dunk') || '';
 export default function VideoPlayerWorkspace({ project, activeMusicTrack, activeClipId, onClipSelect, onUpdateProject }: any) {
   if (!project) return null;
 
-  const { 
-    enableSubtitles = true, 
-    enableZooms = true, 
+  const {
+    enableSubtitles = true,
+    enableZooms = true,
     musicVolume = 0.4,
     enableColorGrade = true,
     shakeOnPunch = true,
@@ -27,8 +27,9 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
   const [activeSub, setActiveSub] = useState<any>(null);
   const [lastSubId, setLastSubId] = useState<string | null>(null);
   const [currentZoom, setCurrentZoom] = useState(1);
+  const [volume, setVolume] = useState(musicVolume);
 
-  // MASTER SYNC LOOP - V30.4 (RESTORED BEST VERSION UI & LOGIC)
+  // MASTER SYNC LOOP
   useEffect(() => {
     let raf: number;
     let lastT = 0;
@@ -36,18 +37,15 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
       if (vRef.current && playing) {
         const t = vRef.current.currentTime;
         setTime(t);
-        
-        // Throttled UI logic
+
         if (now - lastT > 100) {
-          // 1. Subtitles
           const s = project.subtitles?.find((i: any) => t >= i.start && t <= i.end);
           if (s?.id !== lastSubId) {
             setActiveSub(s || null);
             setLastSubId(s?.id || null);
             if (s && project.sfxPopEnabled) playViralSFX('pop');
           }
-          
-          // 2. Zooms
+
           let zScale = 1.0;
           if (enableZooms) {
             const zoom = project.zoomEffects?.find((z: any) => t >= z.timestamp && t <= z.timestamp + z.duration);
@@ -55,10 +53,9 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
           }
           if (currentZoom !== zScale) setCurrentZoom(zScale);
 
-          // 3. Loop Clip
           const hl = activeHighlights.find((h: any) => h.id === activeClipId);
           if (hl && t >= hl.end) { vRef.current.currentTime = hl.start; }
-          
+
           lastT = now;
         }
       }
@@ -68,16 +65,17 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
     return () => cancelAnimationFrame(raf);
   }, [playing, activeClipId, project.subtitles, lastSubId, enableZooms, autoZoomPunch, currentZoom]);
 
-  // AUDIO LOCK
+  // AUDIO LOCK - hard-locked music bus
   useEffect(() => {
     if (!aRef.current) return;
     if (activeMusicTrack && playing) {
       if (aRef.current.src !== activeMusicTrack.url) { aRef.current.src = activeMusicTrack.url; aRef.current.load(); }
+      aRef.current.volume = volume;
       aRef.current.play().catch(() => {});
     } else {
       aRef.current.pause();
     }
-  }, [playing, activeMusicTrack]);
+  }, [playing, activeMusicTrack, volume]);
 
   const toggle = () => {
     if (!vRef.current) return;
@@ -91,24 +89,24 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
   };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px', paddingBottom: '100px', boxSizing: 'border-box' }}>
-      <div style={{ background: '#0f172a', padding: '15px', borderRadius: '32px', border: '1px solid #1e293b' }}>
-        
-        {/* PREVIEW STAGE */}
-        <div style={{ position: 'relative', width: '100%', maxWidth: '280px', aspectRatio: '9/16', background: 'black', margin: '0 auto', borderRadius: '24px', overflow: 'hidden', border: '2px solid #334155' }}>
-          <video 
-            ref={vRef} src={project.videoUrl} playsInline muted 
-            style={{ width: '100%', height: '100%', objectFit: 'cover', transform: `scale(${currentZoom})`, transition: 'transform 0.2s' }}
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px', paddingBottom: '40px', boxSizing: 'border-box' }}>
+      {/* PREVIEW STAGE */}
+      <div style={{ background: '#09090b', padding: '20px', borderRadius: '24px', border: '1px solid rgba(30,41,59,0.5)', backdropFilter: 'blur(12px)' }}>
+
+        <div style={{ position: 'relative', width: '100%', maxWidth: '360px', aspectRatio: '9/16', background: '#000', margin: '0 auto', borderRadius: '20px', overflow: 'hidden', border: '1px solid rgba(30,41,59,0.6)', boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}>
+          <video
+            ref={vRef} src={project.videoUrl} playsInline muted
+            style={{ width: '100%', height: '100%', objectFit: 'cover', transform: `scale(${currentZoom})`, transition: 'transform 0.15s ease' }}
             className={`${enableColorGrade && project.colorGrade !== 'none' ? `filter-${project.colorGrade}` : ''}`}
           />
-          
+
           {/* TWO-TONE SUBTITLES */}
           {enableSubtitles && activeSub && (
-            <div style={{ position: 'absolute', bottom: '80px', left: 0, right: 0, padding: '0 20px', textAlign: 'center', pointerEvents: 'none', zIndex: 50 }}>
-              <div style={{ background: 'rgba(0,0,0,0.85)', padding: '12px 18px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.1)' }}>
-                <p style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', margin: 0, justifyContent: 'center' }}>
+            <div style={{ position: 'absolute', bottom: '80px', left: 0, right: 0, padding: '0 16px', textAlign: 'center', pointerEvents: 'none', zIndex: 50 }}>
+              <div style={{ background: 'rgba(0,0,0,0.88)', padding: '10px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <p style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', margin: 0, justifyContent: 'center' }}>
                   {fixDunikTypo(activeSub.text).toUpperCase().split(' ').map((w: string, i: number) => (
-                    <span key={i} style={{ color: i % 2 === 0 ? '#FBFF00' : '#FF00FF', fontWeight: '900', fontSize: '15px', textShadow: '2px 2px 0px black' }}>{w}</span>
+                    <span key={i} style={{ color: i % 2 === 0 ? '#FBFF00' : '#FF00FF', fontWeight: 900, fontSize: '14px', textShadow: '2px 2px 0px black', fontFamily: '"Inter", sans-serif' }}>{w}</span>
                   ))}
                 </p>
               </div>
@@ -116,32 +114,52 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
           )}
 
           {!playing && (
-            <div onClick={toggle} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 100 }}>
-               <div style={{ width: '70px', height: '70px', borderRadius: '50%', background: '#8b5cf6', display: 'flex', alignItems: 'center', justifyContent: 'center', shadow: '0 10px 40px rgba(0,0,0,0.5)' }}>
-                  <div style={{ borderLeft: '20px solid white', borderTop: '12px solid transparent', borderBottom: '12px solid transparent', marginLeft: '5px' }} />
-               </div>
+            <div onClick={toggle} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 100 }}>
+              <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(139,92,246,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 10px 40px rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)' }}>
+                <div style={{ borderLeft: '18px solid white', borderTop: '11px solid transparent', borderBottom: '11px solid transparent', marginLeft: '4px' }} />
+              </div>
             </div>
           )}
         </div>
 
         {/* CONTROLS */}
-        <div style={{ marginTop: '20px', display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '10px', WebkitOverflowScrolling: 'touch' }}>
-          <button onClick={toggle} style={{ padding: '15px 30px', background: '#1e293b', color: 'white', borderRadius: '15px', border: 'none', fontWeight: '900', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap' }}>{playing ? 'PAUSE' : 'PLAY'}</button>
-          <button onClick={() => onClipSelect(null)} style={{ padding: '15px 30px', background: !activeClipId ? '#8b5cf6' : '#1e293b', color: 'white', borderRadius: '15px', border: 'none', fontWeight: '900', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap' }}>FULL</button>
+        <div style={{ marginTop: '16px', display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '8px', WebkitOverflowScrolling: 'touch' }}>
+          <button onClick={toggle} style={{ padding: '12px 24px', background: '#18181b', color: 'white', borderRadius: '12px', border: '1px solid #27272a', fontWeight: 700, fontSize: '11px', cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: '"Inter", sans-serif' }}>{playing ? 'PAUSE' : 'PLAY'}</button>
+          <button onClick={() => onClipSelect(null)} style={{ padding: '12px 24px', background: !activeClipId ? 'rgba(139,92,246,0.2)' : '#18181b', color: 'white', borderRadius: '12px', border: '1px solid #27272a', fontWeight: 700, fontSize: '11px', cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: '"Inter", sans-serif' }}>FULL</button>
           {highlights.map((h: any) => (
-            <button key={h.id} onClick={() => { onClipSelect(h.id); vRef.current!.currentTime = h.start; }} style={{ padding: '15px 30px', background: activeClipId === h.id ? '#8b5cf6' : '#1e293b', color: 'white', borderRadius: '15px', border: 'none', fontWeight: '900', fontSize: '10px', whiteSpace: 'nowrap', cursor: 'pointer' }}>{h.title.toUpperCase()}</button>
+            <button key={h.id} onClick={() => { onClipSelect(h.id); vRef.current!.currentTime = h.start; }} style={{ padding: '12px 20px', background: activeClipId === h.id ? 'rgba(139,92,246,0.2)' : '#18181b', color: 'white', borderRadius: '12px', border: '1px solid #27272a', fontWeight: 700, fontSize: '10px', whiteSpace: 'nowrap', cursor: 'pointer', fontFamily: '"Inter", sans-serif' }}>{h.title.toUpperCase()}</button>
           ))}
         </div>
       </div>
 
-      <div style={{ background: '#0f172a', padding: '25px', borderRadius: '28px', border: '1px solid #1e293b' }}>
-        <div style={{ color: '#64748b', fontSize: '11px', fontWeight: '900', textTransform: 'uppercase', marginBottom: '20px' }}>Select Music</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '10px' }}>
+      {/* MUSIC SELECTOR */}
+      <div style={{ background: '#09090b', padding: '20px', borderRadius: '24px', border: '1px solid rgba(30,41,59,0.5)', backdropFilter: 'blur(12px)' }}>
+        <div style={{ color: '#64748b', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '14px' }}>Music Bus</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px' }}>
           {FREE_MUSIC_TRACKS.map(t => (
-            <button key={t.id} onClick={() => updateSettings({ selectedMusicTrackId: t.id })} style={{ padding: '15px', borderRadius: '15px', border: project.selectedMusicTrackId === t.id ? '2px solid #8b5cf6' : '1px solid #1e293b', background: '#020617', color: 'white', fontWeight: '800', textAlign: 'left', fontSize: '13px', cursor: 'pointer' }}>{t.name.toUpperCase()}</button>
+            <button key={t.id} onClick={() => updateSettings({ selectedMusicTrackId: t.id })} style={{ padding: '14px', borderRadius: '12px', border: project.selectedMusicTrackId === t.id ? '1px solid rgba(139,92,246,0.5)' : '1px solid #18181b', background: project.selectedMusicTrackId === t.id ? 'rgba(139,92,246,0.08)' : '#020617', color: 'white', fontWeight: 700, textAlign: 'left', fontSize: '12px', cursor: 'pointer', fontFamily: '"Inter", sans-serif', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>{t.name}</span>
+              <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 500 }}>{t.genre}</span>
+            </button>
           ))}
         </div>
+
+        {/* Volume slider */}
+        <div style={{ marginTop: '14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Volume</span>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value={volume}
+            onChange={(e) => setVolume(parseFloat(e.target.value))}
+            style={{ flex: 1, accentColor: '#8b5cf6', height: '4px', cursor: 'pointer' }}
+          />
+          <span style={{ fontSize: '11px', color: '#a1a1aa', fontWeight: 600, minWidth: '32px', textAlign: 'right' }}>{Math.round(volume * 100)}%</span>
+        </div>
       </div>
+
       <audio ref={aRef} loop style={{ display: 'none' }} />
     </div>
   );

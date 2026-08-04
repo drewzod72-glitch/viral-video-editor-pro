@@ -55,46 +55,42 @@ export default function ApiKeySettingsModal({ isOpen, onClose, onKeySaved }: Api
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 safe-area-all">
-      <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-brand-purple/10 border border-brand-purple/20 rounded-xl">
-              <KeyRound className="w-4 h-4 text-brand-purple" />
+    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', padding: '16px' }} className="safe-area-all">
+      <div style={{ width: '100%', maxWidth: '440px', background: '#09090b', borderRadius: '24px', border: '1px solid rgba(30,41,59,0.5)', boxShadow: '0 25px 80px rgba(0,0,0,0.6)', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid rgba(30,41,59,0.4)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ padding: '8px', background: 'rgba(139,92,246,0.1)', borderRadius: '10px', border: '1px solid rgba(139,92,246,0.2)' }}>
+              <KeyRound style={{ width: '16px', height: '16px', color: '#8b5cf6' }} />
             </div>
-            <h2 className="text-sm font-bold text-white">Your AI API Key (Groq)</h2>
+            <h2 style={{ fontWeight: 700, fontSize: '13px', color: 'white', fontFamily: '"Inter", sans-serif' }}>Your AI API Key (Groq)</h2>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer">
-            <X className="w-4 h-4" />
+          <button onClick={onClose} style={{ padding: '6px', borderRadius: '8px', color: '#475569', background: 'transparent', border: 'none', cursor: 'pointer' }}>
+            <X style={{ width: '16px', height: '16px' }} />
           </button>
         </div>
 
-        <div className="p-5 space-y-4">
-          <p className="text-xs text-slate-400 leading-relaxed">
-            AI features (title/caption generation, the Co-Pilot, and smart cut detection) run directly from your
-            device to Groq's high-speed API using your own key.
+        <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <p style={{ fontSize: '12px', color: '#64748b', lineHeight: '1.6', fontFamily: '"Inter", sans-serif' }}>
+            AI features run directly from your device to Groq's high-speed API using your own key.
           </p>
 
           {savedKeyPreview && (
-            <div className="flex items-center justify-between bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5">
-              <div className="flex items-center gap-2 text-xs text-emerald-400 font-mono">
-                <ShieldCheck className="w-3.5 h-3.5" />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#020617', border: '1px solid rgba(30,41,59,0.5)', borderRadius: '12px', padding: '10px 14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#10b981', fontFamily: 'monospace' }}>
+                <ShieldCheck style={{ width: '14px', height: '14px' }} />
                 Key saved: {savedKeyPreview}
               </div>
-              <button
-                onClick={handleClear}
-                className="text-[10px] font-semibold text-slate-500 hover:text-brand-pink flex items-center gap-1 cursor-pointer"
-              >
-                <Trash2 className="w-3 h-3" /> Remove
+              <button onClick={handleClear} style={{ fontSize: '10px', fontWeight: 600, color: '#475569', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: '"Inter", sans-serif', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Trash2 style={{ width: '12px', height: '12px' }} /> Remove
               </button>
             </div>
           )}
 
-          <div className="space-y-1.5">
-            <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wide">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label style={{ fontSize: '10px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '1px' }}>
               {savedKeyPreview ? 'Replace key' : 'Paste your Groq API key'}
             </label>
-            <div className="relative">
+            <div style={{ position: 'relative' }}>
               <input
                 type={showKey ? 'text' : 'password'}
                 autoComplete="off"
@@ -102,34 +98,21 @@ export default function ApiKeySettingsModal({ isOpen, onClose, onKeySaved }: Api
                 value={inputValue}
                 onChange={(e) => { setInputValue(e.target.value); setValidationError(null); }}
                 placeholder="gsk_..."
-                className="w-full bg-slate-950 border border-slate-800 focus:border-brand-purple rounded-xl px-3.5 py-2.5 pr-10 text-xs text-white placeholder-slate-600 font-mono focus:outline-none transition-colors"
+                style={{ width: '100%', background: '#020617', border: '1px solid rgba(30,41,59,0.5)', borderRadius: '12px', padding: '12px 40px 12px 14px', color: 'white', fontSize: '12px', outline: 'none', fontFamily: 'monospace' }}
               />
-              <button
-                type="button"
-                onClick={() => setShowKey(!showKey)}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 cursor-pointer"
-                title={showKey ? 'Hide key' : 'Show key'}
-              >
-                {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              <button type="button" onClick={() => setShowKey(!showKey)} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: '#475569', background: 'transparent', border: 'none', cursor: 'pointer' }}>
+                {showKey ? <EyeOff style={{ width: '14px', height: '14px' }} /> : <Eye style={{ width: '14px', height: '14px' }} />}
               </button>
             </div>
-            {validationError && <p className="text-[10px] text-brand-pink">{validationError}</p>}
+            {validationError && <p style={{ fontSize: '10px', color: '#ec4899' }}>{validationError}</p>}
           </div>
 
-          <a
-            href="https://console.groq.com/keys"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-[11px] text-brand-cyan hover:text-cyan-300 font-medium"
-          >
-            Get a free high-speed API key from Groq Console <ExternalLink className="w-3 h-3" />
+          <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" style={{ fontSize: '11px', color: '#06b6d4', fontWeight: 500, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            Get a free high-speed API key from Groq Console <ExternalLink style={{ width: '12px', height: '12px' }} />
           </a>
 
-          <button
-            onClick={handleSave}
-            className="w-full py-3 bg-brand-purple hover:bg-brand-purple/90 text-white text-xs font-bold uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer"
-          >
-            {showSavedToast ? <><Check className="w-4 h-4" /> Saved!</> : 'Save Key'}
+          <button onClick={handleSave} style={{ width: '100%', padding: '14px', background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)', color: 'white', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', borderRadius: '12px', border: 'none', cursor: 'pointer', fontFamily: '"Inter", sans-serif', transition: 'all 0.2s' }}>
+            {showSavedToast ? '✅ Saved!' : 'Save Key'}
           </button>
         </div>
       </div>
