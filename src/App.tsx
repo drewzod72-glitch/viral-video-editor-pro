@@ -48,18 +48,32 @@ export default function App() {
 
     setActiveProject(proj);
     setActiveTab('studio');
+
+    // Non-blocking AI analysis: show processing indicator immediately,
+    // then run AI in background so the UI mounts instantly.
     setIsProcessing(true);
     setProcessingStage('Analyzing media...');
 
-    try {
-      const result = await runAnalyzeVideo({ ...template });
-      if (result?.project) {
-        setActiveProject(prev => ({ ...prev, ...result.project, viralityScore: 99 } as any));
+    // Use requestIdleCallback or setTimeout to defer AI work,
+    // ensuring the Studio mounts instantly without hanging.
+    const runAI = async () => {
+      try {
+        const result = await runAnalyzeVideo({ ...template });
+        if (result?.project) {
+          setActiveProject(prev => ({ ...prev, ...result.project, viralityScore: 99 } as any));
+        }
+      } catch (e) {
+        console.warn("AI Service busy. Manual Mode Active.");
+      } finally {
+        setIsProcessing(false);
       }
-    } catch (e) {
-      console.warn("AI Service busy. Manual Mode Active.");
-    } finally {
-      setIsProcessing(false);
+    };
+
+    // Schedule AI analysis after the UI has had a chance to mount
+    if (typeof requestIdleCallback !== 'undefined') {
+      requestIdleCallback(() => runAI(), { timeout: 5000 });
+    } else {
+      setTimeout(runAI, 100);
     }
   };
 
