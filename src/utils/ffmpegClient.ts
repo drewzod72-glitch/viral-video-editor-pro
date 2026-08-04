@@ -1,204 +1,124 @@
 import { VideoProject, SubtitleItem, getCaptionStyles } from '../types';
 import { FREE_MUSIC_TRACKS } from '../data';
-
-const getProxyUrl = (originalUrl: string) => {
-  return `/api/music-proxy?url=${encodeURIComponent(originalUrl)}`;
-};
+import { playViralSFX } from './sfx';
 
 /**
- * OFFLINE FORGE ENGINE (V18.6) - SAFARI MUSIC STABILITY
- * Fixed: Safari CORS block on music (via Proxy)
- * Fixed: Race condition where music plays before loading
+ * MASTER FORGE ENGINE V30.4 (BEST VERSION RESET)
+ * Pro Quality: SFX Sync, Flash Transitions, Camera Rumble, and Two-Tone Hormozi.
  */
 export async function renderVideoInBrowser(
   project: VideoProject,
   onProgress: (progress: number) => void,
   activeClipId: string | null = null
 ): Promise<Blob> {
-  const AudioCtxClass = (window as any).AudioContext || (window as any).webkitAudioContext;
-  const audioCtx = new AudioCtxClass();
+  const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
+  const audioCtx = new AudioCtx();
   
   return new Promise(async (resolve, reject) => {
     try {
       const video = document.createElement('video');
       video.src = project.videoUrl;
-      video.crossOrigin = 'anonymous';
-      video.muted = true;
-      video.playsInline = true;
+      video.crossOrigin = 'anonymous'; video.muted = true; video.playsInline = true;
       
       await new Promise((r) => {
-        video.onloadedmetadata = r;
+        const t = setTimeout(r, 6000);
+        video.onloadedmetadata = () => { clearTimeout(t); r(null); };
         video.load();
       });
 
-      const W = 720; 
-      const H = 1280;
+      const W = 1080; const H = 1920;
       const canvas = document.createElement('canvas');
       canvas.width = W; canvas.height = H;
       const ctx = canvas.getContext('2d', { alpha: false });
-      
+
       const highlights = activeClipId === 'smart-cuts' 
         ? project.highlights 
-        : (activeClipId ? [project.highlights.find(h => h.id === activeClipId)!].filter(Boolean) : [{ start: 0, end: video.duration || project.duration || 30, duration: video.duration || project.duration || 30 }]);
+        : (activeClipId ? [project.highlights.find(h => h.id === activeClipId)!].filter(Boolean) : [{ start: 0, end: video.duration || 30, duration: video.duration || 30 }]);
 
-      const totalTargetDuration = highlights.reduce((s, h) => s + (h.duration || (h.end - h.start)), 0);
+      const totalDuration = highlights.reduce((s, h) => s + (h.duration || (h.end - h.start)), 0);
 
       // AUDIO SETUP
       const dest = audioCtx.createMediaStreamDestination();
-      const videoSource = audioCtx.createMediaElementSource(video);
-      const videoGain = audioCtx.createGain();
-      videoGain.gain.value = 1.6;
-      videoSource.connect(videoGain);
-      videoGain.connect(dest);
+      const vGain = audioCtx.createGain(); vGain.gain.value = 1.6;
+      audioCtx.createMediaElementSource(video).connect(vGain); vGain.connect(dest);
 
-      let musicEl: HTMLAudioElement | null = null;
+      let mEl: HTMLAudioElement | null = null;
       if (project.selectedMusicTrackId && project.selectedMusicTrackId !== 'none') {
         const track = FREE_MUSIC_TRACKS.find(t => t.id === project.selectedMusicTrackId);
         if (track) {
-          musicEl = new Audio();
-          musicEl.crossOrigin = 'anonymous';
-          musicEl.src = getProxyUrl(track.url); // USE PROXY
-          musicEl.loop = true;
-          
-          // WAIT FOR MUSIC BEFORE STARTING
-          await new Promise((res, rej) => {
-            const timeout = setTimeout(() => rej(new Error("Music Timeout")), 10000);
-            musicEl!.oncanplaythrough = () => { clearTimeout(timeout); res(null); };
-            musicEl!.onerror = () => { clearTimeout(timeout); rej(new Error("Music Load Error")); };
-            musicEl!.load();
-          });
-
-          const musicSource = audioCtx.createMediaElementSource(musicEl);
-          const musicGain = audioCtx.createGain();
-          musicGain.gain.value = project.musicVolume || 0.4;
-          musicSource.connect(musicGain);
-          musicGain.connect(dest);
+          mEl = new Audio(track.url); mEl.crossOrigin = 'anonymous'; mEl.loop = true;
+          await new Promise(r => { const t = setTimeout(r, 4000); mEl!.oncanplaythrough = r; mEl!.load(); });
+          const mGain = audioCtx.createGain(); mGain.gain.value = project.musicVolume || 0.4;
+          audioCtx.createMediaElementSource(mEl).connect(mGain); mGain.connect(dest);
         }
       }
 
-      const canvasStream = canvas.captureStream(30);
-      const mixedStream = new MediaStream([
-        canvasStream.getVideoTracks()[0],
-        ...dest.stream.getAudioTracks()
-      ]);
-
-      let mimeType = 'video/mp4';
-      if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
-
-      const recorder = new MediaRecorder(mixedStream, { 
-        mimeType, 
-        videoBitsPerSecond: 5000000 
+      const recorder = new MediaRecorder(canvas.captureStream(30), { 
+        mimeType: MediaRecorder.isTypeSupported('video/mp4') ? 'video/mp4' : 'video/webm',
+        videoBitsPerSecond: 8000000 
       });
-      
       const chunks: Blob[] = [];
-      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
-      recorder.onstop = () => {
-        const finalBlob = new Blob(chunks, { type: mimeType });
-        resolve(finalBlob);
-      };
+      recorder.ondataavailable = (e) => chunks.push(e.data);
+      recorder.onstop = () => resolve(new Blob(chunks, { type: recorder.mimeType }));
 
       if (audioCtx.state === 'suspended') await audioCtx.resume();
       recorder.start();
-      if (musicEl) musicEl.play().catch(() => {});
+      if (mEl) mEl.play().catch(() => {});
 
-      let currentHlIdx = 0;
-      let elapsedInPreviousSegments = 0;
+      let currentIdx = 0; let elapsed = 0; let lastSId: string | null = null;
 
-      const renderFrame = () => {
-        const currentHl = highlights[currentHlIdx];
-        if (!currentHl) {
-          recorder.stop();
-          if (musicEl) musicEl.pause();
-          return;
-        }
+      const render = () => {
+        const h = highlights[currentIdx];
+        if (!h) { recorder.stop(); return; }
 
-        if (video.currentTime >= currentHl.end || video.paused) {
-          elapsedInPreviousSegments += (currentHl.end - currentHl.start);
-          currentHlIdx++;
-          if (currentHlIdx < highlights.length) {
-            video.currentTime = highlights[currentHlIdx].start;
+        if (video.currentTime >= h.end || video.paused) {
+          elapsed += (h.end - h.start); currentIdx++;
+          if (currentIdx < highlights.length) {
+            video.currentTime = highlights[currentIdx].start;
             video.play().catch(() => {});
-            requestAnimationFrame(renderFrame);
-          } else {
-            recorder.stop();
-            if (musicEl) musicEl.pause();
-          }
-          return;
+            playViralSFX('whoosh', dest);
+          } else { recorder.stop(); return; }
         }
 
-        const globalT = elapsedInPreviousSegments + (video.currentTime - currentHl.start);
+        const globalT = elapsed + (video.currentTime - h.start);
         
-        // CROP & ZOOM LOGIC
-        let currentScale = 1.0;
-        if (project.enableZooms) {
-          const zoom = project.zoomEffects?.find(z => globalT >= z.timestamp && globalT <= z.timestamp + z.duration);
-          if (zoom) currentScale = zoom.scale;
-        }
+        // ZOOM & SHAKE
+        let scale = 1.0;
+        const z = project.zoomEffects?.find(e => globalT >= e.timestamp && globalT <= e.timestamp + e.duration);
+        scale = z ? z.scale : (project.autoZoomPunch && (globalT % 2.2 < 0.4) ? 1.25 : 1.0);
 
-        const zoomW = video.videoWidth / currentScale;
-        const zoomH = video.videoHeight / currentScale;
-        const zoomX = (video.videoWidth - zoomW) / 2;
-        const zoomY = (video.videoHeight - zoomH) / 2;
+        ctx.save();
+        if (project.shakeOnPunch && scale > 1.1) ctx.translate((Math.random()-0.5)*15, (Math.random()-0.5)*15);
+        const zW = video.videoWidth / scale; const zH = video.videoHeight / scale;
+        ctx.drawImage(video, (video.videoWidth - zW)/2, (video.videoHeight - zH)/2, zW, zH, 0, 0, W, H);
+        ctx.restore();
 
-        ctx.drawImage(video, zoomX, zoomY, zoomW, zoomH, 0, 0, W, H);
-
-        // SUBTITLES (High-Retention Two-Tone Matrix)
-        const sub = project.subtitles?.find(s => globalT >= s.start && globalT <= s.end);
-        if (sub) {
-          const style = getCaptionStyles(project.captionStyle || 'hormozi', sub.text.length, W);
-          ctx.font = `900 ${style.fontSize}px sans-serif`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          
-          const text = sub.text.toUpperCase();
-          const words = text.split(' ');
-          const x = W / 2;
-          
-          let y = H * 0.75;
-          if (project.captionPosition === 'top') y = H * 0.15;
-          else if (project.captionPosition === 'center') y = H * 0.5;
-
-          // Draw background box if style requires it
-          if (style.hasBox) {
-            ctx.fillStyle = style.boxBg || 'rgba(0,0,0,0.8)';
-            const metrics = ctx.measureText(text);
-            const padX = 20; const padY = 10;
-            ctx.fillRect(x - metrics.width/2 - padX, y - style.fontSize/2 - padY, metrics.width + padX*2, style.fontSize + padY*2);
-          }
-
-          // Individual Word Highlighting
-          let currentX = x - ctx.measureText(text).width / 2;
-          words.forEach((word, i) => {
-            const isHighlight = sub.highlightWords?.some(hw => word.toLowerCase().includes(hw.toLowerCase())) || i === 0;
-            
-            if (isHighlight) {
-              ctx.fillStyle = (i % 2 === 0) ? '#FBFF00' : '#FF00FF'; // Yellow & Pink Matrix
-            } else {
-              ctx.fillStyle = (style.textColor || '#FFFFFF');
-            }
-
-            ctx.shadowColor = 'black';
-            ctx.shadowBlur = 10;
-            ctx.shadowOffsetX = 4;
-            ctx.shadowOffsetY = 4;
-
-            const wordWidth = ctx.measureText(word).width;
-            ctx.fillText(word, currentX + wordWidth / 2, y);
-            
-            ctx.shadowBlur = 0; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
-            currentX += ctx.measureText(word + ' ').width;
+        // TEXT (TWO-TONE POP)
+        const s = project.subtitles?.find(i => globalT >= i.start && globalT <= i.end);
+        if (s && project.enableSubtitles) {
+          if (s.id !== lastSId) { playViralSFX('pop', dest); lastSId = s.id; }
+          const style = getCaptionStyles(project.captionStyle || 'hormozi', s.text.length, W);
+          ctx.font = `900 ${style.fontSize}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          const x = W / 2; let y = H * 0.75;
+          ctx.shadowColor = 'black'; ctx.shadowBlur = 30; ctx.shadowOffsetX = 8; ctx.shadowOffsetY = 8;
+          const words = s.text.toUpperCase().split(' ');
+          let curX = x - ctx.measureText(s.text.toUpperCase()).width / 2;
+          words.forEach((w, i) => {
+            const isH = s.highlightWords?.some(kw => w.toLowerCase().includes(kw.toLowerCase())) || i === 0;
+            ctx.fillStyle = isH ? (i % 2 === 0 ? '#FBFF00' : '#FF00FF') : '#FFFFFF';
+            const wW = ctx.measureText(w).width;
+            ctx.fillText(w, curX + wW / 2, y);
+            curX += ctx.measureText(w + ' ').width;
           });
+          ctx.shadowBlur = 0;
         }
 
-        onProgress(Math.min(99, Math.round((globalT / totalTargetDuration) * 100)));
-        requestAnimationFrame(renderFrame);
+        onProgress(Math.min(99, Math.round((globalT / totalDuration) * 100)));
+        requestAnimationFrame(render);
       };
 
       video.currentTime = highlights[0].start;
-      video.play().then(() => {
-        requestAnimationFrame(renderFrame);
-      }).catch(err => reject(err));
-
+      video.play().then(() => requestAnimationFrame(render)).catch(reject);
     } catch (err) { reject(err); }
   });
 }

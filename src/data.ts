@@ -2,41 +2,9 @@ import { VideoProject, MusicTrack } from './types';
 
 // royalty-free royalty free synth loops, lofi beats, or cinematic track objects including real-world viral social media soundtracks
 export const FREE_MUSIC_TRACKS: MusicTrack[] = [
-  // HYPE / PHONK / ENERGY
-  { id: 'hype-1', name: 'Streetwear Phonk', artist: 'Phonk King', genre: 'Phonk', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3', intensity: 'hype' },
-  { id: 'hype-2', name: 'Cyberpunk Pulse', artist: 'Neon Knight', genre: 'Synthwave', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3', intensity: 'hype' },
-  { id: 'hype-3', name: 'Trap Power', artist: 'Beat Boss', genre: 'Trap', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3', intensity: 'hype' },
-  { id: 'hype-4', name: 'Industrial Grit', artist: 'Steel Mind', genre: 'Industrial', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3', intensity: 'hype' },
-  { id: 'hype-5', name: 'Aggressive Drive', artist: 'Fuel Junkie', genre: 'Rock', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-10.mp3', intensity: 'hype' },
-  { id: 'hype-6', name: 'Phonk Legend', artist: 'Bass Ghost', genre: 'Phonk', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-100.mp3', intensity: 'hype' },
-  { id: 'hype-7', name: 'Turbo Nitro', artist: 'Drift Boy', genre: 'Electronic', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-99.mp3', intensity: 'hype' },
-  
-  // LOFI / CHILL / STUDY
-  { id: 'lofi-1', name: 'Morning Coffee', artist: 'Lofi Curator', genre: 'Lofi', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', intensity: 'lofi' },
-  { id: 'lofi-2', name: 'Rainy Window', artist: 'Soft Keys', genre: 'Ambient', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3', intensity: 'lofi' },
-  { id: 'lofi-3', name: 'Midnight Study', artist: 'Chill Hop', genre: 'Lofi', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-11.mp3', intensity: 'lofi' },
-  { id: 'lofi-4', name: 'Beach Sunset', artist: 'Sand Beats', genre: 'Chill', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-7.mp3', intensity: 'lofi' },
-  { id: 'lofi-5', name: 'Cozy Fireplace', artist: 'Warm Vibes', genre: 'Jazz', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-14.mp3', intensity: 'lofi' },
-  { id: 'lofi-6', name: 'Quiet Garden', artist: 'Nature Boy', genre: 'Ambient', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-98.mp3', intensity: 'lofi' },
-  { id: 'lofi-7', name: 'Vintage Tape', artist: 'Retro Soul', genre: 'Lofi', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-97.mp3', intensity: 'lofi' },
-
-  // CINEMATIC / DRAMATIC / EPIC
-  { id: 'epic-1', name: 'Last Stand', artist: 'Heroic Score', genre: 'Cinematic', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3', intensity: 'cinematic' },
-  { id: 'epic-2', name: 'Dawn of Glory', artist: 'Symphony X', genre: 'Orchestra', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3', intensity: 'cinematic' },
-  { id: 'epic-3', name: 'Ancient Mystery', artist: 'Old Soul', genre: 'World', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-12.mp3', intensity: 'cinematic' },
-  { id: 'epic-4', name: 'The Reveal', artist: 'Plot Twist', genre: 'Drama', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-15.mp3', intensity: 'cinematic' },
-  { id: 'epic-5', name: 'Sky High', artist: 'Aero', genre: 'Atmospheric', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-16.mp3', intensity: 'cinematic' },
-  { id: 'epic-6', name: 'Warlord', artist: 'Combat', genre: 'Battle', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-96.mp3', intensity: 'cinematic' },
-  { id: 'epic-7', name: 'Shadow Realm', artist: 'Fear', genre: 'Dark', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-95.mp3', intensity: 'cinematic' },
-
-  // LUXURY / CLEAN / MINIMAL
-  { id: 'lux-1', name: 'Clean Reveal', artist: 'Minimalist', genre: 'Tech', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-13.mp3', intensity: 'chill' },
-  { id: 'lux-2', name: 'Silk & Satin', artist: 'Vogue', genre: 'Fashion', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-17.mp3', intensity: 'chill' },
-  { id: 'lux-3', name: 'Modern Living', artist: 'Estate', genre: 'Lounge', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-18.mp3', intensity: 'chill' },
-  { id: 'lux-4', name: 'Crystal Clear', artist: 'Prism', genre: 'Electronic', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-19.mp3', intensity: 'chill' },
-  { id: 'lux-5', name: 'Golden Hour', artist: 'Aura', genre: 'Deep House', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-20.mp3', intensity: 'chill' },
-  { id: 'lux-6', name: 'White Marble', artist: 'Pristine', genre: 'Corporate', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-94.mp3', intensity: 'chill' },
-  { id: 'lux-7', name: 'Cloud Nine', artist: 'Float', genre: 'Lounge', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-93.mp3', intensity: 'chill' },
+  { id: 'hype-1', name: 'Viral Hype', artist: 'AutoViral', genre: 'Phonk', url: '/audio/hype-1.mp3', intensity: 'hype' },
+  { id: 'lofi-1', name: 'Sunset Lofi', artist: 'AutoViral', genre: 'Lofi', url: '/audio/lofi-1.mp3', intensity: 'lofi' },
+  { id: 'epic-1', name: 'Cinematic Reveal', artist: 'AutoViral', genre: 'Cinematic', url: '/audio/epic-1.mp3', intensity: 'cinematic' },
 ];
 
 export const RAW_VIDEO_TEMPLATES = [

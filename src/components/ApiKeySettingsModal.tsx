@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { KeyRound, X, ExternalLink, Check, Trash2, ShieldCheck, Eye, EyeOff } from 'lucide-react';
-import { getStoredApiKey, setStoredApiKey, clearStoredApiKey, looksLikeValidGeminiKey, sanitizeApiKeyInput } from '../utils/apiKeyStore';
+import { getStoredApiKey, setStoredApiKey, clearStoredApiKey, looksLikeValidAiKey, sanitizeApiKeyInput } from '../utils/apiKeyStore';
 
 interface ApiKeySettingsModalProps {
   isOpen: boolean;
@@ -34,8 +34,8 @@ export default function ApiKeySettingsModal({ isOpen, onClose, onKeySaved }: Api
       setValidationError('Please paste a key first.');
       return;
     }
-    if (!looksLikeValidGeminiKey(cleaned)) {
-      setValidationError("That doesn't look like a valid API key. Tap the eye icon to see exactly what got pasted — a common cause is an extra character picked up from copying on a phone.");
+    if (!looksLikeValidAiKey(cleaned)) {
+      setValidationError("That doesn't look like a valid API key. Groq keys start with 'gsk_'.");
       return;
     }
     setStoredApiKey(cleaned);
@@ -62,7 +62,7 @@ export default function ApiKeySettingsModal({ isOpen, onClose, onKeySaved }: Api
             <div className="p-2 bg-brand-purple/10 border border-brand-purple/20 rounded-xl">
               <KeyRound className="w-4 h-4 text-brand-purple" />
             </div>
-            <h2 className="text-sm font-bold text-white">Your Gemini API Key</h2>
+            <h2 className="text-sm font-bold text-white">Your AI API Key (Groq)</h2>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer">
             <X className="w-4 h-4" />
@@ -72,8 +72,7 @@ export default function ApiKeySettingsModal({ isOpen, onClose, onKeySaved }: Api
         <div className="p-5 space-y-4">
           <p className="text-xs text-slate-400 leading-relaxed">
             AI features (title/caption generation, the Co-Pilot, and smart cut detection) run directly from your
-            device to Google's Gemini API using your own key — nothing passes through our servers, and your key
-            never leaves this device except to talk to Google.
+            device to Groq's high-speed API using your own key.
           </p>
 
           {savedKeyPreview && (
@@ -93,7 +92,7 @@ export default function ApiKeySettingsModal({ isOpen, onClose, onKeySaved }: Api
 
           <div className="space-y-1.5">
             <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wide">
-              {savedKeyPreview ? 'Replace key' : 'Paste your API key'}
+              {savedKeyPreview ? 'Replace key' : 'Paste your Groq API key'}
             </label>
             <div className="relative">
               <input
@@ -102,14 +101,14 @@ export default function ApiKeySettingsModal({ isOpen, onClose, onKeySaved }: Api
                 spellCheck={false}
                 value={inputValue}
                 onChange={(e) => { setInputValue(e.target.value); setValidationError(null); }}
-                placeholder="Paste key here..."
+                placeholder="gsk_..."
                 className="w-full bg-slate-950 border border-slate-800 focus:border-brand-purple rounded-xl px-3.5 py-2.5 pr-10 text-xs text-white placeholder-slate-600 font-mono focus:outline-none transition-colors"
               />
               <button
                 type="button"
                 onClick={() => setShowKey(!showKey)}
                 className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 cursor-pointer"
-                title={showKey ? 'Hide key' : 'Show key — useful to check for stray characters from copying on a phone'}
+                title={showKey ? 'Hide key' : 'Show key'}
               >
                 {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -118,12 +117,12 @@ export default function ApiKeySettingsModal({ isOpen, onClose, onKeySaved }: Api
           </div>
 
           <a
-            href="https://aistudio.google.com/app/apikey"
+            href="https://console.groq.com/keys"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 text-[11px] text-brand-cyan hover:text-cyan-300 font-medium"
           >
-            Get a free API key from Google AI Studio <ExternalLink className="w-3 h-3" />
+            Get a free high-speed API key from Groq Console <ExternalLink className="w-3 h-3" />
           </a>
 
           <button
@@ -132,11 +131,6 @@ export default function ApiKeySettingsModal({ isOpen, onClose, onKeySaved }: Api
           >
             {showSavedToast ? <><Check className="w-4 h-4" /> Saved!</> : 'Save Key'}
           </button>
-
-          <p className="text-[10px] text-slate-500 leading-relaxed">
-            Stored locally in this browser/app only. Not encrypted — don't use this on a shared device.
-            You can remove it any time with the button above.
-          </p>
         </div>
       </div>
     </div>
