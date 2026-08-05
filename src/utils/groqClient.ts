@@ -40,8 +40,26 @@ async function captureFrames(file: File): Promise<string[]> {
   });
 }
 
-const PROMPT = `Director: Analyze video. Identify "Hook", "Product Reveal (sole/texture)", and "CTA". 
-Use 'hormozi' styling (Yellow/Pink highlights). Return ONLY JSON { "title": "str", "description": "str", "subtitles": [{"id":"1","text":"str","start":0,"end":2}], "highlights": [{"id":"h1","title":"str","start":0,"end":2}], "captionStyle": "hormozi", "archetype": "hype" }`;
+const PROMPT = `Director / Creative Intuition Engine.
+Analyze the provided video frames and transcript context.
+1. Identify the HOOK (first 3 seconds — pattern interrupt, visual shock, or bold claim).
+2. Identify PRODUCT REVIEW moments: sole close-ups, stitching details, logo reveals, texture macros, fit/angle showcases.
+3. Identify the CTA (call to action — close, question, link, save).
+4. Generate SMART CUT timestamps for each Product Review moment (start/end in seconds).
+5. Write punchy, viral subtitles (2–4 words each, 1.5–2.5s duration).
+
+Return ONLY JSON:
+{
+  "title": " Viral headline (max 60 chars)",
+  "description": "Short social copy with emojis",
+  "captionStyle": "hormozi",
+  "subtitles": [{"id":"1","text":"HOOK TEXT","start":0,"end":2.5}],
+  "highlights": [
+    {"id":"h1","title":"Product Review: Sole","start":4.5,"end":8.2,"viralityScore":92,"description":"Macro sole close-up","whyEngaging":"Texture detail drives shares","speed":1.0},
+    {"id":"h2","title":"Product Review: Stitching","start":9.0,"end":12.5,"viralityScore":88,"description":"Stitching quality check","whyEngaging":"Craftsmanship signal","speed":1.0}
+  ],
+  "archetype": "hype"
+}`;
 
 export async function runAnalyzeVideo(params: any): Promise<any> {
   const key = getApiKey();
