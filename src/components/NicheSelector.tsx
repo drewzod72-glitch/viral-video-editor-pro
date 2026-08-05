@@ -36,6 +36,14 @@ export default function NicheSelector({ onSelectTemplate, onUploadCustomFile, is
 
   return (
     <div style={{ maxWidth: '900px', margin: '0 auto', padding: '0 8px' }}>
+      <style>{`
+        @media (max-width: 480px) {
+          .niche-grid { grid-template-columns: repeat(3, 1fr) !important; }
+        }
+        @media (min-width: 481px) and (max-width: 640px) {
+          .niche-grid { grid-template-columns: repeat(4, 1fr) !important; }
+        }
+      `}</style>
       {/* ── HERO ── */}
       <div style={{ textAlign: 'center', marginBottom: '36px' }}>
         <div style={{ fontSize: '11px', color: '#8b5cf6', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '10px' }}>
@@ -134,7 +142,7 @@ export default function NicheSelector({ onSelectTemplate, onUploadCustomFile, is
           {/* Niche Grid */}
           <div>
             <div style={{ color: '#64748b', fontSize: '10px', fontWeight: 800, marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '1.5px' }}>Content Niche</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px' }}>
+            <div className="niche-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px' }}>
               {['unboxing', 'sales', 'fitness', 'cooking', 'general', 'education', 'comedy', 'motivation', 'pets', 'tech'].map((n) => (
                 <button
                   key={n}

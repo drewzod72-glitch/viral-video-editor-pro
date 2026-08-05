@@ -8,10 +8,11 @@ const FRAME_INTERVAL_MS = 1000 / FPS;
 const W = 1080;
 const H = 1920;
 const CANVAS_BITRATE = 10_000_000; // 10 Mbps for crisp 1080p text
+const FRAME_CAPTURE_DELAY_MS = 80;  // time to let encoder grab frame after draw
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
-function waitForSeeked(video: HTMLVideoElement, timeoutMs = 1200): Promise<void> {
+function waitForSeeked(video: HTMLVideoElement, timeoutMs = 1500): Promise<void> {
   return new Promise((resolve) => {
     const onSeeked = () => {
       video.removeEventListener('seeked', onSeeked);
@@ -43,10 +44,6 @@ function getBestMimeType(): string {
   return '';
 }
 
-/**
- * Detects whether the browser supports on-demand frame capture via
- * MediaStreamTrack.requestFrame(). Chrome/Edge: yes. Safari: no.
- */
 function supportsRequestFrame(): boolean {
   try {
     const c = document.createElement('canvas');
@@ -83,8 +80,7 @@ export async function renderVideoInBrowser(
       video.playsInline = true;
       video.preload = 'auto';
       video.controls = false;
-      // Do NOT set crossOrigin for same-origin / blob URLs — it forces
-      // a CORS preflight that breaks canvas.toBlob() on some browsers.
+      video.crossOrigin = 'anonymous';
 
       await new Promise<void>((res, rej) => {
         const t = setTimeout(() => rej(new Error('Video load timeout (15s)')), 15000);
@@ -104,42 +100,40 @@ export async function renderVideoInBrowser(
       if (!mimeType) throw new Error('No supported MediaRecorder mimeType');
 
       const useRequestFrame = supportsRequestFrame();
+      // captureStream(0) + manual requestFrame() is the frame-locked path.
+      // Safari fallback: captureStream(FPS) auto-captures at the configured rate.
       const canvasStream = canvas.captureStream(useRequestFrame ? 0 : FPS);
 
-      const canvasRecorder = new MediaRecorder(canvasStream, {
+      const recorder = new MediaRecorder(canvasStream, {
         mimeType,
         videoBitsPerSecond: CANVAS_BITRATE,
       });
-      const canvasChunks: Blob[] = [];
-      canvasRecorder.ondataavailable = (e: BlobEvent) => {
-        if (e.data.size > 0) canvasChunks.push(e.data);
+      const chunks: Blob[] = [];
+      recorder.ondataavailable = (e: BlobEvent) => {
+        if (e.data.size > 0) chunks.push(e.data);
       };
 
       // ── 3. AUDIO BUS ──────────────────────────────────────────────────
-      // Single AudioContext for the entire render. All audio (video source,
-      // background music, SFX) flows through this context → MediaStreamDestination
-      // → combined MediaStream. This guarantees frame-locked A/V sync.
+      // Single AudioContext for the entire render. All audio flows through
+      // this context → MediaStreamDestination → combined MediaStream.
       const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
       const audioCtx = new AudioCtx();
       const audioDest = audioCtx.createMediaStreamDestination();
 
-      // --- Video source audio ---
+      // Video source audio
       const videoSource = audioCtx.createMediaElementSource(video);
       const videoGain = audioCtx.createGain();
       videoGain.gain.value = 1.0;
       videoSource.connect(videoGain);
       videoGain.connect(audioDest);
 
-      // --- Background music ---
-      let musicGain: GainNode | null = null;
+      // Background music
       let musicEl: HTMLAudioElement | null = null;
       if (project.selectedMusicTrackId && project.selectedMusicTrackId !== 'none') {
         const track = FREE_MUSIC_TRACKS.find((t) => t.id === project.selectedMusicTrackId);
         if (track) {
           musicEl = new Audio(track.url);
-          // Same-origin /public/audio files do NOT need crossOrigin.
-          // Setting crossOrigin='anonymous' on same-origin forces a CORS
-          // preflight that can break playback on Safari strict mode.
+          musicEl.crossOrigin = 'anonymous';
           musicEl.loop = true;
           musicEl.preload = 'auto';
           musicEl.volume = project.musicVolume ?? 0.4;
@@ -152,7 +146,7 @@ export async function renderVideoInBrowser(
           }).catch(() => {});
 
           const mSource = audioCtx.createMediaElementSource(musicEl);
-          musicGain = audioCtx.createGain();
+          const musicGain = audioCtx.createGain();
           musicGain.gain.value = project.musicVolume ?? 0.4;
           mSource.connect(musicGain);
           musicGain.connect(audioDest);
@@ -160,20 +154,17 @@ export async function renderVideoInBrowser(
         }
       }
 
-      // --- Combine streams ---
+      // Combine video + audio into one stream
       const combinedStream = new MediaStream([
         ...canvasStream.getVideoTracks(),
         ...audioDest.stream.getAudioTracks(),
       ]);
 
-      const combinedRecorder = new MediaRecorder(combinedStream, {
-        mimeType,
-        videoBitsPerSecond: CANVAS_BITRATE,
-      });
-      const combinedChunks: Blob[] = [];
-      combinedRecorder.ondataavailable = (e: BlobEvent) => {
-        if (e.data.size > 0) combinedChunks.push(e.data);
-      };
+      // Ensure audio track is active before recording starts
+      const audioTracks = combinedStream.getAudioTracks();
+      if (audioTracks.length > 0 && audioTracks[0].readyState === 'ended') {
+        audioTracks[0].enabled = true;
+      }
 
       // ── 4. HIGHLIGHT SELECTION ────────────────────────────────────────
       const highlights = activeClipId === 'smart-cuts'
@@ -188,16 +179,36 @@ export async function renderVideoInBrowser(
       );
       const totalFrames = Math.max(1, Math.floor(totalDuration * FPS));
 
-      // ── 5. FRAME LOOP ────────────────────────────────────────────────
+      // ── 5. START RECORDER ─────────────────────────────────────────────
       if (audioCtx.state === 'suspended') await audioCtx.resume();
 
-      combinedRecorder.start(100);
-      canvasRecorder.start(100);
+      recorder.start(100); // emit data every 100ms to keep buffer small
 
+      // Wait for the first chunk to confirm the stream is producing data
+      let firstChunkReceived = false;
+      await new Promise<void>((res, rej) => {
+        const timer = setTimeout(() => {
+          if (!firstChunkReceived) {
+            // No data yet — might still be OK if encoder is slow
+            res();
+          }
+        }, 2000);
+
+        const originalHandler = recorder.ondataavailable;
+        recorder.ondataavailable = (e: BlobEvent) => {
+          if (e.data.size > 0) {
+            firstChunkReceived = true;
+            clearTimeout(timer);
+            res();
+          }
+          if (originalHandler) originalHandler(e);
+        };
+      });
+
+      // ── 6. FRAME-LOCKED RENDER LOOP ───────────────────────────────────
       let currentFrame = 0;
       let lastSubId: string | null = null;
 
-      // Map linear frame index → global timeline time
       const getGlobalTime = (frameIdx: number): number => {
         let remaining = frameIdx;
         for (const h of highlights) {
@@ -208,7 +219,6 @@ export async function renderVideoInBrowser(
         return highlights[highlights.length - 1]?.end ?? 0;
       };
 
-      // Shared SFX callback that routes to the renderer's audio graph
       const onSubtitleChange = (subId: string) => {
         if (project.sfxPopEnabled) {
           playViralSFX('pop', audioDest);
@@ -225,11 +235,11 @@ export async function renderVideoInBrowser(
         const frameStartTime = performance.now();
         const globalT = getGlobalTime(currentFrame);
 
-        // ── SEEK ────────────────────────────────────────────────────────
-        // Only seek if the time actually changed (avoids unnecessary events)
-        if (Math.abs(video.currentTime - globalT) > 0.01) {
+        // ── PAUSE + SEEK ────────────────────────────────────────────────
+        video.pause();
+        if (Math.abs(video.currentTime - globalT) > 0.02) {
           video.currentTime = globalT;
-          await waitForSeeked(video, 1200);
+          await waitForSeeked(video, 1500);
         }
 
         // ── DRAW ────────────────────────────────────────────────────────
@@ -325,51 +335,48 @@ export async function renderVideoInBrowser(
           if (s.id !== lastSubId) onSubtitleChange(s.id);
         }
 
-        // ── CAPTURE ─────────────────────────────────────────────────────
+        // ── CAPTURE CONFIRMATION ────────────────────────────────────────
+        // Ensure the browser has painted the frame to the canvas surface,
+        // then signal the capture stream to grab this exact frame.
+        await new Promise((r) => requestAnimationFrame(r));
+
         if (useRequestFrame) {
           const track = canvasStream.getVideoTracks()[0];
           if (track && typeof (track as any).requestFrame === 'function') {
             (track as any).requestFrame();
           }
         }
-        // For captureStream(fps) browsers (Safari), the stream captures
-        // automatically at the configured rate — no action needed.
+
+        // Wait for the encoder to consume the frame. Without this, the
+        // MediaRecorder can drop frames or produce empty chunks.
+        await wait(FRAME_CAPTURE_DELAY_MS);
 
         // ── PROGRESS ────────────────────────────────────────────────────
         const progress = Math.min(99, Math.round((currentFrame / totalFrames) * 100));
         onProgress(progress);
 
-        // ── MEMORY CLEANUP ──────────────────────────────────────────────
+        // ── MEMORY CLEANUP (per frame) ──────────────────────────────────
         ctx.clearRect(0, 0, W, H);
-        // Release GPU texture by clearing and seeking to a neutral position
-        video.currentTime = 0;
-
         currentFrame++;
 
         // ── TIMING ─────────────────────────────────────────────────────
-        // Maintain precise 30fps cadence regardless of draw/seek duration.
-        // This prevents frame stacking and keeps the capture stream in sync.
         const elapsed = performance.now() - frameStartTime;
         const targetInterval = 1000 / FPS;
         const remaining = targetInterval - elapsed;
         if (remaining > 0) {
           await wait(remaining);
-        } else if (remaining < -50) {
-          // We're running behind — skip ahead to catch up
-          // (don't render frames we can't keep up with)
         }
 
         renderNextFrame();
       };
 
       const finishRender = async () => {
-        combinedRecorder.stop();
-        canvasRecorder.stop();
+        recorder.stop();
 
         await new Promise<void>((res) => {
-          combinedRecorder.onstop = () => {
-            const finalBlob = new Blob(combinedChunks, { type: mimeType });
-            res();
+          recorder.onstop = () => {
+            const finalBlob = new Blob(chunks, { type: mimeType });
+
             // ── FULL MEMORY DISPOSAL ────────────────────────────────────
             video.pause();
             video.removeAttribute('src');
@@ -385,12 +392,10 @@ export async function renderVideoInBrowser(
               musicEl.src = '';
               musicEl.load();
             }
-            if (musicGain) musicGain.disconnect();
             videoGain.disconnect();
             videoSource.disconnect();
             audioCtx.close().catch(() => {});
 
-            // Stop all stream tracks
             canvasStream.getTracks().forEach((t) => t.stop());
             combinedStream.getTracks().forEach((t) => t.stop());
 

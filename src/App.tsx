@@ -598,7 +598,6 @@ export default function App() {
       )}
 
       <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
         @media (max-width: 640px) {
           .project-badge { display: none !important; }
           .mobile-project-badge { display: block !important; }

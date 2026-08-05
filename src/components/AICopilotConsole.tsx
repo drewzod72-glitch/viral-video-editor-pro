@@ -251,12 +251,7 @@ export const AICopilotConsole: React.FC<any> = ({
         </div>
       </div>
 
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.3; }
-        }
-      `}</style>
+      <style>{``}</style>
     </div>
   );
 };
