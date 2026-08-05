@@ -1,9 +1,17 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { VideoProject, getCaptionStyles } from '../types';
+import { VideoProject } from '../types';
 import { FREE_MUSIC_TRACKS } from '../data';
 import { playViralSFX } from '../utils/sfx';
+import ThumbnailGenerator from './ThumbnailGenerator';
 
 const fixDunikTypo = (str: string) => str?.replace(/dunik/gi, 'Dunk') || '';
+
+const MOOD_CATEGORIES = [
+  { key: 'hype', label: 'Hype', emoji: '🔥', color: '#ef4444' },
+  { key: 'lofi', label: 'Lofi', emoji: '☕', color: '#f59e0b' },
+  { key: 'cinematic', label: 'Cinematic', emoji: '🎬', color: '#8b5cf6' },
+  { key: 'chill', label: 'Tech / Chill', emoji: '💿', color: '#06b6d4' },
+] as const;
 
 export default function VideoPlayerWorkspace({ project, activeMusicTrack, activeClipId, onClipSelect, onUpdateProject }: any) {
   if (!project) return null;
@@ -32,14 +40,16 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
   const [volume, setVolume] = useState(musicVolume);
   const [showSafeZone, setShowSafeZone] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [musicMood, setMusicMood] = useState<string>('hype');
 
-  // Get current highlight range
   const currentHighlight = activeClipId
     ? activeHighlights.find((h: any) => h.id === activeClipId)
     : null;
   const clipStart = currentHighlight?.start ?? 0;
   const clipEnd = currentHighlight?.end ?? duration;
   const clipDuration = clipEnd - clipStart || duration;
+
+  const filteredTracks = FREE_MUSIC_TRACKS.filter(t => t.intensity === musicMood);
 
   // MASTER SYNC LOOP
   useEffect(() => {
@@ -246,7 +256,7 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
             </div>
           )}
 
-          {/* Subtitles */}
+          {/* Subtitles — Hormozi polished with Oswald + two-tone */}
           {enableSubtitles && activeSub && (
             <div style={{
               position: 'absolute', bottom: '80px', left: 0, right: 0,
@@ -262,9 +272,10 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
                   {fixDunikTypo(activeSub.text).toUpperCase().split(' ').map((w: string, i: number) => (
                     <span key={i} style={{
                       color: i % 2 === 0 ? '#FBFF00' : '#FF00FF',
-                      fontWeight: 900, fontSize: '14px',
+                      fontWeight: 900, fontSize: '15px',
                       textShadow: '2px 2px 0px black',
-                      fontFamily: '"Inter", sans-serif'
+                      fontFamily: '"Oswald", "Impact", sans-serif',
+                      letterSpacing: '-0.02em'
                     }}>{w}</span>
                   ))}
                 </p>
@@ -408,7 +419,7 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
         </div>
       </div>
 
-      {/* Music Selector */}
+      {/* Music Matrix */}
       <div style={{
         background: 'linear-gradient(180deg, rgba(24,24,27,0.95) 0%, rgba(9,9,11,0.98) 100%)',
         padding: '20px', borderRadius: '24px',
@@ -419,15 +430,40 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
           color: '#64748b', fontSize: '9px', fontWeight: 800,
           textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '14px'
         }}>
-          Music Bus — Hard Locked
+          Massive Sonic Matrix — Hard Locked
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px' }}>
-          {FREE_MUSIC_TRACKS.map((t) => (
+
+        {/* Mood categories */}
+        <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', flexWrap: 'wrap' }}>
+          {MOOD_CATEGORIES.map(cat => (
+            <button
+              key={cat.key}
+              onClick={() => setMusicMood(cat.key)}
+              style={{
+                padding: '6px 12px', borderRadius: '10px',
+                border: musicMood === cat.key ? `1px solid ${cat.color}` : '1px solid #27272a',
+                background: musicMood === cat.key ? `${cat.color}15` : '#020617',
+                color: musicMood === cat.key ? cat.color : '#a1a1aa',
+                fontSize: '10px', fontWeight: 700, cursor: 'pointer',
+                fontFamily: '"Inter", sans-serif', textTransform: 'uppercase',
+                letterSpacing: '0.5px', transition: 'all 0.2s',
+                display: 'flex', alignItems: 'center', gap: '4px'
+              }}
+            >
+              <span>{cat.emoji}</span>
+              <span>{cat.label}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Track grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '8px', maxHeight: '320px', overflowY: 'auto', paddingRight: '4px' }}>
+          {filteredTracks.map((t) => (
             <button key={t.id} onClick={() => updateSettings({ selectedMusicTrackId: t.id })} style={{
-              padding: '14px', borderRadius: '12px',
+              padding: '12px', borderRadius: '12px',
               border: project.selectedMusicTrackId === t.id ? '1px solid rgba(139,92,246,0.5)' : '1px solid #27272a',
               background: project.selectedMusicTrackId === t.id ? 'rgba(139,92,246,0.08)' : '#020617',
-              color: 'white', fontWeight: 700, textAlign: 'left', fontSize: '12px',
+              color: 'white', fontWeight: 700, textAlign: 'left', fontSize: '11px',
               cursor: 'pointer', fontFamily: '"Inter", sans-serif',
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
               transition: 'all 0.2s'
@@ -463,6 +499,14 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
           </span>
         </div>
       </div>
+
+      {/* Thumbnail Generator */}
+      <ThumbnailGenerator
+        project={project}
+        currentTime={time}
+        videoRef={vRef}
+        onUpdateProject={onUpdateProject}
+      />
 
       <audio ref={aRef} loop style={{ display: 'none' }} />
     </div>
