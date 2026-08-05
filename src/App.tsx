@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { VideoProject } from './types';
 import { FREE_MUSIC_TRACKS, RAW_VIDEO_TEMPLATES } from './data';
 import NicheSelector from './components/NicheSelector';
@@ -35,6 +35,15 @@ export default function App() {
     } catch (e) {}
     setHasStarted(true);
   };
+
+  // Clean up object URLs to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (activeProject?.videoUrl?.startsWith('blob:')) {
+        URL.revokeObjectURL(activeProject.videoUrl);
+      }
+    };
+  }, [activeProject?.videoUrl]);
 
   const handleSelectTemplate = async (template: any) => {
     const proj: VideoProject = {
@@ -145,7 +154,7 @@ export default function App() {
   if (!hasStarted) {
     return (
       <div style={{
-        background: 'linear-gradient(180deg, #0f172a 0%, #020617 100%)',
+        background: 'linear-gradient(180deg, #0f172a 0%, #020617 50%, #09090b 100%)',
         minHeight: '100dvh',
         display: 'flex',
         flexDirection: 'column',
@@ -153,46 +162,127 @@ export default function App() {
         justifyContent: 'center',
         textAlign: 'center',
         padding: '40px 20px',
-        fontFamily: '"Inter", sans-serif'
+        fontFamily: '"Inter", sans-serif',
+        position: 'relative',
+        overflow: 'hidden'
       }}>
+        {/* Background grid */}
         <div style={{
-          width: '80px', height: '80px', borderRadius: '24px',
+          position: 'absolute', inset: 0,
+          backgroundImage: 'linear-gradient(rgba(139,92,246,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(139,92,246,0.03) 1px, transparent 1px)',
+          backgroundSize: '60px 60px',
+          maskImage: 'radial-gradient(ellipse at center, black 20%, transparent 70%)',
+          WebkitMaskImage: 'radial-gradient(ellipse at center, black 20%, transparent 70%)'
+        }} />
+
+        {/* Glow orbs */}
+        <div style={{
+          position: 'absolute', top: '20%', left: '50%', transform: 'translateX(-50%)',
+          width: '400px', height: '400px',
+          background: 'radial-gradient(circle, rgba(139,92,246,0.15) 0%, transparent 70%)',
+          borderRadius: '50%', filter: 'blur(60px)',
+          pointerEvents: 'none'
+        }} />
+
+        <div style={{
+          width: '88px', height: '88px', borderRadius: '28px',
           background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '36px', marginBottom: '24px',
-          boxShadow: '0 20px 60px rgba(139,92,246,0.35)'
+          fontSize: '40px', marginBottom: '28px', position: 'relative', zIndex: 1,
+          boxShadow: '0 24px 80px rgba(139,92,246,0.4)',
+          animation: 'float 6s ease-in-out infinite'
         }}>⚡</div>
+
         <h1 style={{
-          color: 'white', fontSize: 'clamp(32px, 7vw, 52px)', fontWeight: 900,
-          margin: '0 0 12px 0', letterSpacing: '-3px', fontFamily: '"Inter", sans-serif',
-          textTransform: 'uppercase', lineHeight: 1
+          color: 'white',
+          fontSize: 'clamp(36px, 8vw, 64px)',
+          fontWeight: 900,
+          margin: '0 0 14px 0',
+          letterSpacing: '-3px',
+          fontFamily: '"Inter", sans-serif',
+          textTransform: 'uppercase',
+          lineHeight: 0.95,
+          position: 'relative', zIndex: 1
         }}>
-          VIRAL <span style={{ color: '#8b5cf6' }}>AI FORGE</span>
+          VIRAL<br />
+          <span style={{
+            background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text'
+          }}>AI FORGE</span>
         </h1>
+
         <p style={{
           color: '#94a3b8', fontSize: 'clamp(13px, 2.5vw, 15px)',
-          maxWidth: '400px', marginBottom: '40px', fontWeight: 500, lineHeight: 1.6
+          maxWidth: '420px', marginBottom: '44px', fontWeight: 500, lineHeight: 1.7,
+          position: 'relative', zIndex: 1
         }}>
-          Zero-cost browser engine. Frame-accurate canvas forge. Professional studio on any device.
+          Professional video studio. Frame-accurate browser engine.
+          Zero hosting cost. Works on every device.
         </p>
+
         <button
           onClick={startApp}
           style={{
             background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
             color: 'white', border: 'none', borderRadius: '16px',
-            padding: '18px 56px', fontWeight: 900, fontSize: '14px',
+            padding: '20px 64px', fontWeight: 900, fontSize: '14px',
             fontFamily: '"Inter", sans-serif', textTransform: 'uppercase',
-            cursor: 'pointer', boxShadow: '0 20px 60px rgba(139,92,246,0.35)',
-            letterSpacing: '1px', transition: 'transform 0.2s'
+            cursor: 'pointer',
+            boxShadow: '0 20px 60px rgba(139,92,246,0.4), inset 0 1px 0 rgba(255,255,255,0.2)',
+            letterSpacing: '1.5px',
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            position: 'relative', zIndex: 1,
+            animation: 'pulse-glow 3s ease-in-out infinite'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
+            e.currentTarget.style.boxShadow = '0 24px 80px rgba(139,92,246,0.5), inset 0 1px 0 rgba(255,255,255,0.2)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0) scale(1)';
+            e.currentTarget.style.boxShadow = '0 20px 60px rgba(139,92,246,0.4), inset 0 1px 0 rgba(255,255,255,0.2)';
           }}
         >
           Launch Studio →
         </button>
-        <div style={{ marginTop: '32px', display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'center' }}>
-          {['Frame-by-Frame Engine', 'Hard-Locked Audio Sync', 'Zero Cloud Cost', 'Capacitor Ready'].map(f => (
-            <span key={f} style={{ fontSize: '10px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', background: 'rgba(30,41,59,0.4)', padding: '6px 12px', borderRadius: '8px' }}>{f}</span>
+
+        <div style={{
+          marginTop: '48px', display: 'flex', gap: '12px', flexWrap: 'wrap',
+          justifyContent: 'center', position: 'relative', zIndex: 1
+        }}>
+          {[
+            { label: 'Frame Engine', icon: '⚙' },
+            { label: 'Audio Sync', icon: '🔊' },
+            { label: 'Free Forever', icon: '∞' },
+            { label: 'Native Ready', icon: '📱' },
+          ].map((f) => (
+            <div key={f.label} style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              fontSize: '10px', color: '#64748b', fontWeight: 700,
+              textTransform: 'uppercase', letterSpacing: '0.8px',
+              background: 'rgba(30,41,59,0.3)',
+              padding: '8px 14px', borderRadius: '10px',
+              border: '1px solid rgba(30,41,59,0.4)',
+              backdropFilter: 'blur(8px)'
+            }}>
+              <span>{f.icon}</span>
+              <span>{f.label}</span>
+            </div>
           ))}
         </div>
+
+        <style>{`
+          @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+          }
+          @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 20px 60px rgba(139,92,246,0.4), inset 0 1px 0 rgba(255,255,255,0.2); }
+            50% { box-shadow: 0 24px 80px rgba(139,92,246,0.5), inset 0 1px 0 rgba(255,255,255,0.2); }
+          }
+        `}</style>
       </div>
     );
   }

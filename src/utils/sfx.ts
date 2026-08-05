@@ -1,21 +1,25 @@
 // Web Audio API Synthesizer for high-production viral social media sound effects (SFX)
 // Zero-external network dependencies, 100% reliable local client audio generation.
 
-let audioCtx: AudioContext | null = null;
-
-function getAudioContext() {
-  if (!audioCtx) {
-    audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-  }
-  if (audioCtx.state === 'suspended') {
-    audioCtx.resume();
-  }
-  return audioCtx;
-}
-
-export function playViralSFX(type: 'whoosh' | 'pop' | 'bell' | 'swoosh' | 'laser' | 'shutter', destination?: AudioNode) {
+/**
+ * Plays a synthesized SFX effect.
+ *
+ * @param type - The SFX type to play
+ * @param destination - Optional AudioNode destination. If provided, the SFX
+ *   is routed into that node (e.g. a MediaStreamDestination for recording).
+ *   If omitted, the SFX plays through the default speakers.
+ * @param externalCtx - Optional AudioContext to use. If provided, the SFX
+ *   is generated through this context (required when routing into a
+ *   MediaStreamDestination from a specific AudioContext).
+ */
+export function playViralSFX(
+  type: 'whoosh' | 'pop' | 'bell' | 'swoosh' | 'laser' | 'shutter',
+  destination?: AudioNode,
+  externalCtx?: AudioContext
+): void {
   try {
-    const ctx = getAudioContext();
+    const ctx = externalCtx || new (window.AudioContext || (window as any).webkitAudioContext)();
+    if (ctx.state === 'suspended') ctx.resume();
     const now = ctx.currentTime;
     const dest = destination || ctx.destination;
 
@@ -81,7 +85,6 @@ export function playViralSFX(type: 'whoosh' | 'pop' | 'bell' | 'swoosh' | 'laser
       osc.start(now);
       osc.stop(now + 0.02);
     } else if (type === 'swoosh' || type === 'laser' || type === 'bell') {
-      // Simplified common connection for these types
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = type === 'bell' ? 'sine' : 'sawtooth';
@@ -94,5 +97,7 @@ export function playViralSFX(type: 'whoosh' | 'pop' | 'bell' | 'swoosh' | 'laser
       osc.start(now);
       osc.stop(now + 0.2);
     }
-  } catch (err) {}
+  } catch {
+    // SFX failure should never crash the renderer
+  }
 }
