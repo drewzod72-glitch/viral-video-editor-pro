@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { VideoProject } from './types';
 import { FREE_MUSIC_TRACKS, RAW_VIDEO_TEMPLATES } from './data';
 import NicheSelector from './components/NicheSelector';
@@ -8,6 +8,7 @@ import { AICopilotConsole } from './components/AICopilotConsole';
 import ApiKeySettingsModal from './components/ApiKeySettingsModal';
 import { runAnalyzeVideo } from './utils/groqClient';
 import { saveFileToDevice } from './utils/download';
+import { getApiBase } from './utils/api';
 
 export default function App() {
   const [hasStarted, setHasStarted] = useState(false);
@@ -129,15 +130,59 @@ export default function App() {
     setIsProcessing(true);
     setProcessingStage("Baking final MP4...");
     try {
-      const { renderVideoInBrowser } = await import('./utils/ffmpegClient');
-      const blob = await renderVideoInBrowser(activeProject, (p) => setProcessingStage(`Baking: ${p}%`), activeClipId);
-      if (blob) {
-        const response = await fetch('/api/transcode', { method: 'POST', body: blob }).catch(() => null);
-        const finalBlob = (response && response.ok) ? await response.blob() : blob;
-        setDownloadReadyInfo({ url: URL.createObjectURL(finalBlob), filename: `${activeProject.name}_viral.mp4` });
+      const apiBase = getApiBase();
+      const endpoint = `${apiBase}/api/render-project`;
+
+      const renderPayload = {
+        project: {
+          ...activeProject,
+          musicVolume: activeProject.musicVolume ?? 0.4,
+          sfxWhooshEnabled: activeProject.sfxWhooshEnabled ?? true,
+          sfxPopEnabled: activeProject.sfxPopEnabled ?? true,
+          sfxImpactEnabled: activeProject.sfxImpactEnabled ?? true,
+          enableSubtitles: activeProject.enableSubtitles ?? true,
+          enableZooms: activeProject.enableZooms ?? true,
+          enableColorGrade: activeProject.enableColorGrade ?? true,
+          shakeOnPunch: activeProject.shakeOnPunch ?? true,
+          autoZoomPunch: activeProject.autoZoomPunch ?? true,
+        },
+        activeClipId,
+      };
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(renderPayload),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Cloud render failed: HTTP ${response.status}`);
       }
+
+      const contentLength = response.headers.get('content-length');
+      const total = contentLength ? parseInt(contentLength, 10) : 0;
+      let received = 0;
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('Cloud render: unable to read response stream');
+      }
+
+      const chunks: Uint8Array[] = [];
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        received += value.length;
+        if (total > 0) {
+          setProcessingStage(`Baking: ${Math.min(99, Math.round((received / total) * 100))}%`);
+        }
+      }
+
+      setProcessingStage("Finalizing...");
+      const blob = new Blob(chunks, { type: 'video/mp4' });
+      setDownloadReadyInfo({ url: URL.createObjectURL(blob), filename: `${activeProject.name}_viral.mp4` });
     } catch (err: any) {
-      alert('Export failed. Device hardware busy.');
+      alert('Export failed. ' + (err?.message || 'Device hardware busy.'));
     } finally {
       setIsProcessing(false);
     }
