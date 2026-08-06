@@ -148,35 +148,12 @@ export async function renderVideoInBrowser(
       );
       const totalFrames = Math.max(1, Math.floor(totalDuration * FPS));
 
-      // ── 5. ENCODER WARM-UP (10 frames) ───────────────────────────────
-      // Drawing frames before MediaRecorder starts "wakes up" the hardware
-      // encoder on Safari/iOS so it doesn't produce empty chunks.
+      // ── 5. START RECORDER + WARM-UP ──────────────────────────────────
       if (audioCtx.state === 'suspended') {
         await audioCtx.resume();
       }
 
-      const warmUpFrames = 10;
-      const warmUpInterval = Math.min(1.0, totalDuration / warmUpFrames);
-
-      for (let i = 0; i < warmUpFrames; i++) {
-        const t = Math.min(i * warmUpInterval, totalDuration - 0.1);
-        video.currentTime = t;
-        await waitForSeeked(video, 1500);
-        ctx.clearRect(0, 0, W, H);
-        ctx.drawImage(video, 0, 0, W, H);
-        await new Promise((r) => requestAnimationFrame(r));
-        await wait(FRAME_CAPTURE_DELAY_MS);
-      }
-
-      // Reset to first frame for actual recording
-      video.currentTime = 0;
-      await waitForSeeked(video, 2000);
-      ctx.clearRect(0, 0, W, H);
-      ctx.drawImage(video, 0, 0, W, H);
-      await new Promise((r) => requestAnimationFrame(r));
-      await wait(FRAME_CAPTURE_DELAY_MS);
-
-      // ── 6. START-GATE ────────────────────────────────────────────────
+      // Create recorder helper
       const createRecorder = (stream: MediaStream) => {
         const recorder = new MediaRecorder(stream, {
           mimeType,
@@ -193,22 +170,35 @@ export async function renderVideoInBrowser(
       let chunks: Blob[] = [];
       let useNoAudio = false;
 
+      // Try with audio first
       try {
         const setup = createRecorder(combinedStream);
         recorder = setup.recorder;
         chunks = setup.chunks;
-
         recorder.start(100);
 
-        // Wait for first chunk — 5 second timeout
+        // Draw warm-up frames INTO the running recorder
+        const warmUpFrames = 8;
+        const warmUpInterval = Math.min(0.5, totalDuration / warmUpFrames);
+        for (let i = 0; i < warmUpFrames; i++) {
+          const t = Math.min(i * warmUpInterval, totalDuration - 0.1);
+          video.currentTime = t;
+          await waitForSeeked(video, 1500);
+          ctx.clearRect(0, 0, W, H);
+          ctx.drawImage(video, 0, 0, W, H);
+          await new Promise((r) => requestAnimationFrame(r));
+          await wait(FRAME_CAPTURE_DELAY_MS);
+        }
+
+        // Start-Gate: wait for first chunk (3s)
         await new Promise<void>((res, rej) => {
           const timer = setTimeout(() => {
             if (chunks.length === 0) {
-              rej(new Error('Start-Gate timeout: MediaRecorder produced no data after warm-up.'));
+              rej(new Error('Start-Gate timeout: no data from combined stream.'));
             } else {
               res();
             }
-          }, 5000);
+          }, 3000);
 
           const checkGate = () => {
             if (chunks.length > 0) {
@@ -219,32 +209,42 @@ export async function renderVideoInBrowser(
 
           const originalHandler = recorder.ondataavailable;
           recorder.ondataavailable = (e: BlobEvent) => {
-            if (e.data.size > 0) {
-              checkGate();
-            }
+            if (e.data.size > 0) checkGate();
             if (originalHandler) originalHandler(e);
           };
         });
       } catch (gateError: any) {
-        console.warn('[Forge] Audio stream gating failed, falling back to no-audio export:', gateError?.message);
+        // Fallback: no-audio export
+        console.warn('[Forge] Audio stream failed, falling back to no-audio:', gateError?.message);
         useNoAudio = true;
 
-        // Fallback: no-audio stream
         const noAudioStream = new MediaStream(canvasStream.getVideoTracks());
         const setup = createRecorder(noAudioStream);
         recorder = setup.recorder;
         chunks = setup.chunks;
-
         recorder.start(100);
+
+        // Warm-up frames for no-audio path
+        const warmUpFrames = 8;
+        const warmUpInterval = Math.min(0.5, totalDuration / warmUpFrames);
+        for (let i = 0; i < warmUpFrames; i++) {
+          const t = Math.min(i * warmUpInterval, totalDuration - 0.1);
+          video.currentTime = t;
+          await waitForSeeked(video, 1500);
+          ctx.clearRect(0, 0, W, H);
+          ctx.drawImage(video, 0, 0, W, H);
+          await new Promise((r) => requestAnimationFrame(r));
+          await wait(FRAME_CAPTURE_DELAY_MS);
+        }
 
         await new Promise<void>((res, rej) => {
           const timer = setTimeout(() => {
             if (chunks.length === 0) {
-              rej(new Error('No-audio fallback also failed: no data from canvas stream.'));
+              rej(new Error('No-audio fallback failed: no data from canvas stream.'));
             } else {
               res();
             }
-          }, 5000);
+          }, 3000);
 
           const checkGate = () => {
             if (chunks.length > 0) {
@@ -255,9 +255,7 @@ export async function renderVideoInBrowser(
 
           const originalHandler = recorder.ondataavailable;
           recorder.ondataavailable = (e: BlobEvent) => {
-            if (e.data.size > 0) {
-              checkGate();
-            }
+            if (e.data.size > 0) checkGate();
             if (originalHandler) originalHandler(e);
           };
         });
@@ -265,8 +263,8 @@ export async function renderVideoInBrowser(
 
       onProgress(1);
 
-      // ── 7. FRAME-LOCKED RENDER LOOP ───────────────────────────────────
-      let currentFrame = 1;
+      // ── 6. FRAME-LOCKED RENDER LOOP ───────────────────────────────────
+      let currentFrame = 8; // Start after warm-up frames
       let lastSubId: string | null = null;
 
       const getGlobalTime = (frameIdx: number): number => {

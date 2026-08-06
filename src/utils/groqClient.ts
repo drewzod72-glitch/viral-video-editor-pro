@@ -1,7 +1,7 @@
 import { getStoredApiKey } from './apiKeyStore';
 
 /**
- * MASTER AI CLIENT (V30.5 - SAFE PARSE + FALLBACK)
+ * MASTER AI CLIENT (V31 - CREATIVE INTUITION)
  * Groq Vision (Llama 3.2 90B) for product-aware editing.
  */
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
@@ -110,18 +110,19 @@ async function captureFrames(file: File): Promise<string[]> {
 }
 
 const PROMPT = `Director / Creative Intuition Engine.
-Analyze the provided video frames and transcript context.
-1. Identify the HOOK (first 3 seconds — pattern interrupt, visual shock, or bold claim).
-2. Identify PRODUCT REVIEW moments: sole close-ups, stitching details, logo reveals, texture macros, fit/angle showcases.
-3. Identify the CTA (call to action — close, question, link, save).
-4. Generate SMART CUT timestamps for each Product Review moment (start/end in seconds).
-5. Write punchy, viral subtitles (2–4 words each, 1.5–2.5s duration).
+Analyze the provided video frames. You are a senior creative director.
+1. Decide if this video NEEDS subtitles. Silent cinematic shots, B-roll, or pure ASMR should stay clean. Talking heads, product pitches, and educational content need viral captions.
+2. If subtitles are needed, write punchy, viral captions (2–4 words each, 1.5–2.5s duration).
+3. Identify PRODUCT REVIEW moments: sole close-ups, stitching details, logo reveals, texture macros, fit/angle showcases.
+4. Identify the CTA (call to action — close, question, link, save).
+5. Generate SMART CUT timestamps for each Product Review moment (start/end in seconds).
 
 Return ONLY JSON with EXACTLY these keys:
 {
   "title": "Viral headline (max 60 chars)",
   "description": "Short social copy with emojis",
   "captionStyle": "hormozi",
+  "needsSubtitles": true,
   "subtitles": [{"id":"1","text":"HOOK TEXT","start":0,"end":2.5}],
   "highlights": [
     {"id":"h1","title":"Product Review: Sole","start":4.5,"end":8.2,"viralityScore":92,"description":"Macro sole close-up","whyEngaging":"Texture detail drives shares","speed":1.0}
@@ -129,7 +130,10 @@ Return ONLY JSON with EXACTLY these keys:
   "archetype": "hype"
 }
 
-MANDATORY: The "subtitles" array MUST contain at least 5 items.`;
+MANDATORY RULES:
+- "needsSubtitles" MUST be a boolean. Set to false ONLY for pure cinematic/B-roll content.
+- If needsSubtitles is true, the "subtitles" array MUST contain at least 5 items.
+- If needsSubtitles is false, the "subtitles" array should be empty.`;
 
 export async function runAnalyzeVideo(params: any): Promise<any> {
   const key = getApiKey();
@@ -152,10 +156,10 @@ export async function runAnalyzeVideo(params: any): Promise<any> {
         const d = await res.json();
         lastRaw = d.choices[0]?.message?.content || '';
         const parsed = safeJsonParse(lastRaw);
-        if (parsed && Array.isArray(parsed.subtitles) && parsed.subtitles.length > 0) {
-          return { success: true, project: parsed };
+        if (parsed && typeof parsed.needsSubtitles === 'boolean') {
+          return { success: true, project: { ...parsed, enableSubtitles: parsed.needsSubtitles } };
         }
-        errors.push(`${model}: JSON parse failed or missing subtitles`);
+        errors.push(`${model}: JSON parse failed or missing needsSubtitles`);
         continue;
       }
       const text = await res.text();
@@ -174,6 +178,7 @@ export async function runAnalyzeVideo(params: any): Promise<any> {
     title: params.name || 'Viral Video',
     description: params.userDescription || 'Auto-generated subtitles',
     captionStyle: 'hormozi',
+    needsSubtitles: true,
     subtitles: generateMockSubtitles(params.niche || 'default', params.originalDuration || 30),
     highlights: [{ id: 'h1', title: 'Full Clip', start: 0, end: params.originalDuration || 30, viralityScore: 70, description: 'Full video', whyEngaging: 'Complete content', speed: 1.0 }],
     archetype: params.niche || 'default'
@@ -190,7 +195,7 @@ export async function runCopilotOptimize(params: any): Promise<any> {
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
       body: JSON.stringify({
         model: TEXT_MODELS[0],
-        messages: [{ role: 'user', content: `Task: ${params.actionType}. Command: ${params.command}. Return JSON {subtitles, title, description, advice}.` }],
+        messages: [{ role: 'user', content: `Task: ${params.actionType}. Command: ${params.command}. Return JSON {subtitles, title, description, advice, needsSubtitles}.` }],
         response_format: { type: 'json_object' }
       })
     });
@@ -206,7 +211,8 @@ export async function runCopilotOptimize(params: any): Promise<any> {
       subtitles: params.subtitles || [],
       title: params.title || '',
       description: params.description || '',
-      advice: 'Copilot unavailable. Manual editing active.'
+      advice: 'Copilot unavailable. Manual editing active.',
+      needsSubtitles: params.needsSubtitles ?? true
     };
   }
 }

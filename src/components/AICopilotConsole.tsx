@@ -12,6 +12,18 @@ const QUICK_ACTIONS: { label: string; type: ActionType; icon: React.ReactNode; c
   { label: 'Clean Gaps', type: 'gaprepair', icon: <Sparkles size={18} />, color: '#ec4899', desc: 'Remove dead air' },
 ];
 
+// Defensive merge: never lose videoUrl, id, highlights, or createdAt
+function safeMerge(prev: VideoProject, updates: any): VideoProject {
+  return {
+    ...prev,
+    ...updates,
+    videoUrl: prev.videoUrl,
+    id: prev.id,
+    highlights: prev.highlights,
+    createdAt: prev.createdAt,
+  };
+}
+
 export const AICopilotConsole: React.FC<any> = ({
   project,
   onUpdateProject,
@@ -63,8 +75,8 @@ export const AICopilotConsole: React.FC<any> = ({
         command: cmd || '',
         actionType,
       });
-      // CRITICAL: State spreading to preserve videoUrl, id, and all other project fields
-      onUpdateProject((prev: VideoProject) => ({ ...prev, ...data }));
+      // Defensive merge to preserve videoUrl, id, highlights, createdAt
+      onUpdateProject((prev: VideoProject) => safeMerge(prev, data));
       if (data.subtitles) {
         onUpdateSubtitles(data.subtitles);
       }
@@ -99,8 +111,8 @@ export const AICopilotConsole: React.FC<any> = ({
         command: `CLONE STYLE: ${userPrompt}`,
         actionType: 'chat',
       });
-      // CRITICAL: State spreading to preserve videoUrl, id, and all other project fields
-      onUpdateProject((prev: VideoProject) => ({ ...prev, ...data, viralityScore: 100 }));
+      // Defensive merge to preserve videoUrl, id, highlights, createdAt
+      onUpdateProject((prev: VideoProject) => safeMerge(prev, { ...data, viralityScore: 100 }));
       if (data.subtitles) {
         onUpdateSubtitles(data.subtitles);
       }
