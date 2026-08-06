@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { VideoProject } from '../types';
 import { FREE_MUSIC_TRACKS } from '../data';
-import ThumbnailGenerator from './ThumbnailGenerator';
+import { ThumbnailGenerator } from './ThumbnailGenerator';
 
 const fixDunikTypo = (str: string) => str?.replace(/dunik/gi, 'Dunk') || '';
 
@@ -179,23 +179,6 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
           marginBottom: '14px', flexWrap: 'wrap', gap: '8px'
         }}>
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-            {['iPhone SE', 'iPhone 14', 'Android'].map((device) => (
-              <button
-                key={device}
-                onClick={() => {}}
-                style={{
-                  padding: '5px 10px', borderRadius: '8px',
-                  border: '1px solid rgba(30,41,59,0.5)',
-                  background: 'rgba(9,9,11,0.4)',
-                  color: '#a1a1aa', fontSize: '9px', fontWeight: 700,
-                  cursor: 'pointer', fontFamily: '"Inter", sans-serif',
-                  textTransform: 'uppercase', letterSpacing: '0.5px',
-                  transition: 'all 0.2s'
-                }}
-              >
-                {device}
-              </button>
-            ))}
             <button
               onClick={() => setShowSafeZone(!showSafeZone)}
               style={{
@@ -315,6 +298,74 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
             width: '80px', height: '22px', background: '#000',
             borderRadius: '0 0 16px 16px', zIndex: 30
           }} />
+
+          {/* TikTok / Reels Social Sidebar */}
+          <div style={{
+            position: 'absolute', right: '8px', bottom: '80px',
+            display: 'flex', flexDirection: 'column', gap: '16px',
+            zIndex: 45, alignItems: 'center'
+          }}>
+            {/* Profile */}
+            <div style={{
+              width: '36px', height: '36px', borderRadius: '50%',
+              background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
+              border: '2px solid white',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '14px', fontWeight: 900, color: 'white'
+            }}>
+              {project.name?.[0]?.toUpperCase() || 'U'}
+            </div>
+
+            {/* Heart */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+              <div style={{
+                width: '32px', height: '32px', borderRadius: '50%',
+                background: 'rgba(0,0,0,0.35)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '16px', backdropFilter: 'blur(4px)'
+              }}>
+                ❤️
+              </div>
+              <span style={{ fontSize: '9px', color: 'white', fontWeight: 700, textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>842K</span>
+            </div>
+
+            {/* Comment */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+              <div style={{
+                width: '32px', height: '32px', borderRadius: '50%',
+                background: 'rgba(0,0,0,0.35)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '16px', backdropFilter: 'blur(4px)'
+              }}>
+                💬
+              </div>
+              <span style={{ fontSize: '9px', color: 'white', fontWeight: 700, textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>12.4K</span>
+            </div>
+
+            {/* Share */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+              <div style={{
+                width: '32px', height: '32px', borderRadius: '50%',
+                background: 'rgba(0,0,0,0.35)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '16px', backdropFilter: 'blur(4px)'
+              }}>
+                ↗️
+              </div>
+              <span style={{ fontSize: '9px', color: 'white', fontWeight: 700, textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>Share</span>
+            </div>
+
+            {/* Music Disc */}
+            <div style={{
+              width: '36px', height: '36px', borderRadius: '50%',
+              background: 'linear-gradient(135deg, #1a1a2e, #0f0f23)',
+              border: '2px solid #333',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '10px', animation: 'spin 4s linear infinite'
+            }}>
+              🎵
+            </div>
+          </div>
         </div>
 
         {/* Timeline Scrubber */}

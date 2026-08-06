@@ -14,6 +14,21 @@ function getApiKey(): string {
   return key;
 }
 
+async function waitForSeeked(video: HTMLVideoElement, timeoutMs = 1500): Promise<void> {
+  return new Promise((resolve) => {
+    const onSeeked = () => {
+      video.removeEventListener('seeked', onSeeked);
+      clearTimeout(timer);
+      resolve();
+    };
+    const timer = setTimeout(() => {
+      video.removeEventListener('seeked', onSeeked);
+      resolve();
+    }, timeoutMs);
+    video.addEventListener('seeked', onSeeked);
+  });
+}
+
 async function captureFrames(file: File): Promise<string[]> {
   return new Promise((resolve) => {
     const v = document.createElement('video');
@@ -26,11 +41,27 @@ async function captureFrames(file: File): Promise<string[]> {
         const canvas = document.createElement('canvas');
         canvas.width = 480; canvas.height = 270;
         const ctx = canvas.getContext('2d');
-        v.currentTime = v.duration / 2;
-        await new Promise(r => { v.onseeked = r; setTimeout(r, 1200); });
-        ctx?.drawImage(v, 0, 0, 480, 270);
-        const data = canvas.toDataURL('image/jpeg', 0.4);
-        if (data.includes(',')) snapshots.push(data.split(',')[1]);
+
+        // 6 strategic timestamps: Hook, 3 middle beats, CTA
+        const duration = v.duration;
+        const timestamps = [
+          Math.min(1.5, duration * 0.1),           // Hook (first 1.5s)
+          duration * 0.25,                           // Middle beat 1
+          duration * 0.40,                           // Middle beat 2
+          duration * 0.60,                           // Middle beat 3
+          duration * 0.75,                           // Middle beat 4
+          Math.max(duration - 1.5, duration * 0.85) // CTA (last 1.5s)
+        ];
+
+        for (const t of timestamps) {
+          v.currentTime = t;
+          await waitForSeeked(v, 1500);
+          ctx?.clearRect(0, 0, 480, 270);
+          ctx?.drawImage(v, 0, 0, 480, 270);
+          const data = canvas.toDataURL('image/jpeg', 0.4);
+          if (data.includes(',')) snapshots.push(data.split(',')[1]);
+        }
+
         URL.revokeObjectURL(url); v.remove();
         resolve(snapshots);
       } catch (e) { resolve([]); }

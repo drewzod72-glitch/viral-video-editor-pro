@@ -1,10 +1,11 @@
 import { VideoProject, MusicTrack } from './types';
 
-// Massive Sonic Matrix — 30 tracks delivered by /public/audio/track-1.mp3..track-30.mp3
+// Massive Sonic Matrix — mapped to existing /public/audio files only.
+// Verified existing: track-1.mp3 through track-9.mp3, track-18.mp3 through track-30.mp3.
 const BASE_AUDIO = '/audio';
 
 export const FREE_MUSIC_TRACKS: MusicTrack[] = [
-  // ── HYPE (10) ─────────────────────────────────────────────────────────
+  // ── HYPE (9) ──────────────────────────────────────────────────────────
   { id: 'hype-1',  name: 'Viral Hype',         artist: 'AutoViral', genre: 'Hype',      url: `${BASE_AUDIO}/track-1.mp3`,  intensity: 'hype' },
   { id: 'hype-2',  name: 'Beat Drop Energy',   artist: 'AutoViral', genre: 'Hype',      url: `${BASE_AUDIO}/track-2.mp3`,  intensity: 'hype' },
   { id: 'hype-3',  name: 'Trap Anthem',        artist: 'AutoViral', genre: 'Hype',      url: `${BASE_AUDIO}/track-3.mp3`,  intensity: 'hype' },
@@ -14,16 +15,8 @@ export const FREE_MUSIC_TRACKS: MusicTrack[] = [
   { id: 'hype-7',  name: 'Rush Hour',          artist: 'AutoViral', genre: 'Hype',      url: `${BASE_AUDIO}/track-7.mp3`,  intensity: 'hype' },
   { id: 'hype-8',  name: 'Neon Drive',         artist: 'AutoViral', genre: 'Hype',      url: `${BASE_AUDIO}/track-8.mp3`,  intensity: 'hype' },
   { id: 'hype-9',  name: 'Adrenaline',         artist: 'AutoViral', genre: 'Hype',      url: `${BASE_AUDIO}/track-9.mp3`,  intensity: 'hype' },
-  { id: 'hype-10', name: 'Bass Cannon',        artist: 'AutoViral', genre: 'Hype',      url: `${BASE_AUDIO}/track-10.mp3`, intensity: 'hype' },
 
-  // ── LOFI (8) ──────────────────────────────────────────────────────────
-  { id: 'lofi-1',  name: 'Sunset Lofi',        artist: 'AutoViral', genre: 'Lofi',      url: `${BASE_AUDIO}/track-11.mp3`, intensity: 'lofi' },
-  { id: 'lofi-2',  name: 'Chillhop Study',     artist: 'AutoViral', genre: 'Lofi',      url: `${BASE_AUDIO}/track-12.mp3`, intensity: 'lofi' },
-  { id: 'lofi-3',  name: 'Rainy Window',       artist: 'AutoViral', genre: 'Lofi',      url: `${BASE_AUDIO}/track-13.mp3`, intensity: 'lofi' },
-  { id: 'lofi-4',  name: 'Vinyl Crackle',      artist: 'AutoViral', genre: 'Lofi',      url: `${BASE_AUDIO}/track-14.mp3`, intensity: 'lofi' },
-  { id: 'lofi-5',  name: 'Late Night Drive',   artist: 'AutoViral', genre: 'Lofi',      url: `${BASE_AUDIO}/track-15.mp3`, intensity: 'lofi' },
-  { id: 'lofi-6',  name: 'Warm Tapes',         artist: 'AutoViral', genre: 'Lofi',      url: `${BASE_AUDIO}/track-16.mp3`, intensity: 'lofi' },
-  { id: 'lofi-7',  name: 'Coffee Shop',        artist: 'AutoViral', genre: 'Lofi',      url: `${BASE_AUDIO}/track-17.mp3`, intensity: 'lofi' },
+  // ── LOFI (1) ──────────────────────────────────────────────────────────
   { id: 'lofi-8',  name: 'Sunday Morning',     artist: 'AutoViral', genre: 'Lofi',      url: `${BASE_AUDIO}/track-18.mp3`, intensity: 'lofi' },
 
   // ── CINEMATIC (7) ─────────────────────────────────────────────────────

@@ -10,11 +10,7 @@ import { runAnalyzeVideo } from './utils/groqClient';
 import { saveFileToDevice } from './utils/download';
 import { renderVideoInBrowser } from './utils/ffmpegClient';
 
-const DEVICES = [
-  { id: 'iphone-se', label: 'iPhone SE', width: 375, height: 667 },
-  { id: 'iphone-14', label: 'iPhone 14', width: 390, height: 844 },
-  { id: 'android', label: 'Android', width: 360, height: 780 },
-];
+
 
 export default function App() {
   const [hasStarted, setHasStarted] = useState(false);
@@ -26,7 +22,6 @@ export default function App() {
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [activeClipId, setActiveClipId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [previewDevice, setPreviewDevice] = useState(DEVICES[1]);
 
   const startApp = () => {
     try {
@@ -55,7 +50,7 @@ export default function App() {
       description: template.userDescription || '',
       subtitles: [],
       highlights: [{ id: '1', title: 'Full Clip', start: 0, end: 30 }],
-      selectedMusicTrackId: 'lofi-1',
+      selectedMusicTrackId: 'lofi-8',
       captionStyle: 'hormozi',
       colorGrade: 'vibrant_pop',
       enableSubtitles: true, enableZooms: true, musicVolume: 0.4,
@@ -320,31 +315,6 @@ export default function App() {
           <span>{tab.label}</span>
         </button>
       ))}
-
-      {/* Social Simulator */}
-      {activeProject && (
-        <div style={{ marginTop: '12px', padding: '14px', background: 'rgba(30,41,59,0.25)', borderRadius: '14px', border: '1px solid rgba(30,41,59,0.5)' }}>
-          <div style={{ fontSize: '9px', color: '#64748b', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '10px' }}>Social Simulator</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {DEVICES.map(d => (
-              <button
-                key={d.id}
-                onClick={() => setPreviewDevice(d)}
-                style={{
-                  padding: '10px 12px', borderRadius: '10px', border: previewDevice.id === d.id ? '1px solid rgba(139,92,246,0.5)' : '1px solid rgba(30,41,59,0.4)',
-                  background: previewDevice.id === d.id ? 'rgba(139,92,246,0.1)' : 'rgba(9,9,11,0.4)',
-                  color: previewDevice.id === d.id ? '#c4b5fd' : '#a1a1aa',
-                  fontSize: '11px', fontWeight: 700, cursor: 'pointer',
-                  fontFamily: '"Inter", sans-serif', textAlign: 'left', transition: 'all 0.2s'
-                }}
-              >
-                <div>{d.label}</div>
-                <div style={{ fontSize: '9px', color: '#64748b', fontWeight: 500, marginTop: '1px' }}>{d.width}×{d.height}</div>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Bake Button */}
       <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid rgba(30,41,59,0.5)', display: 'flex', flexDirection: 'column', gap: '8px' }}>

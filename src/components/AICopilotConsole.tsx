@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { VideoProject } from '../types';
 import { runCopilotOptimize } from '../utils/groqClient';
+import { Sparkles, Zap, Wand2, Gauge, MessageSquare, Send, Brain, Activity } from 'lucide-react';
 
 type ActionType = 'chat' | 'spellcheck' | 'hookboost' | 'pacing' | 'gaprepair';
 
-const QUICK_ACTIONS: { label: string; type: ActionType; icon: string }[] = [
-  { label: 'Fix Typos', type: 'spellcheck', icon: '✨' },
-  { label: 'Boost Hooks', type: 'hookboost', icon: '🚀' },
-  { label: 'Snappy Pacing', type: 'pacing', icon: '⚡' },
-  { label: 'Clean Gaps', type: 'gaprepair', icon: '🧹' },
+const QUICK_ACTIONS: { label: string; type: ActionType; icon: React.ReactNode; color: string }[] = [
+  { label: 'Fix Typos', type: 'spellcheck', icon: <Wand2 size={16} />, color: '#06b6d4' },
+  { label: 'Boost Hooks', type: 'hookboost', icon: <Zap size={16} />, color: '#f59e0b' },
+  { label: 'Snappy Pacing', type: 'pacing', icon: <Gauge size={16} />, color: '#10b981' },
+  { label: 'Clean Gaps', type: 'gaprepair', icon: <Sparkles size={16} />, color: '#ec4899' },
 ];
 
 export const AICopilotConsole: React.FC<any> = ({
@@ -18,8 +19,9 @@ export const AICopilotConsole: React.FC<any> = ({
 }) => {
   const [userPrompt, setUserPrompt] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [aiResponse, setAiResponse] = useState<string>('// System initialized.\n// Paste a viral link or type a command to begin.');
+  const [aiResponse, setAiResponse] = useState('// Neural engine ready.\n// Paste a viral link or type a command to begin optimization.');
   const [responseLines, setResponseLines] = useState<string[]>([]);
+  const [neuralLoad, setNeuralLoad] = useState(0);
   const logRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -27,6 +29,17 @@ export const AICopilotConsole: React.FC<any> = ({
       logRef.current.scrollTop = logRef.current.scrollHeight;
     }
   }, [responseLines]);
+
+  useEffect(() => {
+    if (isLoading) {
+      const interval = setInterval(() => {
+        setNeuralLoad(prev => (prev >= 100 ? 0 : prev + Math.random() * 15));
+      }, 200);
+      return () => clearInterval(interval);
+    } else {
+      setNeuralLoad(100);
+    }
+  }, [isLoading]);
 
   const appendLog = (line: string) => {
     setResponseLines(prev => [...prev, line]);
@@ -110,13 +123,14 @@ export const AICopilotConsole: React.FC<any> = ({
         gap: '14px'
       }}>
         <div style={{
-          width: '40px', height: '40px', borderRadius: '12px',
-          background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+          width: '44px', height: '44px', borderRadius: '14px',
+          background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '18px', flexShrink: 0
+          fontSize: '20px', flexShrink: 0,
+          boxShadow: '0 0 24px rgba(139,92,246,0.35)'
         }}>🧠</div>
-        <div>
-          <div style={{ fontWeight: 900, fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.5px', fontFamily: '"Inter", sans-serif', lineHeight: 1.2 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 900, fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.5px', fontFamily: '"Inter", sans-serif', lineHeight: 1.2 }}>
             AI Co-Pilot
           </div>
           <div style={{ fontSize: '10px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
@@ -125,52 +139,119 @@ export const AICopilotConsole: React.FC<any> = ({
         </div>
         {isLoading && (
           <div style={{
-            marginLeft: 'auto',
-            width: '8px', height: '8px',
-            background: '#8b5cf6', borderRadius: '50%',
-            animation: 'pulse 1.5s ease-in-out infinite'
-          }} />
+            display: 'flex', alignItems: 'center', gap: '8px',
+            background: 'rgba(139,92,246,0.1)',
+            padding: '6px 12px', borderRadius: '10px',
+            border: '1px solid rgba(139,92,246,0.2)'
+          }}>
+            <Activity size={14} style={{ color: '#8b5cf6' }} />
+            <span style={{ fontSize: '10px', color: '#8b5cf6', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              {Math.round(neuralLoad)}%
+            </span>
+          </div>
         )}
       </div>
 
       <div style={{ padding: '20px 24px', display: 'grid', gridTemplateColumns: '1fr', gap: '16px' }}>
-        {/* Terminal log */}
+        {/* Neural Optimization Status Bar */}
         <div style={{
-          background: 'rgba(2,6,23,0.8)',
+          background: 'rgba(2,6,23,0.6)',
           borderRadius: '16px',
           padding: '16px',
           border: '1px solid rgba(30,41,59,0.5)',
-          minHeight: '200px',
-          maxHeight: '300px',
-          overflowY: 'auto',
-          fontFamily: '"JetBrains Mono", monospace',
-          fontSize: '11px',
-          lineHeight: 1.7
-        }} ref={logRef}>
-          <div style={{ color: '#475569', marginBottom: '8px', borderBottom: '1px solid #18181b', paddingBottom: '6px' }}>
-            ─── RESPONSE_STREAM.log ───
+          position: 'relative',
+          overflow: 'hidden'
+        }}>
+          <div style={{
+            position: 'absolute', top: 0, right: 0, width: '120px', height: '120px',
+            background: 'radial-gradient(circle, rgba(139,92,246,0.12) 0%, transparent 70%)',
+            borderRadius: '50%', filter: 'blur(20px)', pointerEvents: 'none'
+          }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+            <Brain size={16} style={{ color: '#8b5cf6' }} />
+            <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px' }}>
+              Neural Optimization
+            </span>
           </div>
-          {responseLines.length === 0 && (
-            <div style={{ color: '#475569' }}>
-              {aiResponse}
-            </div>
-          )}
-          {responseLines.map((line, i) => (
-            <div key={i} style={{
-              color: line.startsWith('✗') ? '#ef4444' : line.startsWith('→') ? '#10b981' : '#94a3b8',
-              marginBottom: '2px'
-            }}>
-              {line}
-            </div>
-          ))}
-          {isLoading && (
-            <div style={{ color: '#8b5cf6', marginTop: '8px' }}>
-              <span style={{ animation: 'pulse 1s ease-in-out infinite' }}>█</span>
-            </div>
-          )}
+          <div style={{ height: '6px', background: '#18181b', borderRadius: '3px', overflow: 'hidden' }}>
+            <div style={{
+              height: '100%', width: `${neuralLoad}%`,
+              background: 'linear-gradient(90deg, #8b5cf6, #06b6d4)',
+              borderRadius: '3px',
+              transition: 'width 0.3s ease',
+              boxShadow: '0 0 12px rgba(139,92,246,0.4)'
+            }} />
+          </div>
+          <div style={{ fontSize: '9px', color: '#475569', marginTop: '6px', fontFamily: '"JetBrains Mono", monospace' }}>
+            {isLoading ? 'Processing neural pathways...' : 'System idle. Awaiting directive.'}
+          </div>
         </div>
 
-        {/* Command input */}
+        {/* Quick Actions - Glass Cards */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(2, 1fr)',
+          gap: '10px'
+        }}>
+          {QUICK_ACTIONS.map((action) => (
+            <button
+              key={action.type}
+              onClick={() => runAction(action.type)}
+              disabled={isLoading}
+              style={{
+                background: 'rgba(2,6,23,0.5)',
+                border: '1px solid rgba(30,41,59,0.5)',
+                borderRadius: '16px',
+                padding: '16px',
+                color: '#e2e8f0',
+                textAlign: 'left',
+                fontWeight: 700,
+                fontSize: '11px',
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+                fontFamily: '"Inter", sans-serif',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                transition: 'all 0.2s',
+                opacity: isLoading ? 0.5 : 1,
+                backdropFilter: 'blur(8px)',
+                position: 'relative',
+                overflow: 'hidden'
+              }}
+              onMouseEnter={(e) => {
+                if (!isLoading) {
+                  e.currentTarget.style.borderColor = `${action.color}40`;
+                  e.currentTarget.style.boxShadow = `0 0 20px ${action.color}15`;
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'rgba(30,41,59,0.5)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
+              <div style={{
+                width: '36px', height: '36px', borderRadius: '10px',
+                background: `${action.color}15`,
+                border: `1px solid ${action.color}30`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: action.color,
+                flexShrink: 0
+              }}>
+                {action.icon}
+              </div>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+                  {action.label}
+                </div>
+                <div style={{ fontSize: '9px', color: '#64748b', fontWeight: 500, marginTop: '1px' }}>
+                  Neural enhance
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {/* Command Input */}
         <form onSubmit={handleLinkClone} style={{ display: 'flex', gap: '8px' }}>
           <input
             type="text"
@@ -207,51 +288,57 @@ export const AICopilotConsole: React.FC<any> = ({
               textTransform: 'uppercase',
               letterSpacing: '0.5px',
               opacity: isLoading ? 0.6 : 1,
-              transition: 'opacity 0.2s'
+              transition: 'opacity 0.2s',
+              display: 'flex', alignItems: 'center', gap: '6px'
             }}
           >
+            <Send size={14} />
             Send
           </button>
         </form>
 
-        {/* Quick actions */}
+        {/* Response Terminal */}
         <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(2, 1fr)',
-          gap: '8px'
-        }}>
-          {QUICK_ACTIONS.map((action) => (
-            <button
-              key={action.type}
-              onClick={() => runAction(action.type)}
-              disabled={isLoading}
-              style={{
-                background: 'rgba(2,6,23,0.4)',
-                border: '1px solid rgba(30,41,59,0.5)',
-                color: '#e2e8f0',
-                padding: '12px 14px',
-                borderRadius: '12px',
-                fontSize: '11px',
-                fontWeight: 700,
-                cursor: isLoading ? 'not-allowed' : 'pointer',
-                textTransform: 'uppercase',
-                letterSpacing: '0.3px',
-                fontFamily: '"Inter", sans-serif',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                transition: 'all 0.2s',
-                opacity: isLoading ? 0.5 : 1
-              }}
-            >
-              <span>{action.icon}</span>
-              <span>{action.label}</span>
-            </button>
+          background: 'rgba(2,6,23,0.8)',
+          borderRadius: '16px',
+          padding: '16px',
+          border: '1px solid rgba(30,41,59,0.5)',
+          minHeight: '180px',
+          maxHeight: '280px',
+          overflowY: 'auto',
+          fontFamily: '"JetBrains Mono", monospace',
+          fontSize: '11px',
+          lineHeight: 1.7
+        }} ref={logRef}>
+          <div style={{ color: '#475569', marginBottom: '8px', borderBottom: '1px solid #18181b', paddingBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <MessageSquare size={12} />
+            RESPONSE_STREAM.log
+          </div>
+          {responseLines.length === 0 && (
+            <div style={{ color: '#475569' }}>
+              {aiResponse}
+            </div>
+          )}
+          {responseLines.map((line, i) => (
+            <div key={i} style={{
+              color: line.startsWith('✗') ? '#ef4444' : line.startsWith('→') ? '#10b981' : '#94a3b8',
+              marginBottom: '2px'
+            }}>
+              {line}
+            </div>
           ))}
+          {isLoading && (
+            <div style={{ color: '#8b5cf6', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{
+                width: '6px', height: '6px', borderRadius: '50%',
+                background: '#8b5cf6',
+                animation: 'pulse 1s ease-in-out infinite'
+              }} />
+              Processing neural pathways...
+            </div>
+          )}
         </div>
       </div>
-
-      <style>{``}</style>
     </div>
   );
 };
