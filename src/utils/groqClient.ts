@@ -5,8 +5,8 @@ import { getStoredApiKey } from './apiKeyStore';
  * Groq Vision (Llama 3.2 90B) for product-aware editing.
  */
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const VISION_MODELS = ['llama-3.2-90b-vision-preview', 'qwen/qwen3.6-27b'];
-const TEXT_MODELS = ['llama-3.3-70b-versatile', 'llama-3.1-70b-versatile'];
+const VISION_MODELS = ['llama-3.2-90b-vision-preview', 'llama-3.2-11b-vision-preview'];
+const TEXT_MODELS = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'];
 
 function getApiKey(): string {
   const key = getStoredApiKey();
@@ -95,6 +95,7 @@ Return ONLY JSON:
 export async function runAnalyzeVideo(params: any): Promise<any> {
   const key = getApiKey();
   const frames = params.videoFile ? await captureFrames(params.videoFile) : [];
+  const errors: string[] = [];
   for (const model of VISION_MODELS) {
     try {
       const res = await fetch(GROQ_API_URL, {
@@ -108,26 +109,42 @@ export async function runAnalyzeVideo(params: any): Promise<any> {
       });
       if (res.ok) {
         const d = await res.json();
-        return { success: true, project: JSON.parse(d.choices[0].message.content) };
+        try {
+          return { success: true, project: JSON.parse(d.choices[0].message.content) };
+        } catch (parseErr) {
+          errors.push(`${model}: JSON parse failed`);
+          continue;
+        }
       }
-    } catch (e) { continue; }
+      const text = await res.text();
+      errors.push(`${model}: ${res.status} ${text}`);
+    } catch (e: any) {
+      errors.push(`${model}: ${e?.message || 'network error'}`);
+      continue;
+    }
   }
+  console.error('[Groq] Vision models failed:', errors);
   throw new Error('AI_BUSY');
 }
 
 export async function runCopilotOptimize(params: any): Promise<any> {
   const key = getApiKey();
-  const res = await fetch(GROQ_API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
-    body: JSON.stringify({
-      model: TEXT_MODELS[0],
-      messages: [{ role: 'user', content: `Task: ${params.actionType}. Command: ${params.command}. Return JSON {subtitles, title, description, advice}.` }],
-      response_format: { type: 'json_object' }
-    })
-  });
-  const d = await res.json();
-  return { success: true, ...JSON.parse(d.choices[0].message.content) };
+  try {
+    const res = await fetch(GROQ_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
+      body: JSON.stringify({
+        model: TEXT_MODELS[0],
+        messages: [{ role: 'user', content: `Task: ${params.actionType}. Command: ${params.command}. Return JSON {subtitles, title, description, advice}.` }],
+        response_format: { type: 'json_object' }
+      })
+    });
+    const d = await res.json();
+    return { success: true, ...JSON.parse(d.choices[0].message.content) };
+  } catch (e: any) {
+    console.error('[Groq] Copilot optimize failed:', e);
+    throw new Error(e?.message || 'Groq copilot request failed');
+  }
 }
 
 /**

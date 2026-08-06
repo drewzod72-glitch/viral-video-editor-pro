@@ -18,7 +18,7 @@ export default function App() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStage, setProcessingStage] = useState('');
   const [activeTab, setActiveTab] = useState<'studio' | 'viral' | 'copilot'>('studio');
-  const [downloadReadyInfo, setDownloadReadyInfo] = useState<{ url: string; filename: string } | null>(null);
+  const [downloadReadyInfo, setDownloadReadyInfo] = useState<{ blob: Blob; filename: string } | null>(null);
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [activeClipId, setActiveClipId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -136,8 +136,10 @@ export default function App() {
         (p) => setProcessingStage(`Baking: ${p}%`),
         activeClipId
       );
-      if (blob) {
-        setDownloadReadyInfo({ url: URL.createObjectURL(blob), filename: `${activeProject.name}_viral.mp4` });
+      if (blob && blob.size > 100_000) {
+        setDownloadReadyInfo({ blob, filename: `${activeProject.name}_viral.mp4` });
+      } else {
+        alert('Export failed. Rendered file is empty or too small.');
       }
     } catch (err: any) {
       alert('Export failed. ' + (err?.message || 'Device hardware busy.'));
@@ -541,9 +543,13 @@ export default function App() {
             </p>
             <button
               onClick={async () => {
-                if (downloadReadyInfo) {
-                  const blob = await fetch(downloadReadyInfo.url).then(r => r.blob());
-                  await saveFileToDevice(blob, downloadReadyInfo.filename);
+                try {
+                  if (downloadReadyInfo) {
+                    const blob = await fetch(downloadReadyInfo.url).then(r => r.blob());
+                    await saveFileToDevice(blob, downloadReadyInfo.filename);
+                  }
+                } catch (err: any) {
+                  alert('Download failed. ' + (err?.message || 'Storage busy.'));
                 }
               }}
               style={{

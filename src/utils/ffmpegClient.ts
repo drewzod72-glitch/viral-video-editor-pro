@@ -44,19 +44,6 @@ function getBestMimeType(): string {
   return '';
 }
 
-function supportsRequestFrame(): boolean {
-  try {
-    const c = document.createElement('canvas');
-    const stream = c.captureStream(0);
-    const track = stream.getVideoTracks()[0];
-    const supported = track && typeof (track as any).requestFrame === 'function';
-    stream.getTracks().forEach((t) => t.stop());
-    return supported;
-  } catch {
-    return false;
-  }
-}
-
 // ─── Main Renderer ─────────────────────────────────────────────────────────
 
 export async function renderVideoInBrowser(
@@ -100,8 +87,7 @@ export async function renderVideoInBrowser(
       const mimeType = getBestMimeType();
       if (!mimeType) throw new Error('No supported MediaRecorder mimeType');
 
-      const useRequestFrame = supportsRequestFrame();
-      const canvasStream = canvas.captureStream(useRequestFrame ? 0 : FPS);
+      const canvasStream = canvas.captureStream(FPS);
 
       // ── 3. AUDIO BUS ──────────────────────────────────────────────────
       const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
@@ -185,19 +171,8 @@ export async function renderVideoInBrowser(
       ctx.clearRect(0, 0, W, H);
       ctx.drawImage(video, 0, 0, W, H);
 
-      // 5c. Wait for the browser to paint the frame
+      // 5c. Wait for paint + encoder warm-up
       await new Promise((r) => requestAnimationFrame(r));
-      await new Promise((r) => requestAnimationFrame(r));
-
-      // 5d. Signal capture (Chrome/Edge)
-      if (useRequestFrame) {
-        const track = canvasStream.getVideoTracks()[0];
-        if (track && typeof (track as any).requestFrame === 'function') {
-          (track as any).requestFrame();
-        }
-      }
-
-      // 5e. Small delay to let the encoder see the first frame
       await wait(FRAME_CAPTURE_DELAY_MS);
 
       // 5f. Create MediaRecorder AFTER the first frame is confirmed drawn
@@ -371,15 +346,9 @@ export async function renderVideoInBrowser(
         }
 
         // ── CAPTURE CONFIRMATION ────────────────────────────────────────
+        // captureStream(FPS) auto-captures at the configured rate. We just
+        // need to ensure the browser has painted the frame before moving on.
         await new Promise((r) => requestAnimationFrame(r));
-
-        if (useRequestFrame) {
-          const track = canvasStream.getVideoTracks()[0];
-          if (track && typeof (track as any).requestFrame === 'function') {
-            (track as any).requestFrame();
-          }
-        }
-
         await wait(FRAME_CAPTURE_DELAY_MS);
 
         // ── PROGRESS ────────────────────────────────────────────────────
