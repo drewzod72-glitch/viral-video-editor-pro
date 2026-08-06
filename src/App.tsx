@@ -545,8 +545,7 @@ export default function App() {
               onClick={async () => {
                 try {
                   if (downloadReadyInfo) {
-                    const blob = await fetch(downloadReadyInfo.url).then(r => r.blob());
-                    await saveFileToDevice(blob, downloadReadyInfo.filename);
+                    await saveFileToDevice(downloadReadyInfo.blob, downloadReadyInfo.filename);
                   }
                 } catch (err: any) {
                   alert('Download failed. ' + (err?.message || 'Storage busy.'));
