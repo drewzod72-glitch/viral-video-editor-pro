@@ -1,18 +1,18 @@
 import { getStoredApiKey } from './apiKeyStore';
 
 /**
- * MASTER AI CLIENT (V32 - ZERO-FAILURE RELAY)
+ * MASTER AI CLIENT (V33 - HARDENED RELAY)
  * Groq Vision + Text models with automatic fallback and repair.
  */
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const VISION_MODELS = [
   'llama-3.2-90b-vision-preview',
   'llama-3.2-11b-vision-preview',
-  'llama-3.1-70b-versatile',
 ];
 const TEXT_MODELS = [
   'llama-3.3-70b-versatile',
   'llama-3.1-8b-instant',
+  'llama-3.2-90b-text-preview',
 ];
 
 function getApiKey(): string {
@@ -40,7 +40,6 @@ function safeJsonParse(text: string): any {
   try {
     return JSON.parse(text);
   } catch {
-    // Regex fallback: extract the first {...} block
     const match = text.match(/\{[\s\S]*\}/);
     if (match) {
       try { return JSON.parse(match[0]); } catch {}
@@ -50,11 +49,9 @@ function safeJsonParse(text: string): any {
 }
 
 function extractAndRepair(text: string): any {
-  // Try full JSON parse
   let parsed = safeJsonParse(text);
   if (parsed && Array.isArray(parsed.subtitles)) return parsed;
 
-  // Try to extract subtitles array with regex
   const subtitleMatch = text.match(/"subtitles"\s*:\s*\[([\s\S]*?)\]/);
   if (subtitleMatch) {
     try {
@@ -63,7 +60,6 @@ function extractAndRepair(text: string): any {
     } catch {}
   }
 
-  // Try to extract highlights array with regex
   const highlightsMatch = text.match(/"highlights"\s*:\s*\[([\s\S]*?)\]/);
   if (highlightsMatch) {
     try {
@@ -72,7 +68,6 @@ function extractAndRepair(text: string): any {
     } catch {}
   }
 
-  // Ensure required fields exist
   if (parsed && !parsed.hasOwnProperty('needsSubtitles')) {
     parsed.needsSubtitles = true;
   }
@@ -124,7 +119,6 @@ async function captureFrames(file: File): Promise<string[]> {
         canvas.width = 400; canvas.height = 225;
         const ctx = canvas.getContext('2d');
 
-        // 6 strategic timestamps: Hook, 3 middle beats, CTA
         const duration = v.duration;
         const timestamps = [
           Math.min(1.5, duration * 0.1),
@@ -140,7 +134,6 @@ async function captureFrames(file: File): Promise<string[]> {
           await waitForSeeked(v, 1500);
           ctx?.clearRect(0, 0, 400, 225);
           ctx?.drawImage(v, 0, 0, 400, 225);
-          // Aggressive downscale: 400x225 at 0.2 JPEG quality keeps payload tiny
           const data = canvas.toDataURL('image/jpeg', 0.2);
           if (data.includes(',')) snapshots.push(data.split(',')[1]);
         }
@@ -180,49 +173,91 @@ MANDATORY RULES:
 - If needsSubtitles is true, the "subtitles" array MUST contain at least 5 items.
 - If needsSubtitles is false, the "subtitles" array should be empty.`;
 
-export async function runAnalyzeVideo(params: any): Promise<any> {
+async function callGroq(model: string, messages: any[], retries = 2): Promise<any> {
   const key = getApiKey();
-  const frames = params.videoFile ? await captureFrames(params.videoFile) : [];
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(GROQ_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${key}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          temperature: 0.7,
+          max_tokens: 1024,
+          response_format: { type: 'json_object' }
+        }),
+      });
+
+      const text = await res.text();
+      if (!res.ok) {
+        throw new Error(`Groq ${res.status}: ${text.slice(0, 200)}`);
+      }
+
+      const data = JSON.parse(text);
+      return data.choices[0]?.message?.content || '';
+    } catch (e: any) {
+      if (attempt === retries) throw e;
+      await new Promise(r => setTimeout(r, 800 * (attempt + 1)));
+    }
+  }
+  return '';
+}
+
+export async function runAnalyzeVideo(params: any): Promise<any> {
   const errors: string[] = [];
   let lastRaw = '';
 
-  // Multi-model relay: try vision models first, then text models as fallback
-  const allModels = [...VISION_MODELS, ...TEXT_MODELS];
+  try {
+    const frames = params.videoFile ? await captureFrames(params.videoFile) : [];
+    const allModels = [...VISION_MODELS, ...TEXT_MODELS];
 
-  for (const model of allModels) {
-    try {
-      const isVision = VISION_MODELS.includes(model);
-      const res = await fetch(GROQ_API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
-        body: JSON.stringify({
-          model,
-          messages: [{ role: 'user', content: isVision ? [{ type: 'text', text: PROMPT }, ...frames.map(f => ({ type: 'image_url', image_url: { url: `data:image/jpeg;base64,${f}` } }))] : [{ type: 'text', text: PROMPT }] }],
-          response_format: { type: 'json_object' }
-        })
-      });
-      if (res.ok) {
-        const d = await res.json();
-        lastRaw = d.choices[0]?.message?.content || '';
-        const parsed = extractAndRepair(lastRaw);
-        if (parsed && parsed.subtitles && parsed.subtitles.length > 0) {
-          return { success: true, project: { ...parsed, enableSubtitles: parsed.needsSubtitles !== false } };
+    for (const model of allModels) {
+      try {
+        const isVision = VISION_MODELS.includes(model);
+        let content: any;
+
+        if (isVision && frames.length > 0) {
+          content = [
+            { type: 'text', text: PROMPT },
+            ...frames.map(f => ({
+              type: 'image_url',
+              image_url: { url: `data:image/jpeg;base64,${f}` }
+            }))
+          ];
+        } else {
+          content = PROMPT;
         }
+
+        const raw = await callGroq(model, [{ role: 'user', content }]);
+        lastRaw = raw;
+        const parsed = extractAndRepair(raw);
+
+        if (parsed && Array.isArray(parsed.subtitles) && parsed.subtitles.length > 0) {
+          return {
+            success: true,
+            project: {
+              ...parsed,
+              enableSubtitles: parsed.needsSubtitles !== false,
+            }
+          };
+        }
+
         errors.push(`${model}: parsed but no subtitles`);
-        continue;
+      } catch (e: any) {
+        errors.push(`${model}: ${e?.message || 'network error'}`);
       }
-      const text = await res.text();
-      errors.push(`${model}: ${res.status} ${text}`);
-    } catch (e: any) {
-      errors.push(`${model}: ${e?.message || 'network error'}`);
-      continue;
     }
+  } catch (e: any) {
+    errors.push(`capture: ${e?.message || 'frame capture failed'}`);
   }
 
   console.error('[Groq] All models failed:', errors);
   console.error('[Groq] Last raw response:', lastRaw);
 
-  // LOCAL HEURISTIC FALLBACK - always returns valid edit
   const fallbackProject = {
     title: params.name || 'Viral Video',
     description: params.userDescription || 'Auto-generated viral edit',
@@ -238,33 +273,40 @@ export async function runAnalyzeVideo(params: any): Promise<any> {
 }
 
 export async function runCopilotOptimize(params: any): Promise<any> {
-  const key = getApiKey();
-  try {
-    const res = await fetch(GROQ_API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
-      body: JSON.stringify({
-        model: TEXT_MODELS[0],
-        messages: [{ role: 'user', content: `Task: ${params.actionType}. Command: ${params.command}. Return JSON {subtitles, title, description, advice, needsSubtitles}.` }],
-        response_format: { type: 'json_object' }
-      })
-    });
-    const d = await res.json();
-    const parsed = extractAndRepair(d.choices[0]?.message?.content || '{}');
-    if (!parsed) throw new Error('Failed to parse copilot response');
-    return { success: true, ...parsed };
-  } catch (e: any) {
-    console.error('[Groq] Copilot optimize failed:', e);
-    return {
-      success: true,
-      subtitles: params.subtitles || [],
-      title: params.title || '',
-      description: params.description || '',
-      advice: 'Copilot unavailable. Manual editing active.',
-      needsSubtitles: params.needsSubtitles ?? true,
-      enableSubtitles: params.enableSubtitles ?? true
-    };
+  const errors: string[] = [];
+  let lastRaw = '';
+
+  for (const model of TEXT_MODELS) {
+    try {
+      const raw = await callGroq(model, [
+        {
+          role: 'user',
+          content: `Task: ${params.actionType}. Command: ${params.command}. Return JSON {subtitles, title, description, advice, needsSubtitles}.`
+        }
+      ], 1);
+      lastRaw = raw;
+      const parsed = extractAndRepair(raw);
+      if (parsed && Array.isArray(parsed.subtitles)) {
+        return { success: true, ...parsed };
+      }
+      errors.push(`${model}: parsed but invalid subtitles`);
+    } catch (e: any) {
+      errors.push(`${model}: ${e?.message || 'network error'}`);
+    }
   }
+
+  console.error('[Groq] Copilot all models failed:', errors);
+  console.error('[Groq] Last raw response:', lastRaw);
+
+  return {
+    success: true,
+    subtitles: params.subtitles || [],
+    title: params.title || '',
+    description: params.description || '',
+    advice: 'Copilot unavailable. Manual editing active.',
+    needsSubtitles: params.needsSubtitles ?? true,
+    enableSubtitles: params.enableSubtitles ?? true
+  };
 }
 
 /**

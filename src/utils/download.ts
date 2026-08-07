@@ -1,33 +1,11 @@
 /**
  * Cross-platform "save this file to the user's device" helper.
  *
- * Why this exists: a plain `<a download>` click on a blob: URL is the
- * one pattern that reliably works everywhere EXCEPT it still leaves iOS
- * users without a real "Save to Photos/Files" option — Safari just opens
- * the video for viewing. navigator.share with a File gives iOS/Android
- * *browser* users the native share sheet, which includes "Save Video" /
- * "Save to Files".
- *
- * IMPORTANT CAPACITOR NOTE: navigator.share often does NOT behave the
- * same, or isn't available at all, inside a Capacitor-wrapped native
- * WebView — this varies by platform/version and isn't something to rely
- * on there. Once this app is built with Capacitor, this function
- * detects that (via @capacitor/core's Capacitor.isNativePlatform()) and
- * uses @capacitor/filesystem + @capacitor/share instead: write the file
- * into the app's cache directory, then hand that file off to the native
- * share sheet. That's the standard, documented pattern for this exact
- * "save a generated file" use case in a Capacitor app.
- *
  * Priority order:
  *   1. Native (Capacitor) -> Filesystem.writeFile + Share.share
- *   2. Browser with Web Share API + file support -> navigator.share
- *   3. Everywhere else -> blob URL + anchor download
- *
- * IMPORTANT: only call this from a real user click handler (a button's
- * onClick, or an <a>'s onClick before preventDefault). Share APIs and
- * the anchor download pattern both require a user gesture — calling
- * this from a .then() after unrelated async work, with no click in
- * between, will silently fail on several platforms.
+ *   2. Browser with Web Share API -> navigator.share
+ *   3. iOS Safari -> forced download via blob + custom filename
+ *   4. Desktop/Android -> blob URL + anchor download
  */
 
 async function blobToBase64(blob: Blob): Promise<string> {
@@ -35,7 +13,6 @@ async function blobToBase64(blob: Blob): Promise<string> {
     const reader = new FileReader();
     reader.onloadend = () => {
       const result = reader.result as string;
-      // reader.result is a data: URL ("data:<mime>;base64,<data>") — strip the prefix.
       const base64 = result.split(',')[1] || '';
       resolve(base64);
     };
@@ -46,10 +23,6 @@ async function blobToBase64(blob: Blob): Promise<string> {
 
 async function saveViaCapacitor(blob: Blob, filename: string): Promise<boolean> {
   try {
-    // Dynamic imports: these packages are only meaningful in a native
-    // build. Dynamic import keeps them out of the critical path (and
-    // avoids any issue if they're ever not installed) while still
-    // letting Vite bundle them for the Capacitor build.
     const [{ Capacitor }, { Filesystem, Directory }, { Share }] = await Promise.all([
       import('@capacitor/core'),
       import('@capacitor/filesystem'),
@@ -76,32 +49,65 @@ async function saveViaCapacitor(blob: Blob, filename: string): Promise<boolean> 
   }
 }
 
+function isIOS(): boolean {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent || '') ||
+    (navigator.userAgent.includes('Mac') && 'ontouchend' in document);
+}
+
 export async function saveFileToDevice(blob: Blob, filename: string): Promise<void> {
   if (await saveViaCapacitor(blob, filename)) return;
 
-  const file = new File([blob], filename, { type: blob.type || 'application/octet-stream' });
+  const mimeType = blob.type || 'application/octet-stream';
+  const file = new File([blob], filename, { type: mimeType });
 
-  if (typeof navigator !== 'undefined' && (navigator as any).canShare?.({ files: [file] })) {
+  // Try Web Share API directly — works on iOS (gives Save to Photos) and Android
+  if (typeof navigator !== 'undefined' && (navigator as any).share) {
     try {
-      await (navigator as any).share({ files: [file], title: filename });
+      await (navigator as any).share({
+        files: [file],
+        title: filename,
+      });
       return;
-    } catch (err) {
-      // User cancelled the share sheet, or the platform rejected it for
-      // some other reason — fall through to the anchor-click download.
+    } catch (err: any) {
+      // User cancelled or platform rejected — fall through to download fallback
+      if (err?.name === 'AbortError') return;
+      console.warn('[Download] Web Share failed, trying fallback:', err?.message);
     }
   }
 
+  // iOS Safari: use blob URL with forced download attribute
+  // Safari on iOS respects the download attribute more reliably than older methods
   const objectUrl = URL.createObjectURL(blob);
+
   try {
-    const a = document.createElement('a');
-    a.href = objectUrl;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    if (isIOS()) {
+      // iOS: create a temporary link and simulate a click
+      // We keep the URL alive for 60 seconds because iOS is slow to start downloads
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = filename;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      // Also try opening in new tab as ultimate fallback
+      setTimeout(() => {
+        window.open(objectUrl, '_blank');
+      }, 500);
+    } else {
+      // Desktop / Android: standard anchor download
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
   } finally {
-    // Give the browser a moment to actually start the download before revoking.
-    setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
+    // Keep the URL alive long enough for the browser to start the download.
+    // On iOS this can take 10-30 seconds.
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
   }
 }
 
@@ -110,4 +116,3 @@ export async function saveUrlToDevice(url: string, filename: string): Promise<vo
   const blob = await (await fetch(url)).blob();
   await saveFileToDevice(blob, filename);
 }
-
