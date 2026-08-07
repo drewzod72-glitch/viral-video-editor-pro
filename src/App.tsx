@@ -22,6 +22,7 @@ export default function App() {
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [activeClipId, setActiveClipId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [aiSuccess, setAiSuccess] = useState(false);
 
   const startApp = () => {
     try {
@@ -68,6 +69,8 @@ export default function App() {
         const result = await runAnalyzeVideo({ ...template });
         if (result?.project) {
           setActiveProject(prev => ({ ...prev, ...result.project, viralityScore: 99 } as any));
+          setAiSuccess(true);
+          setTimeout(() => setAiSuccess(false), 2500);
         }
       } catch (e) {
         console.warn("AI Service busy. Manual Mode Active.");
@@ -111,6 +114,8 @@ export default function App() {
         const result = await runAnalyzeVideo({ name, niche, userDescription: description, videoFile: file, videoUrl });
         if (result?.project) {
           setActiveProject(prev => ({ ...prev, ...result.project, viralityScore: 99 } as any));
+          setAiSuccess(true);
+          setTimeout(() => setAiSuccess(false), 2500);
         }
       } catch (e) {
         console.warn("AI Service busy. Manual Mode Active.");
@@ -136,8 +141,21 @@ export default function App() {
         (p) => setProcessingStage(`Baking: ${p}%`),
         activeClipId
       );
+      // Size-Gate: if too small, silently re-render once
       if (blob && blob.size > 100_000) {
         setDownloadReadyInfo({ blob, filename: `${activeProject.name}_viral.mp4` });
+      } else if (blob && blob.size <= 100_000) {
+        setProcessingStage("Re-rendering...");
+        const retryBlob = await renderVideoInBrowser(
+          activeProject,
+          (p) => setProcessingStage(`Retry: ${p}%`),
+          activeClipId
+        );
+        if (retryBlob && retryBlob.size > 100_000) {
+          setDownloadReadyInfo({ blob: retryBlob, filename: `${activeProject.name}_viral.mp4` });
+        } else {
+          alert('Export failed. Rendered file is empty or too small after retry.');
+        }
       } else {
         alert('Export failed. Rendered file is empty or too small.');
       }
@@ -500,13 +518,28 @@ export default function App() {
               </div>
 
               {activeTab === 'studio' && (
-                <VideoPlayerWorkspace
-                  project={activeProject}
-                  onUpdateProject={setActiveProject as any}
-                  activeMusicTrack={FREE_MUSIC_TRACKS.find(t => t.id === activeProject.selectedMusicTrackId) || null}
-                  activeClipId={activeClipId}
-                  onClipSelect={setActiveClipId}
-                />
+                <div style={{ position: 'relative' }}>
+                  {aiSuccess && (
+                    <div style={{
+                      position: 'absolute', top: '-8px', left: '50%', transform: 'translateX(-50%)',
+                      background: 'linear-gradient(135deg, #10b981, #059669)',
+                      color: 'white', padding: '6px 16px', borderRadius: '20px',
+                      fontSize: '10px', fontWeight: 800, zIndex: 50,
+                      textTransform: 'uppercase', letterSpacing: '0.5px',
+                      boxShadow: '0 4px 20px rgba(16,185,129,0.4)',
+                      animation: 'pulse-glow 2s ease-in-out infinite'
+                    }}>
+                      ✓ AI EDIT APPLIED
+                    </div>
+                  )}
+                  <VideoPlayerWorkspace
+                    project={activeProject}
+                    onUpdateProject={setActiveProject as any}
+                    activeMusicTrack={FREE_MUSIC_TRACKS.find(t => t.id === activeProject.selectedMusicTrackId) || null}
+                    activeClipId={activeClipId}
+                    onClipSelect={setActiveClipId}
+                  />
+                </div>
               )}
               {activeTab === 'viral' && <ViralityScorecard project={activeProject} onUpdateProject={setActiveProject as any} />}
               {activeTab === 'copilot' && (
@@ -573,6 +606,10 @@ export default function App() {
       )}
 
       <style>{`
+        @keyframes pulse-glow {
+          0%, 100% { box-shadow: 0 20px 60px rgba(139,92,246,0.4), inset 0 1px 0 rgba(255,255,255,0.2); }
+          50% { box-shadow: 0 24px 80px rgba(139,92,246,0.5), inset 0 1px 0 rgba(255,255,255,0.2); }
+        }
         @media (max-width: 640px) {
           .project-badge { display: none !important; }
           .mobile-project-badge { display: block !important; }

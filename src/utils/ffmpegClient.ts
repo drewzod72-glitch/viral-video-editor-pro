@@ -148,7 +148,7 @@ export async function renderVideoInBrowser(
       );
       const totalFrames = Math.max(1, Math.floor(totalDuration * FPS));
 
-      // ── 5. START RECORDER + WARM-UP ──────────────────────────────────
+      // ── 5. START RECORDER + FORCE-START WARM-UP ──────────────────────
       if (audioCtx.state === 'suspended') {
         await audioCtx.resume();
       }
@@ -177,20 +177,16 @@ export async function renderVideoInBrowser(
         chunks = setup.chunks;
         recorder.start(100);
 
-        // Draw warm-up frames INTO the running recorder
-        const warmUpFrames = 8;
-        const warmUpInterval = Math.min(0.5, totalDuration / warmUpFrames);
-        for (let i = 0; i < warmUpFrames; i++) {
-          const t = Math.min(i * warmUpInterval, totalDuration - 0.1);
-          video.currentTime = t;
-          await waitForSeeked(video, 1500);
+        // FORCE-START: Draw rapid frames to wake up hardware encoder
+        const warmUpCount = 6;
+        for (let i = 0; i < warmUpCount; i++) {
           ctx.clearRect(0, 0, W, H);
           ctx.drawImage(video, 0, 0, W, H);
           await new Promise((r) => requestAnimationFrame(r));
           await wait(FRAME_CAPTURE_DELAY_MS);
         }
 
-        // Start-Gate: wait for first chunk (3s)
+        // Start-Gate: wait for first chunk (4s)
         await new Promise<void>((res, rej) => {
           const timer = setTimeout(() => {
             if (chunks.length === 0) {
@@ -198,7 +194,7 @@ export async function renderVideoInBrowser(
             } else {
               res();
             }
-          }, 3000);
+          }, 4000);
 
           const checkGate = () => {
             if (chunks.length > 0) {
@@ -214,8 +210,8 @@ export async function renderVideoInBrowser(
           };
         });
       } catch (gateError: any) {
-        // Fallback: no-audio export
-        console.warn('[Forge] Audio stream failed, falling back to no-audio:', gateError?.message);
+        // ZERO-FAILURE FALLBACK: Stream-Legacy mode (video only)
+        console.warn('[Forge] Audio stream failed, falling back to Stream-Legacy:', gateError?.message);
         useNoAudio = true;
 
         const noAudioStream = new MediaStream(canvasStream.getVideoTracks());
@@ -224,13 +220,9 @@ export async function renderVideoInBrowser(
         chunks = setup.chunks;
         recorder.start(100);
 
-        // Warm-up frames for no-audio path
-        const warmUpFrames = 8;
-        const warmUpInterval = Math.min(0.5, totalDuration / warmUpFrames);
-        for (let i = 0; i < warmUpFrames; i++) {
-          const t = Math.min(i * warmUpInterval, totalDuration - 0.1);
-          video.currentTime = t;
-          await waitForSeeked(video, 1500);
+        // Force-start for fallback too
+        const warmUpCount = 6;
+        for (let i = 0; i < warmUpCount; i++) {
           ctx.clearRect(0, 0, W, H);
           ctx.drawImage(video, 0, 0, W, H);
           await new Promise((r) => requestAnimationFrame(r));
@@ -240,11 +232,11 @@ export async function renderVideoInBrowser(
         await new Promise<void>((res, rej) => {
           const timer = setTimeout(() => {
             if (chunks.length === 0) {
-              rej(new Error('No-audio fallback failed: no data from canvas stream.'));
+              rej(new Error('Stream-Legacy fallback failed: no data from canvas stream.'));
             } else {
               res();
             }
-          }, 3000);
+          }, 4000);
 
           const checkGate = () => {
             if (chunks.length > 0) {
@@ -264,7 +256,7 @@ export async function renderVideoInBrowser(
       onProgress(1);
 
       // ── 6. FRAME-LOCKED RENDER LOOP ───────────────────────────────────
-      let currentFrame = 8; // Start after warm-up frames
+      let currentFrame = 0;
       let lastSubId: string | null = null;
 
       const getGlobalTime = (frameIdx: number): number => {
