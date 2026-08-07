@@ -6,7 +6,7 @@ import VideoPlayerWorkspace from './components/VideoPlayerWorkspace';
 import ViralityScorecard from './components/ViralityScorecard';
 import { AICopilotConsole } from './components/AICopilotConsole';
 import ApiKeySettingsModal from './components/ApiKeySettingsModal';
-import { runAnalyzeVideo } from './utils/groqClient';
+import { runAnalyzeVideo, getApiStatusLog, clearApiStatusLog } from './utils/groqClient';
 import { saveFileToDevice } from './utils/download';
 import { renderVideoInBrowser } from './utils/ffmpegClient';
 
@@ -23,6 +23,8 @@ export default function App() {
   const [activeClipId, setActiveClipId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [aiSuccess, setAiSuccess] = useState(false);
+  const [apiStatusLog, setApiStatusLog] = useState<any[]>([]);
+  const [showApiStatus, setShowApiStatus] = useState(false);
 
   const startApp = () => {
     try {
@@ -40,6 +42,14 @@ export default function App() {
       }
     };
   }, [activeProject?.videoUrl]);
+
+  // Poll API status log for UI feedback
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setApiStatusLog(getApiStatusLog());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleSelectTemplate = async (template: any) => {
     const proj: VideoProject = {
@@ -415,7 +425,19 @@ export default function App() {
         </div>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <button
-            onClick={() => setShowApiKeyModal(true)}
+            onClick={() => { setShowApiStatus(!showApiStatus); if (!showApiStatus) setApiStatusLog(getApiStatusLog()); }}
+            style={{
+              background: apiStatusLog.some(l => !l.ok) ? 'rgba(239,68,68,0.15)' : '#18181b',
+              color: apiStatusLog.some(l => !l.ok) ? '#ef4444' : '#a1a1aa',
+              border: '1px solid #27272a',
+              padding: '8px 14px', borderRadius: '10px', fontSize: '11px',
+              fontWeight: 700, cursor: 'pointer', fontFamily: '"Inter", sans-serif'
+            }}
+          >
+            {apiStatusLog.some(l => !l.ok) ? '⚠ API ERRORS' : '📡 API'}
+          </button>
+          <button
+            onClick={() => { setShowApiKeyModal(true); clearApiStatusLog(); setApiStatusLog([]); }}
             style={{
               background: '#18181b', color: '#a1a1aa', border: '1px solid #27272a',
               padding: '8px 14px', borderRadius: '10px', fontSize: '11px',
@@ -560,6 +582,54 @@ export default function App() {
       </main>
 
       <ApiKeySettingsModal isOpen={showApiKeyModal} onClose={() => setShowApiKeyModal(false)} />
+
+      {/* ── API STATUS PANEL ── */}
+      {showApiStatus && (
+        <div style={{
+          position: 'fixed', top: '70px', right: '16px', zIndex: 200,
+          background: '#09090b', padding: '16px', borderRadius: '16px',
+          border: '1px solid rgba(30,41,59,0.6)', width: '320px', maxWidth: 'calc(100vw - 32px)',
+          boxShadow: '0 25px 80px rgba(0,0,0,0.6)', fontFamily: '"Inter", sans-serif'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <div style={{ fontWeight: 800, fontSize: '12px', color: 'white', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              API Status Log
+            </div>
+            <button onClick={() => setShowApiStatus(false)} style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '16px' }}>×</button>
+          </div>
+          <div style={{ maxHeight: '240px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {apiStatusLog.length === 0 && (
+              <div style={{ fontSize: '11px', color: '#64748b' }}>No calls yet. Run AI to see status.</div>
+            )}
+            {apiStatusLog.map((entry, i) => (
+              <div key={i} style={{
+                padding: '8px 10px', borderRadius: '8px', fontSize: '10px',
+                background: entry.ok ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.08)',
+                border: `1px solid ${entry.ok ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'}`,
+                color: entry.ok ? '#10b981' : '#ef4444',
+                fontFamily: '"JetBrains Mono", monospace'
+              }}>
+                <div style={{ fontWeight: 700, marginBottom: '2px' }}>{entry.model}</div>
+                <div style={{ opacity: 0.8, wordBreak: 'break-word' }}>{entry.detail}</div>
+                <div style={{ fontSize: '9px', opacity: 0.6, marginTop: '2px' }}>
+                  {new Date(entry.time).toLocaleTimeString()}
+                </div>
+              </div>
+            ))}
+          </div>
+          <button
+            onClick={() => { clearApiStatusLog(); setApiStatusLog([]); }}
+            style={{
+              marginTop: '12px', width: '100%', padding: '8px', borderRadius: '8px',
+              background: 'rgba(30,41,59,0.3)', border: '1px solid rgba(30,41,59,0.5)',
+              color: '#a1a1aa', fontSize: '10px', fontWeight: 700, cursor: 'pointer',
+              fontFamily: '"Inter", sans-serif'
+            }}
+          >
+            Clear Log
+          </button>
+        </div>
+      )}
 
       {/* ── DOWNLOAD MODAL ── */}
       {downloadReadyInfo && (

@@ -1,20 +1,45 @@
 import { getStoredApiKey } from './apiKeyStore';
 
 /**
- * MASTER AI CLIENT (V33 - HARDENED RELAY)
- * Groq Vision + Text models with automatic fallback and repair.
+ * MASTER AI CLIENT (V34 - HARDENED + VISIBLE)
+ * Groq Vision + Text models with automatic fallback, repair, and status logging.
  */
+
+// ─── Status Log ──────────────────────────────────────────────────────────────
+type LogEntry = { time: number; model: string; ok: boolean; detail: string };
+const MAX_LOG = 40;
+let statusLog: LogEntry[] = [];
+
+export function getApiStatusLog(): LogEntry[] {
+  return [...statusLog];
+}
+
+export function clearApiStatusLog(): void {
+  statusLog = [];
+}
+
+function addLogEntry(model: string, ok: boolean, detail: string) {
+  statusLog.unshift({ time: Date.now(), model, ok, detail });
+  if (statusLog.length > MAX_LOG) statusLog = statusLog.slice(0, MAX_LOG);
+}
+
+// ─── Config ──────────────────────────────────────────────────────────────────
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
+
+// Only models we KNOW support images on Groq today
 const VISION_MODELS = [
   'llama-3.2-90b-vision-preview',
   'llama-3.2-11b-vision-preview',
 ];
+
+// Text-only fallbacks (no images ever sent here)
 const TEXT_MODELS = [
   'llama-3.3-70b-versatile',
   'llama-3.1-8b-instant',
   'llama-3.2-90b-text-preview',
 ];
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 function getApiKey(): string {
   const key = getStoredApiKey();
   if (!key) throw new Error('MISSING_KEY');
@@ -116,7 +141,7 @@ async function captureFrames(file: File): Promise<string[]> {
       try {
         const snapshots: string[] = [];
         const canvas = document.createElement('canvas');
-        canvas.width = 400; canvas.height = 225;
+        canvas.width = 320; canvas.height = 180;
         const ctx = canvas.getContext('2d');
 
         const duration = v.duration;
@@ -132,9 +157,10 @@ async function captureFrames(file: File): Promise<string[]> {
         for (const t of timestamps) {
           v.currentTime = t;
           await waitForSeeked(v, 1500);
-          ctx?.clearRect(0, 0, 400, 225);
-          ctx?.drawImage(v, 0, 0, 400, 225);
-          const data = canvas.toDataURL('image/jpeg', 0.2);
+          ctx?.clearRect(0, 0, 320, 180);
+          ctx?.drawImage(v, 0, 0, 320, 180);
+          // Tiny JPEG to stay well under Groq token limits
+          const data = canvas.toDataURL('image/jpeg', 0.18);
           if (data.includes(',')) snapshots.push(data.split(',')[1]);
         }
 
@@ -147,6 +173,7 @@ async function captureFrames(file: File): Promise<string[]> {
   });
 }
 
+// ─── Core prompt ─────────────────────────────────────────────────────────────
 const PROMPT = `Director / Creative Intuition Engine.
 Analyze the provided video frames. You are a senior creative director.
 1. Decide if this video NEEDS subtitles. Silent cinematic shots, B-roll, or pure ASMR should stay clean. Talking heads, product pitches, and educational content need viral captions.
@@ -173,7 +200,8 @@ MANDATORY RULES:
 - If needsSubtitles is true, the "subtitles" array MUST contain at least 5 items.
 - If needsSubtitles is false, the "subtitles" array should be empty.`;
 
-async function callGroq(model: string, messages: any[], retries = 2): Promise<any> {
+// ─── Low-level Groq caller with retry + status logging ──────────────────────
+async function callGroq(model: string, messages: any[], retries = 2): Promise<string> {
   const key = getApiKey();
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
@@ -194,12 +222,22 @@ async function callGroq(model: string, messages: any[], retries = 2): Promise<an
 
       const text = await res.text();
       if (!res.ok) {
-        throw new Error(`Groq ${res.status}: ${text.slice(0, 200)}`);
+        const snippet = text.slice(0, 200);
+        addLogEntry(model, false, `${res.status}: ${snippet}`);
+        // Don't retry client errors except 429/502/503
+        if (res.status === 400 || res.status === 401 || res.status === 403 || res.status === 404) {
+          throw new Error(`Groq ${res.status}: ${snippet}`);
+        }
+        throw new Error(`Groq ${res.status}: ${snippet}`);
       }
 
       const data = JSON.parse(text);
-      return data.choices[0]?.message?.content || '';
+      const content = data.choices?.[0]?.message?.content || '';
+      addLogEntry(model, true, `OK (${content.length} chars)`);
+      return content;
     } catch (e: any) {
+      const msg = e?.message || 'network error';
+      addLogEntry(model, false, msg);
       if (attempt === retries) throw e;
       await new Promise(r => setTimeout(r, 800 * (attempt + 1)));
     }
@@ -207,6 +245,7 @@ async function callGroq(model: string, messages: any[], retries = 2): Promise<an
   return '';
 }
 
+// ─── Public API ──────────────────────────────────────────────────────────────
 export async function runAnalyzeVideo(params: any): Promise<any> {
   const errors: string[] = [];
   let lastRaw = '';
@@ -221,6 +260,7 @@ export async function runAnalyzeVideo(params: any): Promise<any> {
         let content: any;
 
         if (isVision && frames.length > 0) {
+          // Strict vision payload: text first, then base64 images ONLY
           content = [
             { type: 'text', text: PROMPT },
             ...frames.map(f => ({
@@ -229,6 +269,7 @@ export async function runAnalyzeVideo(params: any): Promise<any> {
             }))
           ];
         } else {
+          // Text-only path: never send images to text models
           content = PROMPT;
         }
 

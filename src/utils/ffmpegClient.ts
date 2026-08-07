@@ -6,8 +6,8 @@ import { playViralSFX } from './sfx';
 const FPS = 30;
 const W = 1080;
 const H = 1920;
-const CANVAS_BITRATE = 10_000_000; // 10 Mbps for crisp 1080p text
-const FRAME_CAPTURE_DELAY_MS = 80;  // time to let encoder grab frame after draw
+const CANVAS_BITRATE = 4_000_000; // 4 Mbps — stable on mobile, crisp text
+const FRAME_CAPTURE_DELAY_MS = 12; // tiny paint settle, not a throttle
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
@@ -81,13 +81,12 @@ export async function renderVideoInBrowser(
       const ctx = canvas.getContext('2d', { alpha: false });
       if (!ctx) throw new Error('Canvas 2D context unavailable');
 
-      // iOS/Safari need MP4 for Photos compatibility. Chrome/Firefox can use WebM.
+      // iOS/Safari need MP4 for Photos compatibility.
       const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent || '') || 
                     (navigator.userAgent.includes('Mac') && 'ontouchend' in document);
       
       let mimeType: string;
       if (isIOS) {
-        // iOS: try MP4 first, then fall back to WebM
         mimeType = MediaRecorder.isTypeSupported('video/mp4') ? 'video/mp4' : 
                    MediaRecorder.isTypeSupported('video/mp4; codecs=avc1') ? 'video/mp4; codecs=avc1' :
                    getBestMimeType();
@@ -97,16 +96,18 @@ export async function renderVideoInBrowser(
       
       if (!mimeType) throw new Error('No supported MediaRecorder mimeType');
 
-      // Determine file extension based on actual MIME type
       const fileExtension = mimeType.startsWith('video/mp4') ? 'mp4' : 'webm';
-
-      // Universal captureStream(FPS) — works on Chrome, Firefox, Safari
       const canvasStream = canvas.captureStream(FPS);
 
       // ── 3. AUDIO BUS ──────────────────────────────────────────────────
       const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
       const audioCtx = new AudioCtx();
       const audioDest = audioCtx.createMediaStreamDestination();
+
+      // Resume audio context immediately (user gesture already happened via button click)
+      if (audioCtx.state === 'suspended') {
+        await audioCtx.resume();
+      }
 
       let videoSource: AudioNode | null = null;
       let videoGain: GainNode | null = null;
@@ -128,9 +129,10 @@ export async function renderVideoInBrowser(
           musicEl.crossOrigin = 'anonymous';
           musicEl.loop = true;
           musicEl.preload = 'auto';
-          musicEl.volume = project.musicVolume ?? 0.4;
+          musicEl.volume = 1.0; // Web Audio will control gain
           musicEl.currentTime = 0;
 
+          // Pre-seek and pre-load
           await new Promise<void>((res) => {
             const t = setTimeout(() => res(), 4000);
             musicEl!.oncanplaythrough = () => { clearTimeout(t); res(); };
@@ -144,7 +146,7 @@ export async function renderVideoInBrowser(
           mSource.connect(musicGain);
           musicGain.connect(audioDest);
           
-          // Audio Handshake: wait for music to actually start playing
+          // Audio Handshake: ensure music is actually producing sound
           await new Promise<void>((res) => {
             const onPlaying = () => {
               musicEl!.removeEventListener('playing', onPlaying);
@@ -153,9 +155,11 @@ export async function renderVideoInBrowser(
             };
             const timer = setTimeout(() => {
               musicEl!.removeEventListener('playing', onPlaying);
-              res(); // proceed even if onplaying doesn't fire
-            }, 3000);
+              res();
+            }, 2000);
             musicEl!.addEventListener('playing', onPlaying);
+            // Ensure AudioContext is running before play()
+            if (audioCtx.state === 'suspended') audioCtx.resume();
             musicEl!.play().catch(() => {
               clearTimeout(timer);
               res();
@@ -182,12 +186,7 @@ export async function renderVideoInBrowser(
       );
       const totalFrames = Math.max(1, Math.floor(totalDuration * FPS));
 
-      // ── 5. START RECORDER + FORCE-START WARM-UP ──────────────────────
-      if (audioCtx.state === 'suspended') {
-        await audioCtx.resume();
-      }
-
-      // Create recorder helper
+      // ── 5. START RECORDER + WARM-UP ──────────────────────────────────
       const createRecorder = (stream: MediaStream) => {
         const recorder = new MediaRecorder(stream, {
           mimeType,
@@ -211,16 +210,14 @@ export async function renderVideoInBrowser(
         chunks = setup.chunks;
         recorder.start(100);
 
-        // FORCE-START: Draw rapid frames to wake up hardware encoder
-        const warmUpCount = 6;
-        for (let i = 0; i < warmUpCount; i++) {
+        // Light warm-up: 3 frames to prime encoder, no long sleeps
+        for (let i = 0; i < 3; i++) {
           ctx.clearRect(0, 0, W, H);
           ctx.drawImage(video, 0, 0, W, H);
           await new Promise((r) => requestAnimationFrame(r));
-          await wait(FRAME_CAPTURE_DELAY_MS);
         }
 
-        // Start-Gate: wait for first chunk (4s)
+        // Start-Gate: wait for first chunk (3s)
         await new Promise<void>((res, rej) => {
           const timer = setTimeout(() => {
             if (chunks.length === 0) {
@@ -228,7 +225,7 @@ export async function renderVideoInBrowser(
             } else {
               res();
             }
-          }, 4000);
+          }, 3000);
 
           const checkGate = () => {
             if (chunks.length > 0) {
@@ -244,8 +241,7 @@ export async function renderVideoInBrowser(
           };
         });
       } catch (gateError: any) {
-        // ZERO-FAILURE FALLBACK: Stream-Legacy mode (video only)
-        console.warn('[Forge] Audio stream failed, falling back to Stream-Legacy:', gateError?.message);
+        console.warn('[Forge] Audio stream failed, falling back to video-only:', gateError?.message);
         useNoAudio = true;
 
         const noAudioStream = new MediaStream(canvasStream.getVideoTracks());
@@ -254,13 +250,10 @@ export async function renderVideoInBrowser(
         chunks = setup.chunks;
         recorder.start(100);
 
-        // Force-start for fallback too
-        const warmUpCount = 6;
-        for (let i = 0; i < warmUpCount; i++) {
+        for (let i = 0; i < 3; i++) {
           ctx.clearRect(0, 0, W, H);
           ctx.drawImage(video, 0, 0, W, H);
           await new Promise((r) => requestAnimationFrame(r));
-          await wait(FRAME_CAPTURE_DELAY_MS);
         }
 
         await new Promise<void>((res, rej) => {
@@ -270,7 +263,7 @@ export async function renderVideoInBrowser(
             } else {
               res();
             }
-          }, 4000);
+          }, 3000);
 
           const checkGate = () => {
             if (chunks.length > 0) {
@@ -420,8 +413,6 @@ export async function renderVideoInBrowser(
         }
 
         // ── CAPTURE CONFIRMATION ────────────────────────────────────────
-        // captureStream(FPS) auto-captures at the configured rate. We just
-        // need to ensure the browser has painted the frame before moving on.
         await new Promise((r) => requestAnimationFrame(r));
         await wait(FRAME_CAPTURE_DELAY_MS);
 
