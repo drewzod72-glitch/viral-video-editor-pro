@@ -129,6 +129,7 @@ export async function renderVideoInBrowser(
           musicEl.loop = true;
           musicEl.preload = 'auto';
           musicEl.volume = project.musicVolume ?? 0.4;
+          musicEl.currentTime = 0;
 
           await new Promise<void>((res) => {
             const t = setTimeout(() => res(), 4000);
@@ -142,7 +143,24 @@ export async function renderVideoInBrowser(
           musicGain.gain.value = project.musicVolume ?? 0.4;
           mSource.connect(musicGain);
           musicGain.connect(audioDest);
-          musicEl.play().catch(() => {});
+          
+          // Audio Handshake: wait for music to actually start playing
+          await new Promise<void>((res) => {
+            const onPlaying = () => {
+              musicEl!.removeEventListener('playing', onPlaying);
+              clearTimeout(timer);
+              res();
+            };
+            const timer = setTimeout(() => {
+              musicEl!.removeEventListener('playing', onPlaying);
+              res(); // proceed even if onplaying doesn't fire
+            }, 3000);
+            musicEl!.addEventListener('playing', onPlaying);
+            musicEl!.play().catch(() => {
+              clearTimeout(timer);
+              res();
+            });
+          }).catch(() => {});
         }
       }
 

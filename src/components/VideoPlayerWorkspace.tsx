@@ -41,6 +41,30 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
   const [isDragging, setIsDragging] = useState(false);
   const [musicMood, setMusicMood] = useState<string>('hype');
 
+  // Refs for the master sync loop to avoid stale closures
+  const playingRef = useRef(playing);
+  const isDraggingRef = useRef(isDragging);
+  const currentZoomRef = useRef(currentZoom);
+  const projectRef = useRef(project);
+  const activeClipIdRef = useRef(activeClipId);
+  const lastSubIdRef = useRef(lastSubId);
+  const activeHighlightsRef = useRef(activeHighlights);
+  const enableZoomsRef = useRef(enableZooms);
+  const autoZoomPunchRef = useRef(autoZoomPunch);
+  const sfxPopEnabledRef = useRef(project.sfxPopEnabled);
+
+  // Keep refs in sync with state
+  useEffect(() => { playingRef.current = playing; }, [playing]);
+  useEffect(() => { isDraggingRef.current = isDragging; }, [isDragging]);
+  useEffect(() => { currentZoomRef.current = currentZoom; }, [currentZoom]);
+  useEffect(() => { projectRef.current = project; }, [project]);
+  useEffect(() => { activeClipIdRef.current = activeClipId; }, [activeClipId]);
+  useEffect(() => { lastSubIdRef.current = lastSubId; }, [lastSubId]);
+  useEffect(() => { activeHighlightsRef.current = activeHighlights; }, [activeHighlights]);
+  useEffect(() => { enableZoomsRef.current = enableZooms; }, [enableZooms]);
+  useEffect(() => { autoZoomPunchRef.current = autoZoomPunch; }, [autoZoomPunch]);
+  useEffect(() => { sfxPopEnabledRef.current = project.sfxPopEnabled; }, [project.sfxPopEnabled]);
+
   const currentHighlight = activeClipId
     ? activeHighlights.find((h: any) => h.id === activeClipId)
     : null;
@@ -50,41 +74,51 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
 
   const filteredTracks = FREE_MUSIC_TRACKS.filter(t => t.intensity === musicMood);
 
-  // MASTER SYNC LOOP
+  // UI Heartbeat: force time update every 500ms for smooth slider
+  useEffect(() => {
+    const heartbeat = setInterval(() => {
+      if (vRef.current && playingRef.current && !isDraggingRef.current) {
+        setTime(vRef.current.currentTime);
+      }
+    }, 500);
+    return () => clearInterval(heartbeat);
+  }, []);
+
+  // MASTER SYNC LOOP - uses refs to avoid stale closures and unnecessary restarts
   useEffect(() => {
     let raf: number;
-    let lastT = 0;
-    const loop = (now: number) => {
-      if (vRef.current && playing && !isDragging) {
-        const t = vRef.current.currentTime;
+    const loop = () => {
+      const v = vRef.current;
+      if (v && playingRef.current && !isDraggingRef.current) {
+        const t = v.currentTime;
         setTime(t);
 
-        if (now - lastT > 100) {
-          const s = project.subtitles?.find((i: any) => t >= i.start && t <= i.end);
-          if (s?.id !== lastSubId) {
-            setActiveSub(s || null);
-            setLastSubId(s?.id || null);
-            if (s && project.sfxPopEnabled) playViralSFX('pop');
-          }
+        const proj = projectRef.current;
+        const s = proj.subtitles?.find((i: any) => t >= i.start && t <= i.end);
+        if (s?.id !== lastSubIdRef.current) {
+          setActiveSub(s || null);
+          setLastSubId(s?.id || null);
+          if (s && sfxPopEnabledRef.current) playViralSFX('pop');
+        }
 
-          let zScale = 1.0;
-          if (enableZooms) {
-            const zoom = project.zoomEffects?.find((z: any) => t >= z.timestamp && t <= z.timestamp + z.duration);
-            zScale = zoom ? zoom.scale : (autoZoomPunch && s ? 1.22 : 1.0);
-          }
-          if (currentZoom !== zScale) setCurrentZoom(zScale);
+        let zScale = 1.0;
+        if (enableZoomsRef.current) {
+          const zoom = proj.zoomEffects?.find((z: any) => t >= z.timestamp && t <= z.timestamp + z.duration);
+          zScale = zoom ? zoom.scale : (autoZoomPunchRef.current && s ? 1.22 : 1.0);
+        }
+        if (currentZoomRef.current !== zScale) setCurrentZoom(zScale);
 
-          const hl = activeHighlights.find((h: any) => h.id === activeClipId);
-          if (hl && t >= hl.end) { vRef.current.currentTime = hl.start; }
-
-          lastT = now;
+        const hl = activeHighlightsRef.current.find((h: any) => h.id === activeClipIdRef.current);
+        if (hl && t >= hl.end) {
+          v.currentTime = hl.start;
+          setTime(hl.start);
         }
       }
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [playing, activeClipId, project.subtitles, lastSubId, enableZooms, autoZoomPunch, currentZoom, isDragging, activeHighlights]);
+  }, []); // Empty deps - loop runs forever, reads from refs
 
   // AUDIO LOCK - hard-locked music bus
   useEffect(() => {
@@ -109,6 +143,12 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
     v.addEventListener('loadedmetadata', onMeta);
     return () => v.removeEventListener('loadedmetadata', onMeta);
   }, [project.videoUrl]);
+
+  // Sync loop restart trigger when project changes
+  useEffect(() => {
+    // Force UI heartbeat when project updates (e.g., after AI edit)
+    setTime(vRef.current?.currentTime ?? 0);
+  }, [project.subtitles, project.highlights, activeClipId]);
 
   // Timeline scrubber
   const handleTimelineClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {

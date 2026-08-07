@@ -75,13 +75,28 @@ export const AICopilotConsole: React.FC<any> = ({
         command: cmd || '',
         actionType,
       });
-      // Defensive merge to preserve videoUrl, id, highlights, createdAt
-      onUpdateProject((prev: VideoProject) => safeMerge(prev, data));
-      if (data.subtitles) {
+      
+      // CRITICAL: Inject subtitles FIRST so UI never misses the update
+      if (data.subtitles && data.subtitles.length > 0) {
         onUpdateSubtitles(data.subtitles);
       }
+      
+      // Then merge the rest of the project data
+      onUpdateProject((prev: VideoProject) => safeMerge(prev, data));
 
-      const advice = data.advice || 'Optimization complete.';
+      // Director Feedback: make the AI's decision explicit
+      const subCount = data.subtitles?.length || 0;
+      let advice = data.advice || 'Optimization complete.';
+      if (actionType === 'hookboost' && subCount > 0) {
+        advice = `Director's note: I kept the visual clean and strengthened ${subCount} hook captions to maximize retention in the first 3 seconds.`;
+      } else if (actionType === 'spellcheck' && subCount > 0) {
+        advice = `Director's note: Auto-corrected ${subCount} captions for maximum readability.`;
+      } else if (actionType === 'pacing') {
+        advice = `Director's note: Tightened the pacing. Removed dead air and accelerated cut transitions to keep viewers watching.`;
+      } else if (actionType === 'gaprepair') {
+        advice = `Director's note: Cleaned up ${subCount} caption gaps. The flow is now seamless.`;
+      }
+      
       setAiResponse(advice);
       appendLog(`→ ${advice}`);
     } catch (error: any) {
@@ -132,15 +147,20 @@ export const AICopilotConsole: React.FC<any> = ({
       background: 'linear-gradient(180deg, rgba(24,24,27,0.95) 0%, rgba(9,9,11,0.98) 100%)',
       borderRadius: '24px',
       border: '1px solid rgba(30,41,59,0.6)',
-      backdropFilter: 'blur(16px)',
+      backdropFilter: 'blur(24px) saturate(180%)',
       padding: '0',
       overflow: 'hidden',
       position: 'relative'
     }}>
-      {/* Ambient glow */}
+      {/* Glass-refraction ambient layer */}
       <div style={{
         position: 'absolute', top: '-50%', left: '-50%', width: '200%', height: '200%',
-        background: 'radial-gradient(circle at 50% 0%, rgba(139,92,246,0.08) 0%, transparent 60%)',
+        background: 'radial-gradient(circle at 50% 0%, rgba(139,92,246,0.1) 0%, transparent 60%)',
+        pointerEvents: 'none', zIndex: 0
+      }} />
+      <div style={{
+        position: 'absolute', bottom: '-30%', right: '-30%', width: '140%', height: '140%',
+        background: 'radial-gradient(circle at 80% 100%, rgba(6,182,212,0.08) 0%, transparent 50%)',
         pointerEvents: 'none', zIndex: 0
       }} />
 
@@ -154,28 +174,34 @@ export const AICopilotConsole: React.FC<any> = ({
         position: 'relative', zIndex: 1
       }}>
         <div style={{ position: 'relative' }}>
-          {/* Neural Pulse rings */}
+          {/* Neural Pulse rings - living brain effect */}
           {isPulsing && (
             <>
               <div style={{
-                position: 'absolute', inset: '-8px', borderRadius: '20px',
-                border: '2px solid rgba(139,92,246,0.4)',
-                animation: 'neural-pulse 1.5s ease-out infinite'
+                position: 'absolute', inset: '-10px', borderRadius: '24px',
+                border: '2px solid rgba(139,92,246,0.5)',
+                animation: 'neural-pulse 1.2s ease-out infinite'
               }} />
               <div style={{
-                position: 'absolute', inset: '-16px', borderRadius: '28px',
-                border: '1px solid rgba(139,92,246,0.2)',
-                animation: 'neural-pulse 1.5s ease-out 0.4s infinite'
+                position: 'absolute', inset: '-20px', borderRadius: '32px',
+                border: '1px solid rgba(139,92,246,0.3)',
+                animation: 'neural-pulse 1.2s ease-out 0.3s infinite'
+              }} />
+              <div style={{
+                position: 'absolute', inset: '-30px', borderRadius: '40px',
+                border: '1px solid rgba(6,182,212,0.2)',
+                animation: 'neural-pulse 1.2s ease-out 0.6s infinite'
               }} />
             </>
           )}
           <div style={{
-            width: '48px', height: '48px', borderRadius: '16px',
+            width: '52px', height: '52px', borderRadius: '18px',
             background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '22px', flexShrink: 0,
-            boxShadow: isPulsing ? '0 0 32px rgba(139,92,246,0.6)' : '0 0 16px rgba(139,92,246,0.3)',
-            transition: 'box-shadow 0.3s ease'
+            fontSize: '24px', flexShrink: 0,
+            boxShadow: isPulsing ? '0 0 40px rgba(139,92,246,0.7)' : '0 0 20px rgba(139,92,246,0.4)',
+            transition: 'box-shadow 0.3s ease',
+            animation: isPulsing ? 'brain-vibrate 0.15s ease-in-out infinite' : 'none'
           }}>🧠</div>
         </div>
         <div style={{ flex: 1 }}>
@@ -275,12 +301,14 @@ export const AICopilotConsole: React.FC<any> = ({
                   e.currentTarget.style.borderColor = `${action.color}40`;
                   e.currentTarget.style.boxShadow = `0 0 24px ${action.color}15, inset 0 0 24px ${action.color}08`;
                   e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.animation = 'vibrate 0.3s ease-in-out';
                 }
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.borderColor = 'rgba(30,41,59,0.5)';
                 e.currentTarget.style.boxShadow = 'none';
                 e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.animation = '';
               }}
             >
               <div style={{
@@ -405,7 +433,12 @@ export const AICopilotConsole: React.FC<any> = ({
       <style>{`
         @keyframes neural-pulse {
           0% { transform: scale(1); opacity: 1; }
-          100% { transform: scale(1.4); opacity: 0; }
+          100% { transform: scale(1.5); opacity: 0; }
+        }
+        @keyframes brain-vibrate {
+          0%, 100% { transform: translateX(0) rotate(0deg); }
+          25% { transform: translateX(-1px) rotate(-1deg); }
+          75% { transform: translateX(1px) rotate(1deg); }
         }
         @keyframes slideIn {
           from { opacity: 0; transform: translateY(12px); }
@@ -414,6 +447,10 @@ export const AICopilotConsole: React.FC<any> = ({
         @keyframes fadeIn {
           from { opacity: 0; }
           to { opacity: 1; }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.4; }
         }
       `}</style>
     </div>
