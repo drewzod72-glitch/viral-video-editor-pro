@@ -49,7 +49,7 @@ export async function renderVideoInBrowser(
   project: VideoProject,
   onProgress: (progress: number) => void,
   activeClipId: string | null = null
-): Promise<Blob> {
+): Promise<{ blob: Blob; extension: string }> {
   return new Promise(async (resolve, reject) => {
     let cancelled = false;
     const abort = (err: unknown) => {
@@ -81,8 +81,24 @@ export async function renderVideoInBrowser(
       const ctx = canvas.getContext('2d', { alpha: false });
       if (!ctx) throw new Error('Canvas 2D context unavailable');
 
-      const mimeType = getBestMimeType();
+      // iOS/Safari need MP4 for Photos compatibility. Chrome/Firefox can use WebM.
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent || '') || 
+                    (navigator.userAgent.includes('Mac') && 'ontouchend' in document);
+      
+      let mimeType: string;
+      if (isIOS) {
+        // iOS: try MP4 first, then fall back to WebM
+        mimeType = MediaRecorder.isTypeSupported('video/mp4') ? 'video/mp4' : 
+                   MediaRecorder.isTypeSupported('video/mp4; codecs=avc1') ? 'video/mp4; codecs=avc1' :
+                   getBestMimeType();
+      } else {
+        mimeType = getBestMimeType();
+      }
+      
       if (!mimeType) throw new Error('No supported MediaRecorder mimeType');
+
+      // Determine file extension based on actual MIME type
+      const fileExtension = mimeType.startsWith('video/mp4') ? 'mp4' : 'webm';
 
       // Universal captureStream(FPS) — works on Chrome, Firefox, Safari
       const canvasStream = canvas.captureStream(FPS);
@@ -439,7 +455,7 @@ export async function renderVideoInBrowser(
             canvasStream.getTracks().forEach((t) => t.stop());
             combinedStream.getTracks().forEach((t) => t.stop());
 
-            resolve(finalBlob);
+            resolve({ blob: finalBlob, extension: fileExtension });
           };
         });
 

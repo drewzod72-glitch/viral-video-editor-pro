@@ -67,13 +67,14 @@ export default function App() {
     const runAI = async () => {
       try {
         const result = await runAnalyzeVideo({ ...template });
+        console.log('[App] AI analysis result:', result);
         if (result?.project) {
           setActiveProject(prev => ({ ...prev, ...result.project, viralityScore: 99 } as any));
           setAiSuccess(true);
           setTimeout(() => setAiSuccess(false), 2500);
         }
       } catch (e) {
-        console.warn("AI Service busy. Manual Mode Active.");
+        console.warn("AI Service busy. Manual Mode Active.", e);
       } finally {
         setIsProcessing(false);
       }
@@ -112,13 +113,14 @@ export default function App() {
     const runAI = async () => {
       try {
         const result = await runAnalyzeVideo({ name, niche, userDescription: description, videoFile: file, videoUrl });
+        console.log('[App] AI analysis result (upload):', result);
         if (result?.project) {
           setActiveProject(prev => ({ ...prev, ...result.project, viralityScore: 99 } as any));
           setAiSuccess(true);
           setTimeout(() => setAiSuccess(false), 2500);
         }
       } catch (e) {
-        console.warn("AI Service busy. Manual Mode Active.");
+        console.warn("AI Service busy. Manual Mode Active.", e);
       } finally {
         setIsProcessing(false);
       }
@@ -136,23 +138,26 @@ export default function App() {
     setIsProcessing(true);
     setProcessingStage("Baking final MP4...");
     try {
-      const blob = await renderVideoInBrowser(
+      const result = await renderVideoInBrowser(
         activeProject,
         (p) => setProcessingStage(`Baking: ${p}%`),
         activeClipId
       );
+      const { blob, extension } = result;
+      
       // Size-Gate: if too small, silently re-render once
       if (blob && blob.size > 100_000) {
-        setDownloadReadyInfo({ blob, filename: `${activeProject.name}_viral.mp4` });
+        setDownloadReadyInfo({ blob, filename: `${activeProject.name}_viral.${extension}` });
       } else if (blob && blob.size <= 100_000) {
         setProcessingStage("Re-rendering...");
-        const retryBlob = await renderVideoInBrowser(
+        const retryResult = await renderVideoInBrowser(
           activeProject,
           (p) => setProcessingStage(`Retry: ${p}%`),
           activeClipId
         );
+        const { blob: retryBlob, extension: retryExt } = retryResult;
         if (retryBlob && retryBlob.size > 100_000) {
-          setDownloadReadyInfo({ blob: retryBlob, filename: `${activeProject.name}_viral.mp4` });
+          setDownloadReadyInfo({ blob: retryBlob, filename: `${activeProject.name}_viral.${retryExt}` });
         } else {
           alert('Export failed. Rendered file is empty or too small after retry.');
         }

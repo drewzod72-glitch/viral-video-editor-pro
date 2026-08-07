@@ -121,7 +121,7 @@ async function captureFrames(file: File): Promise<string[]> {
       try {
         const snapshots: string[] = [];
         const canvas = document.createElement('canvas');
-        canvas.width = 480; canvas.height = 270;
+        canvas.width = 400; canvas.height = 225;
         const ctx = canvas.getContext('2d');
 
         // 6 strategic timestamps: Hook, 3 middle beats, CTA
@@ -138,9 +138,10 @@ async function captureFrames(file: File): Promise<string[]> {
         for (const t of timestamps) {
           v.currentTime = t;
           await waitForSeeked(v, 1500);
-          ctx?.clearRect(0, 0, 480, 270);
-          ctx?.drawImage(v, 0, 0, 480, 270);
-          const data = canvas.toDataURL('image/jpeg', 0.4);
+          ctx?.clearRect(0, 0, 400, 225);
+          ctx?.drawImage(v, 0, 0, 400, 225);
+          // Aggressive downscale: 400x225 at 0.2 JPEG quality keeps payload tiny
+          const data = canvas.toDataURL('image/jpeg', 0.2);
           if (data.includes(',')) snapshots.push(data.split(',')[1]);
         }
 
