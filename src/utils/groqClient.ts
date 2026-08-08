@@ -1,8 +1,11 @@
 import { getStoredApiKey } from './apiKeyStore';
 
 /**
- * MASTER AI CLIENT (V34 - HARDENED + VISIBLE)
- * Groq Vision + Text models with automatic fallback, repair, and status logging.
+ * MASTER AI CLIENT (V35 - ROBUST TEXT-ONLY RELAY)
+ * Groq text models with automatic fallback, repair, and status logging.
+ * Vision models have been removed because current Groq vision IDs are not
+ * reliably available across accounts. This client now uses a strong
+ * text-only generation path that works for every supported model.
  */
 
 // ─── Status Log ──────────────────────────────────────────────────────────────
@@ -26,13 +29,6 @@ function addLogEntry(model: string, ok: boolean, detail: string) {
 // ─── Config ──────────────────────────────────────────────────────────────────
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
-// Only models we KNOW support images on Groq today
-const VISION_MODELS = [
-  'llama-4-scout-17b-16e-instruct',
-  'llama-4-maverick-17b-128e-instruct',
-];
-
-// Text-only fallbacks (no images ever sent here)
 const TEXT_MODELS = [
   'llama-3.3-70b-versatile',
   'llama-3.1-8b-instant',
@@ -131,126 +127,97 @@ function generateMockSubtitles(niche: string, duration = 30): Array<{ id: string
   return subs;
 }
 
-async function captureFrames(file: File): Promise<string[]> {
-  return new Promise((resolve) => {
-    const v = document.createElement('video');
-    v.preload = 'auto'; v.muted = true; v.playsInline = true;
-    const url = URL.createObjectURL(file);
-    v.src = url;
-    v.onloadedmetadata = async () => {
-      try {
-        const snapshots: string[] = [];
-        const canvas = document.createElement('canvas');
-        canvas.width = 320; canvas.height = 180;
-        const ctx = canvas.getContext('2d');
+// ─── Prompts ────────────────────────────────────────────────────────────────
+const TEXT_ANALYSIS_PROMPT = (niche: string, description: string) => `You are a viral short-form video director.
 
-        const duration = v.duration;
-        const timestamps = [
-          Math.min(1.5, duration * 0.1),
-          duration * 0.25,
-          duration * 0.40,
-          duration * 0.60,
-          duration * 0.75,
-          Math.max(duration - 1.5, duration * 0.85)
-        ];
+Niche: ${niche}
+Description: ${description || 'No description provided.'}
 
-        for (const t of timestamps) {
-          v.currentTime = t;
-          await waitForSeeked(v, 1500);
-          ctx?.clearRect(0, 0, 320, 180);
-          ctx?.drawImage(v, 0, 0, 320, 180);
-          // Tiny JPEG to stay well under Groq token limits
-          const data = canvas.toDataURL('image/jpeg', 0.18);
-          if (data.includes(',')) snapshots.push(data.split(',')[1]);
-        }
-
-        URL.revokeObjectURL(url); v.remove();
-        resolve(snapshots);
-      } catch (e) { resolve([]); }
-    };
-    v.onerror = () => resolve([]);
-    v.load();
-  });
-}
-
-// ─── Core prompt ─────────────────────────────────────────────────────────────
-const PROMPT = `Director / Creative Intuition Engine.
-Analyze the provided video frames. You are a senior creative director.
-1. Decide if this video NEEDS subtitles. Silent cinematic shots, B-roll, or pure ASMR should stay clean. Talking heads, product pitches, and educational content need viral captions.
-2. If subtitles are needed, write punchy, viral captions (2–4 words each, 1.5–2.5s duration).
-3. Identify PRODUCT REVIEW moments: sole close-ups, stitching details, logo reveals, texture macros, fit/angle showcases.
-4. Identify the CTA (call to action — close, question, link, save).
-5. Generate SMART CUT timestamps for each Product Review moment (start/end in seconds).
-
-Return ONLY JSON with EXACTLY these keys:
+Generate a JSON object with these exact keys:
 {
   "title": "Viral headline (max 60 chars)",
   "description": "Short social copy with emojis",
   "captionStyle": "hormozi",
   "needsSubtitles": true,
-  "subtitles": [{"id":"1","text":"HOOK TEXT","start":0,"end":2.5}],
-  "highlights": [
-    {"id":"h1","title":"Product Review: Sole","start":4.5,"end":8.2,"viralityScore":92,"description":"Macro sole close-up","whyEngaging":"Texture detail drives shares","speed":1.0}
+  "subtitles": [
+    {"id":"1","text":"HOOK TEXT","start":0,"end":2.5},
+    {"id":"2","text":"NEXT CAPTION","start":2.5,"end":5.0}
   ],
-  "archetype": "hype"
+  "highlights": [
+    {"id":"h1","title":"Key Moment","start":0,"end":5.0,"viralityScore":92,"description":"Strong hook","whyEngaging":"Stops scrollers","speed":1.0}
+  ],
+  "archetype": "${niche}"
 }
 
-MANDATORY RULES:
-- "needsSubtitles" MUST be a boolean. Set to false ONLY for pure cinematic/B-roll content.
-- If needsSubtitles is true, the "subtitles" array MUST contain at least 5 items.
-- If needsSubtitles is false, the "subtitles" array should be empty.`;
+RULES:
+- needsSubtitles must be true.
+- Return at least 5 subtitles covering the full duration.
+- Subtitles must be 2-4 words, uppercase, punchy.
+- Do not include markdown or explanations.`;
+
+const COPILOT_PROMPT = (actionType: string, command: string) => `You are a short-form video editor AI.
+
+Action: ${actionType}
+Command: ${command}
+
+Return ONLY JSON:
+{
+  "subtitles": [
+    {"id":"1","text":"HOOK TEXT","start":0,"end":2.5}
+  ],
+  "title": "Updated title",
+  "description": "Updated description",
+  "advice": "Director's note explaining what changed and why.",
+  "needsSubtitles": true
+}
+
+Rules:
+- Keep subtitle IDs stable when possible.
+- Advice must explicitly state what changed.
+- If no change is needed, return the original subtitles unchanged.`;
 
 // ─── Low-level Groq caller with retry + status logging ──────────────────────
 async function callGroq(model: string, messages: any[], retries = 2): Promise<string> {
   const key = getApiKey();
-  const modelsToTry = [model];
-  if (!model.startsWith('meta-llama/')) {
-    modelsToTry.push(`meta-llama/${model}`);
-  }
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(GROQ_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${key}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          temperature: 0.7,
+          max_tokens: 1024,
+          response_format: { type: 'json_object' }
+        }),
+      });
 
-  let lastErr: any = null;
-  for (const m of modelsToTry) {
-    for (let attempt = 0; attempt <= retries; attempt++) {
-      try {
-        const res = await fetch(GROQ_API_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${key}`,
-          },
-          body: JSON.stringify({
-            model: m,
-            messages,
-            temperature: 0.7,
-            max_tokens: 1024,
-            response_format: { type: 'json_object' }
-          }),
-        });
-
-        const text = await res.text();
-        if (!res.ok) {
-          const snippet = text.slice(0, 200);
-          addLogEntry(m, false, `${res.status}: ${snippet}`);
-          if (res.status === 400 || res.status === 401 || res.status === 403 || res.status === 404) {
-            lastErr = new Error(`Groq ${res.status}: ${snippet}`);
-            break; // try next model variant
-          }
+      const text = await res.text();
+      if (!res.ok) {
+        const snippet = text.slice(0, 200);
+        addLogEntry(model, false, `${res.status}: ${snippet}`);
+        if (res.status === 400 || res.status === 401 || res.status === 403 || res.status === 404) {
           throw new Error(`Groq ${res.status}: ${snippet}`);
         }
-
-        const data = JSON.parse(text);
-        const content = data.choices?.[0]?.message?.content || '';
-        addLogEntry(m, true, `OK (${content.length} chars)`);
-        return content;
-      } catch (e: any) {
-        lastErr = e;
-        if (attempt < retries) {
-          await new Promise(r => setTimeout(r, 800 * (attempt + 1)));
-        }
+        throw new Error(`Groq ${res.status}: ${snippet}`);
       }
+
+      const data = JSON.parse(text);
+      const content = data.choices?.[0]?.message?.content || '';
+      addLogEntry(model, true, `OK (${content.length} chars)`);
+      return content;
+    } catch (e: any) {
+      const msg = e?.message || 'network error';
+      addLogEntry(model, false, msg);
+      if (attempt === retries) throw e;
+      await new Promise(r => setTimeout(r, 800 * (attempt + 1)));
     }
   }
-  throw lastErr || new Error('Groq request failed');
+  return '';
 }
 
 // ─── Public API ──────────────────────────────────────────────────────────────
@@ -259,29 +226,17 @@ export async function runAnalyzeVideo(params: any): Promise<any> {
   let lastRaw = '';
 
   try {
-    const frames = params.videoFile ? await captureFrames(params.videoFile) : [];
-    const allModels = [...VISION_MODELS, ...TEXT_MODELS];
+    const niche = params.niche || 'default';
+    const description = params.userDescription || params.description || '';
+    const duration = params.originalDuration || 30;
 
-    for (const model of allModels) {
+    const prompt = TEXT_ANALYSIS_PROMPT(niche, description);
+
+    for (const model of TEXT_MODELS) {
       try {
-        const isVision = VISION_MODELS.includes(model);
-        let content: any;
-
-        if (isVision && frames.length > 0) {
-          // Strict vision payload: text first, then base64 images ONLY
-          content = [
-            { type: 'text', text: PROMPT },
-            ...frames.map(f => ({
-              type: 'image_url',
-              image_url: { url: `data:image/jpeg;base64,${f}` }
-            }))
-          ];
-        } else {
-          // Text-only path: never send images to text models
-          content = PROMPT;
-        }
-
-        const raw = await callGroq(model, [{ role: 'user', content }]);
+        const raw = await callGroq(model, [
+          { role: 'user', content: prompt }
+        ]);
         lastRaw = raw;
         const parsed = extractAndRepair(raw);
 
@@ -301,7 +256,7 @@ export async function runAnalyzeVideo(params: any): Promise<any> {
       }
     }
   } catch (e: any) {
-    errors.push(`capture: ${e?.message || 'frame capture failed'}`);
+    errors.push(`analysis: ${e?.message || 'analysis failed'}`);
   }
 
   console.error('[Groq] All models failed:', errors);
@@ -325,13 +280,12 @@ export async function runCopilotOptimize(params: any): Promise<any> {
   const errors: string[] = [];
   let lastRaw = '';
 
+  const prompt = COPILOT_PROMPT(params.actionType || 'chat', params.command || '');
+
   for (const model of TEXT_MODELS) {
     try {
       const raw = await callGroq(model, [
-        {
-          role: 'user',
-          content: `Task: ${params.actionType}. Command: ${params.command}. Return JSON {subtitles, title, description, advice, needsSubtitles}.`
-        }
+        { role: 'user', content: prompt }
       ], 1);
       lastRaw = raw;
       const parsed = extractAndRepair(raw);
