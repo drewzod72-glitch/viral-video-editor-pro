@@ -28,8 +28,8 @@ const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
 // Only models we KNOW support images on Groq today
 const VISION_MODELS = [
-  'llama-3.2-90b-vision-preview',
-  'llama-3.2-11b-vision-preview',
+  'meta-llama/llama-4-maverick-17b-128e-instruct',
+  'meta-llama/llama-4-scout-17b-16e-instruct',
 ];
 
 // Text-only fallbacks (no images ever sent here)
