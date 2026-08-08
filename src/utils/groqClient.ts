@@ -28,8 +28,8 @@ const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
 // Only models we KNOW support images on Groq today
 const VISION_MODELS = [
-  'meta-llama/llama-4-maverick-17b-128e-instruct',
-  'meta-llama/llama-4-scout-17b-16e-instruct',
+  'llama-4-scout-17b-16e-instruct',
+  'llama-4-maverick-17b-128e-instruct',
 ];
 
 // Text-only fallbacks (no images ever sent here)
@@ -203,46 +203,54 @@ MANDATORY RULES:
 // ─── Low-level Groq caller with retry + status logging ──────────────────────
 async function callGroq(model: string, messages: any[], retries = 2): Promise<string> {
   const key = getApiKey();
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    try {
-      const res = await fetch(GROQ_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${key}`,
-        },
-        body: JSON.stringify({
-          model,
-          messages,
-          temperature: 0.7,
-          max_tokens: 1024,
-          response_format: { type: 'json_object' }
-        }),
-      });
+  const modelsToTry = [model];
+  if (!model.startsWith('meta-llama/')) {
+    modelsToTry.push(`meta-llama/${model}`);
+  }
 
-      const text = await res.text();
-      if (!res.ok) {
-        const snippet = text.slice(0, 200);
-        addLogEntry(model, false, `${res.status}: ${snippet}`);
-        // Don't retry client errors except 429/502/503
-        if (res.status === 400 || res.status === 401 || res.status === 403 || res.status === 404) {
+  let lastErr: any = null;
+  for (const m of modelsToTry) {
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        const res = await fetch(GROQ_API_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${key}`,
+          },
+          body: JSON.stringify({
+            model: m,
+            messages,
+            temperature: 0.7,
+            max_tokens: 1024,
+            response_format: { type: 'json_object' }
+          }),
+        });
+
+        const text = await res.text();
+        if (!res.ok) {
+          const snippet = text.slice(0, 200);
+          addLogEntry(m, false, `${res.status}: ${snippet}`);
+          if (res.status === 400 || res.status === 401 || res.status === 403 || res.status === 404) {
+            lastErr = new Error(`Groq ${res.status}: ${snippet}`);
+            break; // try next model variant
+          }
           throw new Error(`Groq ${res.status}: ${snippet}`);
         }
-        throw new Error(`Groq ${res.status}: ${snippet}`);
-      }
 
-      const data = JSON.parse(text);
-      const content = data.choices?.[0]?.message?.content || '';
-      addLogEntry(model, true, `OK (${content.length} chars)`);
-      return content;
-    } catch (e: any) {
-      const msg = e?.message || 'network error';
-      addLogEntry(model, false, msg);
-      if (attempt === retries) throw e;
-      await new Promise(r => setTimeout(r, 800 * (attempt + 1)));
+        const data = JSON.parse(text);
+        const content = data.choices?.[0]?.message?.content || '';
+        addLogEntry(m, true, `OK (${content.length} chars)`);
+        return content;
+      } catch (e: any) {
+        lastErr = e;
+        if (attempt < retries) {
+          await new Promise(r => setTimeout(r, 800 * (attempt + 1)));
+        }
+      }
     }
   }
-  return '';
+  throw lastErr || new Error('Groq request failed');
 }
 
 // ─── Public API ──────────────────────────────────────────────────────────────
