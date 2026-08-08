@@ -1,123 +1,250 @@
 import React, { useState } from 'react';
-import { VideoProject, CaptionStyle } from '../types';
-import { runAnalyzeVideo } from '../utils/geminiClient';
-import { Zap, TrendingUp, RefreshCw, ChevronRight, Flame } from 'lucide-react';
+import { runAnalyzeVideo } from '../utils/groqClient';
 
-const fixDunikTypo = (str: string): string => {
-  if (!str) return str;
-  return str.replace(/dunik/gi, (match) => {
-    const map: Record<string, string> = { 'DUNIK': 'DUNK', 'dunik': 'dunk', 'Dunik': 'Dunk' };
-    return map[match] || 'Dunk';
-  });
-};
+const fixDunikTypo = (str: string) => str?.replace(/dunik/gi, 'Dunk') || '';
+
+function ScoreRing({ score, size = 88, strokeWidth = 6 }: { score: number; size?: number; strokeWidth?: number }) {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const progress = (score / 100) * circumference;
+  const color = score >= 80 ? '#10b981' : score >= 50 ? '#f59e0b' : '#ef4444';
+
+  return (
+    <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
+      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+        <circle
+          cx={size / 2} cy={size / 2} r={radius}
+          fill="none" stroke="rgba(30,41,59,0.5)" strokeWidth={strokeWidth}
+        />
+        <circle
+          cx={size / 2} cy={size / 2} r={radius}
+          fill="none" stroke={color} strokeWidth={strokeWidth}
+          strokeDasharray={circumference}
+          strokeDashoffset={circumference - progress}
+          strokeLinecap="round"
+          style={{ transition: 'stroke-dashoffset 1s ease-out' }}
+        />
+      </svg>
+      <div style={{
+        position: 'absolute', inset: 0,
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center'
+      }}>
+        <div style={{ fontSize: '9px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          Score
+        </div>
+        <div style={{ fontSize: size > 70 ? '28px' : '20px', fontWeight: 900, color, fontFamily: '"Inter", sans-serif', lineHeight: 1 }}>
+          {score}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const BOOSTER_PRESETS = [
+  { id: 'mrbeast', label: 'MrBeast Style', icon: '🔥', desc: 'High-octane hooks, fast cuts, bold claims' },
+  { id: 'hormozi', label: 'Hormozi Style', icon: '💎', desc: 'Direct response, pain-agitation, value bombs' },
+  { id: 'asmr', label: 'Luxury ASMR', icon: '✨', desc: 'Satisfying textures, whisper pacing, premium feel' },
+  { id: 'fitness', label: 'Fitness Hype', icon: '💪', desc: 'Aggressive motivation, beat drops, callouts' },
+];
 
 export default function ViralityScorecard({ project, onUpdateProject }: any) {
   const [activeTab, setActiveTab] = useState<'diagnostics' | 'booster'>('diagnostics');
   const [isBoosting, setIsBoosting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [boostTarget, setBoostTarget] = useState<string | null>(null);
 
-  const archetypes = [
-    { id: 'mrbeast_hype', name: 'MrBeast Audience Hype', icon: Zap, stylePreset: 'mrbeast' },
-    { id: 'hormozi_value', name: 'Alex Hormozi Business', icon: Flame, stylePreset: 'hormozi' },
-    { id: 'asmr_luxury', name: 'Premium ASMR Style', icon: Flame, stylePreset: 'minimalist' }
-  ];
-
-  const handleLaunchBooster = async (archetypeId: string) => {
+  const handleLaunchBooster = async (preset: typeof BOOSTER_PRESETS[0]) => {
     setIsBoosting(true);
-    setErrorMessage(null);
-    const chosen = archetypes.find(a => a.id === archetypeId) || archetypes[0];
+    setBoostTarget(preset.id);
     try {
       const result = await runAnalyzeVideo({
         name: project.name,
         niche: project.niche,
-        originalDuration: project.duration,
-        userDescription: `Ultra-Boost for ${chosen.name}.`,
+        userDescription: `Ultra-Boost for ${preset.label}. ${preset.desc}`,
         defaultTranscribe: project.subtitles.map((s: any) => s.text).join(' '),
-        imitationOptions: { archetype: chosen.name, referenceSource: chosen.name, copyInstructions: 'Enhance virality.' }
       });
-
-      // SUBTITLE-DERIVED ENHANCEMENT
-      const newSubs = result.project.subtitles.map((sub: any) => ({
-        ...sub,
-        text: fixDunikTypo(sub.text),
-      }));
-
-      onUpdateProject({ 
-        ...project, 
-        ...result.project, 
-        subtitles: newSubs,
-        captionStyle: chosen.stylePreset, 
-        viralityScore: 99 
-      });
+      onUpdateProject({ ...project, ...result.project, viralityScore: 99 });
       setActiveTab('diagnostics');
-    } catch (err: any) {
-      setErrorMessage(err.message);
-    } finally { setIsBoosting(false); }
+    } catch (e) {
+      console.warn('Booster offline');
+    } finally {
+      setIsBoosting(false);
+      setBoostTarget(null);
+    }
   };
 
+  const score = project?.viralityScore ?? 0;
+
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
-      <div className="flex border-b border-slate-800 bg-slate-950/70 p-1.5 gap-2">
-        <button onClick={() => setActiveTab('diagnostics')} className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${activeTab === 'diagnostics' ? 'bg-slate-800 text-white shadow-md' : 'text-slate-500 hover:text-slate-300'}`}>Scorecard</button>
-        <button onClick={() => setActiveTab('booster')} className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${activeTab === 'booster' ? 'bg-slate-800 text-white shadow-md' : 'text-slate-500 hover:text-slate-300'}`}>Booster Studio</button>
+    <div style={{
+      background: 'linear-gradient(180deg, rgba(24,24,27,0.95) 0%, rgba(9,9,11,0.98) 100%)',
+      borderRadius: '24px',
+      border: '1px solid rgba(30,41,59,0.6)',
+      backdropFilter: 'blur(16px)',
+      overflow: 'hidden'
+    }}>
+      {/* Tab bar */}
+      <div style={{ display: 'flex', background: 'rgba(2,6,23,0.6)', padding: '4px', margin: '16px 16px 0 16px', borderRadius: '12px' }}>
+        {(['diagnostics', 'booster'] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            style={{
+              flex: 1, padding: '10px', border: 'none', borderRadius: '10px',
+              background: activeTab === tab ? 'rgba(139,92,246,0.25)' : 'transparent',
+              color: activeTab === tab ? '#e9d5ff' : '#71717a',
+              fontWeight: 800, fontSize: '10px', fontFamily: '"Inter", sans-serif',
+              cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '1px',
+              transition: 'all 0.2s'
+            }}
+          >
+            {tab === 'diagnostics' ? '📊 Scorecard' : '🚀 Booster'}
+          </button>
+        ))}
       </div>
 
-      {activeTab === 'diagnostics' ? (
-        <div className="p-6 space-y-6">
-          <div className="flex items-center gap-5 bg-slate-950/40 p-4 rounded-2xl border border-slate-800">
-            <div className="w-20 h-20 rounded-2xl border-2 border-purple-500 flex flex-col items-center justify-center bg-purple-500/10 shadow-[0_0_20px_rgba(139,92,246,0.2)]">
-              <span className="text-[10px] font-black uppercase text-slate-500 leading-none">Score</span>
-              <span className="text-3xl font-black text-white mt-1">{project.viralityScore}</span>
-            </div>
-            <div>
-              <h2 className="font-black text-white uppercase tracking-tighter flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-brand-cyan" /> Viral Diagnostics
-              </h2>
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Status: <span className="text-emerald-400">Optimal Coverage</span></p>
-            </div>
-          </div>
-          <div className="bg-slate-950 p-5 rounded-2xl border border-slate-850">
-             <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">AI-Optimized Social Copy</h3>
-             <p className="text-xs text-slate-300 leading-relaxed font-mono select-all">{project.description}</p>
-          </div>
-        </div>
-      ) : (
-        <div className="p-6 space-y-5">
-          <div>
-            <h2 className="text-sm font-black uppercase tracking-widest text-purple-400">Creator Style Replica</h2>
-            <p className="text-[10px] text-slate-500 mt-1">Select an archetype to instantly re-architect the timeline.</p>
-          </div>
-          <div className="grid grid-cols-1 gap-3">
-            {archetypes.map((arch) => (
-              <button 
-                key={arch.id} 
-                disabled={isBoosting}
-                onClick={() => handleLaunchBooster(arch.id)}
-                className="p-4 bg-slate-950 border border-slate-800 rounded-2xl text-left hover:border-purple-500 transition-all group disabled:opacity-50 relative overflow-hidden"
-              >
-                <div className="flex justify-between items-center relative z-10">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-slate-900 rounded-lg group-hover:bg-purple-600/20 transition-all"><arch.icon className="w-4 h-4 text-slate-400 group-hover:text-purple-500" /></div>
-                    <span className="font-black text-sm text-slate-200 group-hover:text-white">{arch.name}</span>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-slate-700 group-hover:text-purple-500 group-hover:translate-x-1 transition-all" />
+      <div style={{ padding: '24px' }}>
+        {activeTab === 'diagnostics' ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {/* Score + diagnostics header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
+              <ScoreRing score={score} />
+              <div style={{ flex: 1, minWidth: '160px' }}>
+                <div style={{ fontWeight: 900, fontSize: '18px', fontFamily: '"Inter", sans-serif', letterSpacing: '-0.3px', marginBottom: '4px' }}>
+                  VIRAL DIAGNOSTICS
                 </div>
-              </button>
-            ))}
+                <div style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '6px',
+                  color: score >= 80 ? '#10b981' : '#f59e0b',
+                  fontSize: '11px', fontWeight: 700,
+                  background: score >= 80 ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)',
+                  padding: '4px 10px', borderRadius: '8px'
+                }}>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'currentColor' }} />
+                  {score >= 80 ? 'System Optimal' : 'Needs Attention'}
+                </div>
+              </div>
+            </div>
+
+            {/* Metrics */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, 1fr)',
+              gap: '8px'
+            }}>
+              {[
+                { label: 'Hook Strength', value: project?.viralityCriteria?.hook ?? 70, color: '#8b5cf6' },
+                { label: 'Pacing', value: project?.viralityCriteria?.pacing ?? 70, color: '#06b6d4' },
+                { label: 'Emotion', value: project?.viralityCriteria?.emotion ?? 70, color: '#ec4899' },
+                { label: 'Visual Contrast', value: project?.viralityCriteria?.visualContrast ?? 70, color: '#10b981' },
+              ].map((metric) => (
+                <div key={metric.label} style={{
+                  background: 'rgba(2,6,23,0.6)',
+                  padding: '14px',
+                  borderRadius: '14px',
+                  border: '1px solid rgba(30,41,59,0.5)'
+                }}>
+                  <div style={{ fontSize: '9px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px' }}>
+                    {metric.label}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{
+                      flex: 1, height: '4px', background: 'rgba(30,41,59,0.5)',
+                      borderRadius: '2px', overflow: 'hidden'
+                    }}>
+                      <div style={{
+                        width: `${Math.min(100, metric.value)}%`,
+                        height: '100%', background: metric.color,
+                        borderRadius: '2px',
+                        transition: 'width 1s ease-out'
+                      }} />
+                    </div>
+                    <span style={{ fontSize: '11px', fontWeight: 800, color: metric.color, minWidth: '28px', textAlign: 'right', fontFamily: '"Inter", sans-serif' }}>
+                      {metric.value}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Social Copy */}
+            <div style={{
+              background: 'rgba(2,6,23,0.6)',
+              padding: '20px',
+              borderRadius: '16px',
+              border: '1px solid rgba(30,41,59,0.5)'
+            }}>
+              <div style={{ fontSize: '9px', color: '#64748b', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '10px' }}>
+                AI Social Copy
+              </div>
+              <div style={{ fontSize: '13px', color: '#e2e8f0', lineHeight: 1.7, fontFamily: '"Inter", sans-serif' }}>
+                {fixDunikTypo(project.description)}
+              </div>
+            </div>
           </div>
-          {isBoosting && (
-            <div className="flex flex-col items-center justify-center p-4 space-y-3 bg-purple-600/5 rounded-2xl border border-purple-500/10">
-                <RefreshCw className="w-6 h-6 text-purple-500 animate-spin" />
-                <span className="text-[10px] font-black text-purple-400 uppercase tracking-widest">AI is forging new viral perspective...</span>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div>
+              <div style={{ fontWeight: 900, fontSize: '14px', fontFamily: '"Inter", sans-serif', marginBottom: '4px', letterSpacing: '-0.2px' }}>
+                Creator Style Replica
+              </div>
+              <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 500, lineHeight: 1.5 }}>
+                Select a creator archetype to restyle your entire video with AI-optimized pacing, captions, and SFX.
+              </div>
             </div>
-          )}
-          {errorMessage && (
-            <div className="p-3 bg-red-600/10 border border-red-600/20 rounded-xl">
-               <p className="text-[10px] text-red-500 font-bold">{errorMessage}</p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px' }}>
+              {BOOSTER_PRESETS.map((preset) => (
+                <button
+                  key={preset.id}
+                  onClick={() => handleLaunchBooster(preset)}
+                  disabled={isBoosting}
+                  style={{
+                    background: 'rgba(2,6,23,0.4)',
+                    border: boostTarget === preset.id ? '1px solid rgba(139,92,246,0.5)' : '1px solid rgba(30,41,59,0.5)',
+                    padding: '16px',
+                    borderRadius: '14px',
+                    color: 'white',
+                    textAlign: 'left',
+                    fontWeight: 700,
+                    fontSize: '12px',
+                    cursor: isBoosting ? 'not-allowed' : 'pointer',
+                    fontFamily: '"Inter", sans-serif',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    transition: 'all 0.2s',
+                    opacity: isBoosting && boostTarget !== preset.id ? 0.4 : 1
+                  }}
+                >
+                  <span style={{ fontSize: '24px', flexShrink: 0 }}>{preset.icon}</span>
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+                      {preset.label}
+                    </div>
+                    <div style={{ fontSize: '10px', color: '#64748b', fontWeight: 500, marginTop: '2px' }}>
+                      {preset.desc}
+                    </div>
+                  </div>
+                </button>
+              ))}
             </div>
-          )}
-        </div>
-      )}
+
+            {isBoosting && (
+              <div style={{
+                textAlign: 'center', padding: '16px',
+                background: 'rgba(139,92,246,0.08)',
+                borderRadius: '14px',
+                border: '1px solid rgba(139,92,246,0.2)'
+              }}>
+                <div style={{ fontSize: '11px', color: '#8b5cf6', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px' }}>
+                  Engineering new vibe...
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

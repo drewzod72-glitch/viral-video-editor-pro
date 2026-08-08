@@ -2,23 +2,20 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5.0, user-scalable=yes" />
+    <meta name="theme-color" content="#020617" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>Viral AI Video Editor</title>
     <style>
-      body { margin: 0; background-color: #020617; color: white; font-family: sans-serif; }
+      body { margin: 0; background-color: #020617; color: white; font-family: "Inter", sans-serif; overflow-y: auto; }
       #root { min-height: 100vh; }
-      .boot-loading {
-        position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-        text-align: center;
-      }
+      .boot-msg { font-size: 10px; font-weight: 900; letter-spacing: 2px; color: #475569; text-transform: uppercase; text-align: center; margin-top: 45vh; }
     </style>
   </head>
   <body>
     <div id="root">
-      <div class="boot-loading">
-        <h2 style="font-weight: 900; letter-spacing: -1px;">VIRAL FORGE</h2>
-        <p style="color: #64748b; font-size: 12px; text-transform: uppercase;">Booting Studio Engine...</p>
-      </div>
+      <div class="boot-msg">System Booting...</div>
     </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

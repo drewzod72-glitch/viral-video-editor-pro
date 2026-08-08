@@ -75,8 +75,8 @@ export function clearStoredApiKey(): void {
   }
 }
 
-/** Very loose shape check — Gemini keys are typically 39 chars starting with "AIza" (Standard) or "AQ.Ab" (Auth) — just enough to catch obvious paste mistakes, not real validation. Call sanitizeApiKeyInput() first. */
-export function looksLikeValidGeminiKey(key: string): boolean {
-  // Updated regex to allow periods (.) used in new 2026 Auth keys (e.g. AQ.Ab...)
-  return /^[A-Za-z0-9_\-\.]{20,}$/.test(key);
+/** Very loose shape check — Groq keys typically start with "gsk_" followed by a string of characters. Gemini keys are typically 39 chars. We'll allow both but focus on Groq format. */
+export function looksLikeValidAiKey(key: string): boolean {
+  // Groq format: gsk_... or standard Gemini format
+  return /^gsk_[A-Za-z0-9]{20,}$/.test(key) || /^[A-Za-z0-9_\-\.]{20,}$/.test(key);
 }

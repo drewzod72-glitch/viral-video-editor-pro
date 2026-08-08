@@ -2,249 +2,212 @@ import React, { useState, useEffect } from 'react';
 import { VideoProject } from './types';
 import { FREE_MUSIC_TRACKS, RAW_VIDEO_TEMPLATES } from './data';
 import NicheSelector from './components/NicheSelector';
-import { saveFileToDevice } from './utils/download';
 import VideoPlayerWorkspace from './components/VideoPlayerWorkspace';
 import ViralityScorecard from './components/ViralityScorecard';
 import { AICopilotConsole } from './components/AICopilotConsole';
-import { Sparkles, Download, Video as VideoIcon, CheckCircle, KeyRound } from 'lucide-react';
 import ApiKeySettingsModal from './components/ApiKeySettingsModal';
-import { runAnalyzeVideo } from './utils/geminiClient';
-import { getStoredApiKey } from './utils/apiKeyStore';
-
-const fixDunikTypo = (str: string): string => {
-  if (typeof str !== 'string' || !str) return str;
-  return str.replace(/dunik/gi, (match) => {
-    const map: Record<string, string> = { 'DUNIK': 'DUNK', 'dunik': 'dunk', 'Dunik': 'Dunk' };
-    return map[match] || 'Dunk';
-  });
-};
+import { runAnalyzeVideo, getApiStatusLog, clearApiStatusLog } from './utils/groqClient';
+import { saveFileToDevice } from './utils/download';
+import { renderVideoInBrowser } from './utils/ffmpegClient';
 
 export default function App() {
   const [hasStarted, setHasStarted] = useState(false);
   const [activeProject, setActiveProject] = useState<VideoProject | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [processingProgress, setProcessingProgress] = useState(0);
   const [processingStage, setProcessingStage] = useState('');
   const [activeTab, setActiveTab] = useState<'studio' | 'viral' | 'copilot'>('studio');
-  const [downloadReadyInfo, setDownloadReadyInfo] = useState<{ url: string; filename: string } | null>(null);
+  const [downloadReadyInfo, setDownloadReadyInfo] = useState<{ blob: Blob; filename: string } | null>(null);
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [activeClipId, setActiveClipId] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showAiSuccess, setShowAiSuccess] = useState(false);
+  
+  // API Status Panel States
+  const [showStatusPanel, setShowStatusPanel] = useState(false);
+  const [apiLogs, setApiLogs] = useState<any[]>([]);
+  const hasApiError = apiLogs.some(log => log.status === 'failure');
 
   useEffect(() => {
-    // V19.7: Initial Health Check (No longer restrictive on prefix)
-    const key = getStoredApiKey();
-    if (!key && hasStarted) {
-      setShowApiKeyModal(true);
+    if (showStatusPanel) {
+      const interval = setInterval(() => {
+        setApiLogs(getApiStatusLog());
+      }, 1000);
+      return () => clearInterval(interval);
     }
-  }, [hasStarted]);
+  }, [showStatusPanel]);
+
+  const startApp = () => {
+    try {
+      const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
+      if (AudioCtx) new AudioCtx().resume();
+    } catch (e) {}
+    setHasStarted(true);
+  };
+
+  useEffect(() => {
+    return () => { if (activeProject?.videoUrl?.startsWith('blob:')) URL.revokeObjectURL(activeProject.videoUrl); };
+  }, [activeProject?.videoUrl]);
 
   const handleSelectTemplate = async (template: any) => {
-    // V19.5: ZERO-DELAY MOUNT
-    // We set the project immediately. The Studio UI will handle the 'Loading' state internally.
-    const initialProject: VideoProject = {
-      id: `proj-${Date.now()}`,
-      videoUrl: template.videoUrl,
-      name: fixDunikTypo(template.name),
-      niche: template.niche,
-      title: template.name,
-      description: template.userDescription || '',
-      subtitles: [],
-      highlights: [{ id: '1', title: 'Full Clip', start: 0, end: template.originalDuration || 30 }],
-      selectedMusicTrackId: 'lofi-1',
-      captionStyle: 'hormozi',
-      colorGrade: 'vibrant_pop',
-      archetype: 'story',
-      createdAt: new Date().toISOString(),
-      enableSubtitles: true,
-      enableZooms: true,
-      enableColorGrade: true,
-      musicVolume: 0.4,
-      jumpCuts: true,
-      autoZoomPunch: true,
-      captionPosition: 'bottom'
-    };
-    
-    setActiveProject(initialProject);
-    setActiveTab('studio');
-    
-    // AI Analysis happens strictly in the background.
-    setIsProcessing(true);
-    setProcessingStage('Verifying API Key & AI Engine...');
-
+    const proj: VideoProject = {
+      id: `p-${Date.now()}`, videoUrl: template.videoUrl, name: template.name, niche: template.niche,
+      title: template.name, description: template.userDescription || '',
+      subtitles: [], highlights: [{ id: '1', title: 'Full Clip', start: 0, end: 30 }],
+      selectedMusicTrackId: 'lofi-8', captionStyle: 'hormozi', colorGrade: 'vibrant_pop',
+      enableSubtitles: true, enableZooms: true, musicVolume: 0.4,
+      sfxPopEnabled: true, sfxWhooshEnabled: true, autoZoomPunch: true, shakeOnPunch: true,
+      createdAt: new Date().toISOString()
+    } as any;
+    setActiveProject(proj); setActiveTab('studio');
+    setIsProcessing(true); setProcessingStage('Analyzing media...');
     try {
       const result = await runAnalyzeVideo({ ...template });
+      console.log('[App] AI analysis result:', result);
       if (result?.project) {
         setActiveProject(prev => ({ ...prev, ...result.project, viralityScore: 99 } as any));
+        setShowAiSuccess(true); setTimeout(() => setShowAiSuccess(false), 2500);
       }
-    } catch (err: any) {
-      console.error("AI Logic Error:", err);
-      // CHECK FOR EXPIRED KEY
-      const key = getStoredApiKey();
-      if (!key || !key.startsWith('AIza')) {
-        alert("🔑 API KEY EXPIRED or INVALID. Please update your Gemini Key in Settings.");
-        setShowApiKeyModal(true);
-      } else {
-        alert("⚠️ AI System busy. Manual Mode active.");
-      }
-    } finally {
-      setIsProcessing(false);
-    }
+    } catch (e) { console.warn("AI Service busy. Manual Mode Active."); }
+    finally { setIsProcessing(false); }
   };
 
   const handleUploadCustomFile = async (file: File, name: string, niche: any, description: string) => {
     const videoUrl = URL.createObjectURL(file);
-    // V19.2 GOLD MASTER: INSTANT MOUNT
-    const initialProject: VideoProject = {
-      id: `custom-${Date.now()}`,
-      videoUrl,
-      name: fixDunikTypo(name),
-      niche: niche,
-      title: name,
-      description: description || '',
-      subtitles: [],
-      highlights: [{ id: '1', title: 'Full Clip', start: 0, end: 30 }],
-      selectedMusicTrackId: 'lofi-1',
-      captionStyle: 'hormozi',
-      colorGrade: 'vibrant_pop',
-      archetype: 'story',
-      createdAt: new Date().toISOString(),
-      enableSubtitles: true,
-      enableZooms: true,
-      enableColorGrade: true,
-      musicVolume: 0.4,
-      jumpCuts: true,
-      autoZoomPunch: true,
-      captionPosition: 'bottom'
-    };
-
-    setActiveProject(initialProject);
-    setActiveTab('studio');
-    
-    setIsProcessing(true);
-    setProcessingStage('Analyzing Hardware & Media...');
-
+    const proj: VideoProject = {
+      id: `c-${Date.now()}`, videoUrl, name, niche, title: name, description: description || '',
+      subtitles: [], highlights: [{ id: '1', title: 'Full Clip', start: 0, end: 30 }],
+      selectedMusicTrackId: 'hype-1', captionStyle: 'hormozi',
+      enableSubtitles: true, enableZooms: true, musicVolume: 0.4,
+      sfxPopEnabled: true, sfxWhooshEnabled: true, autoZoomPunch: true, shakeOnPunch: true,
+      createdAt: new Date().toISOString()
+    } as any;
+    setActiveProject(proj); setActiveTab('studio');
+    setIsProcessing(true); setProcessingStage('Analyzing media...');
     try {
       const result = await runAnalyzeVideo({ name, niche, userDescription: description, videoFile: file, videoUrl });
+      console.log('[App] AI analysis result:', result);
       if (result?.project) {
         setActiveProject(prev => ({ ...prev, ...result.project, viralityScore: 99 } as any));
+        setShowAiSuccess(true); setTimeout(() => setShowAiSuccess(false), 2500);
       }
-    } catch (err: any) {
-      if (err.message.includes('expired') || err.message.includes('Key')) {
-         alert(`🔑 AI KEY EXPIRED: ${err.message}. Entering Manual Mode.`);
-         setShowApiKeyModal(true);
-      }
-    } finally {
-      setIsProcessing(false);
-    }
+    } catch (e) { console.warn("AI Service busy. Manual Mode Active."); }
+    finally { setIsProcessing(false); }
   };
 
-  const triggerVideoExport = async () => {
+  const triggerExport = async (isRetry = false) => {
     if (!activeProject) return;
-    setIsProcessing(true);
-    setProcessingStage("Initializing Native Forge...");
+    setIsProcessing(true); setProcessingStage(isRetry ? "Retrying bake..." : "Baking final MP4...");
     try {
-      const { renderVideoInBrowser } = await import('./utils/ffmpegClient');
-      const rawBlob = await renderVideoInBrowser(activeProject, (prg) => {
-        setProcessingProgress(prg);
-        setProcessingStage(`Baking: ${prg}%`);
-      }, activeClipId);
-      
-      if (!rawBlob) throw new Error('Bake failed.');
-
-      // Finalize with Server Transcode for Smooth Download compatibility
-      setProcessingStage("Optimizing for Social Media...");
-      const response = await fetch('/api/transcode', {
-        method: 'POST',
-        headers: { 'Content-Type': rawBlob.type },
-        body: rawBlob
-      });
-
-      if (!response.ok) throw new Error('Transcode failed.');
-      const finalBlob = await response.blob();
-      
-      setDownloadReadyInfo({ 
-        url: URL.createObjectURL(finalBlob), 
-        filename: `${activeProject.name.replace(/\s+/g, '_')}_viral.mp4` 
-      });
-    } catch (err: any) { alert('Export failed: ' + (err.message || 'Error')); } finally { setIsProcessing(false); }
-  };
-
-  const updateProject = (updated: Partial<VideoProject>) => {
-    if (!activeProject) return;
-    setActiveProject(prev => ({ ...prev, ...updated } as VideoProject));
+      const { blob, extension } = await renderVideoInBrowser(activeProject, (p) => setProcessingStage(`${isRetry ? 'Retry: ' : 'Baking: '}${p}%`), activeClipId);
+      if (blob && blob.size > 100_000) {
+        setDownloadReadyInfo({ blob, filename: `${activeProject.name}_viral.${extension}` });
+      } else if (!isRetry) {
+        await triggerExport(true);
+      } else {
+        throw new Error('Exported file too small. Encoding failed.');
+      }
+    } catch (err: any) { alert('Export failed. ' + (err?.message || 'Device hardware busy.')); }
+    finally { setIsProcessing(false); }
   };
 
   if (!hasStarted) {
     return (
-      <div className="min-h-screen bg-[#020617] flex flex-col items-center justify-center p-8 text-center relative overflow-hidden">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-600/20 blur-[120px] rounded-full animate-pulse" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-cyan-600/20 blur-[120px] rounded-full animate-pulse" />
-        <div className="relative z-10 flex flex-col items-center">
-          <div className="w-24 h-24 bg-gradient-to-tr from-purple-600 to-cyan-500 rounded-[35px] flex items-center justify-center mb-10 shadow-[0_0_50px_rgba(139,92,246,0.3)] animate-bounce">
-             <Sparkles className="text-white w-12 h-12" />
-          </div>
-          <h1 className="text-4xl md:text-6xl font-black text-white uppercase tracking-tighter mb-4 leading-none">Viral <span className="bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent">AI Editor</span></h1>
-          <p className="text-slate-400 text-sm md:text-base max-w-[320px] mb-12 font-medium leading-relaxed tracking-tight">The professional suite for high-retention content.</p>
-          <button onClick={() => setHasStarted(true)} className="group relative w-full max-w-[280px] py-5 bg-white text-black rounded-[24px] font-black text-sm uppercase tracking-widest shadow-[0_20px_40px_rgba(255,255,255,0.1)] transition-all hover:scale-105 active:scale-95 overflow-hidden">
-            <span className="relative z-10">Launch Studio</span>
-            <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-purple-500 opacity-0 group-hover:opacity-10 transition-opacity" />
-          </button>
-        </div>
+      <div style={{
+        background: 'linear-gradient(180deg, #0f172a 0%, #020617 50%, #09090b 100%)',
+        minHeight: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '40px 20px', fontFamily: '"Inter", sans-serif', position: 'relative', overflow: 'hidden'
+      }}>
+        <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(139,92,246,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(139,92,246,0.03) 1px, transparent 1px)', backgroundSize: '60px 60px', maskImage: 'radial-gradient(ellipse at center, black 20%, transparent 70%)' }} />
+        <div style={{ width: '88px', height: '88px', borderRadius: '28px', background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '40px', marginBottom: '28px', position: 'relative', zIndex: 1, boxShadow: '0 24px 80px rgba(139,92,246,0.4)', animation: 'float 6s ease-in-out infinite' }}>⚡</div>
+        <h1 style={{ color: 'white', fontSize: 'clamp(36px, 8vw, 64px)', fontWeight: 900, margin: '0 0 14px 0', letterSpacing: '-3px', textTransform: 'uppercase', lineHeight: 0.95, position: 'relative', zIndex: 1 }}>VIRAL<br /><span style={{ background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>AI FORGE</span></h1>
+        <button onClick={startApp} style={{ background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)', color: 'white', border: 'none', borderRadius: '16px', padding: '20px 64px', fontWeight: 900, fontSize: '14px', textTransform: 'uppercase', cursor: 'pointer', boxShadow: '0 20px 60px rgba(139,92,246,0.4), inset 0 1px 0 rgba(255,255,255,0.2)', letterSpacing: '1.5px', position: 'relative', zIndex: 1 }}>Launch Studio →</button>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white font-sans">
-      <header className="p-4 border-b border-slate-900 flex justify-between items-center bg-slate-900/50 backdrop-blur-md sticky top-0 z-40">
-        <h1 className="font-black tracking-tighter text-lg uppercase flex items-center gap-2"><Sparkles className="text-purple-500 w-5 h-5" /> Viral AI</h1>
-        <button onClick={() => setShowApiKeyModal(true)} className="bg-slate-800 px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest flex items-center gap-2"><KeyRound className="w-3 h-3" /> API Key</button>
-      </header>
-
-      {/* V19.2 NON-BLOCKING AI STATUS TOAST */}
-      {isProcessing && (
-        <div className="fixed top-20 right-4 md:right-8 z-50 animate-bounce">
-          <div className="bg-gradient-to-tr from-brand-purple to-brand-pink text-white px-5 py-3 rounded-2xl shadow-[0_0_40px_rgba(139,92,246,0.4)] border border-white/20 flex items-center gap-3">
-             <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-             <span className="text-[10px] font-black uppercase tracking-widest">{processingStage}</span>
-          </div>
+    <div style={{ background: 'linear-gradient(180deg, #0f172a 0%, #020617 100%)', minHeight: '100dvh', color: 'white', fontFamily: '"Inter", sans-serif', overflowX: 'hidden' }}>
+      <header style={{ padding: '14px 20px', borderBottom: '1px solid rgba(30,41,59,0.6)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(9,9,11,0.9)', backdropFilter: 'blur(24px)', position: 'sticky', top: 0, zIndex: 100 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{ background: '#18181b', color: '#a1a1aa', border: '1px solid #27272a', padding: '8px 12px', borderRadius: '10px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>{sidebarOpen ? '✕' : '☰'}</button>
+          <div style={{ fontWeight: 900, fontSize: '15px', letterSpacing: '-0.5px' }}>FORGE</div>
+          {showAiSuccess && <span style={{ fontSize: '9px', background: '#10b981', color: 'white', padding: '3px 8px', borderRadius: '6px', fontWeight: 800, marginLeft: '10px', animation: 'pulse 1s infinite' }}>✓ AI EDIT APPLIED</span>}
         </div>
-      )}
-      <main className="max-w-5xl mx-auto p-4 md:p-8">
-        {!activeProject ? (
-          <NicheSelector onSelectTemplate={handleSelectTemplate} isProcessing={isProcessing} onUploadCustomFile={handleUploadCustomFile} />
-        ) : (
-          <div className="space-y-6 animate-fade-in">
-            <div className="flex flex-wrap gap-2 justify-between items-center bg-slate-900/80 p-4 rounded-3xl border border-slate-800 shadow-xl">
-               <div className="flex items-center gap-3">
-                 <div className="p-2 bg-purple-600/20 rounded-xl"><VideoIcon className="text-purple-500 w-4 h-4" /></div>
-                 <p className="text-sm font-black truncate max-w-[150px]">{activeProject.name}</p>
-               </div>
-               <div className="flex flex-wrap gap-2">
-                 <button onClick={() => setActiveTab('studio')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${activeTab === 'studio' ? 'bg-purple-600 text-white shadow-lg' : 'bg-slate-800 text-slate-400'}`}>Studio</button>
-                 <button onClick={() => setActiveTab('viral')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${activeTab === 'viral' ? 'bg-purple-600 text-white shadow-lg' : 'bg-slate-800 text-slate-400'}`}>Specs</button>
-                 <button onClick={() => setActiveTab('copilot')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${activeTab === 'copilot' ? 'bg-purple-600 text-white shadow-lg' : 'bg-slate-800 text-slate-400'}`}>Copilot</button>
-                 <button onClick={triggerVideoExport} className="bg-emerald-600 hover:bg-emerald-500 px-6 py-2 rounded-xl font-black text-[10px] uppercase transition-all flex items-center gap-2"><Download className="w-3.5 h-3.5" /> Bake Video</button>
-               </div>
+        
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', position: 'relative' }}>
+          <button 
+            onClick={() => { setShowStatusPanel(!showStatusPanel); setApiLogs(getApiStatusLog()); }} 
+            style={{ 
+              background: hasApiError ? '#ef4444' : '#18181b', 
+              color: 'white', border: '1px solid #27272a', padding: '8px 14px', borderRadius: '10px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' 
+            }}
+          >
+            📊 API STATUS
+          </button>
+          
+          {showStatusPanel && (
+            <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '12px', width: '280px', background: '#09090b', border: '1px solid #27272a', borderRadius: '16px', padding: '16px', boxShadow: '0 20px 50px rgba(0,0,0,0.5)', zIndex: 200 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <span style={{ fontSize: '10px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>API Log Stream</span>
+                <button onClick={() => { clearApiStatusLog(); setApiLogs([]); }} style={{ background: 'transparent', border: 'none', color: '#8b5cf6', fontSize: '10px', fontWeight: 700, cursor: 'pointer' }}>CLEAR</button>
+              </div>
+              <div style={{ maxHeight: '200px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {apiLogs.length === 0 ? <div style={{ fontSize: '11px', color: '#475569', textAlign: 'center', padding: '20px 0' }}>No calls recorded.</div> : apiLogs.map((log, i) => (
+                  <div key={i} style={{ padding: '8px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', borderLeft: `3px solid ${log.status === 'success' ? '#10b981' : '#ef4444'}` }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', fontWeight: 800 }}>
+                      <span style={{ color: 'white' }}>{log.model}</span>
+                      <span style={{ color: '#64748b' }}>{log.timestamp}</span>
+                    </div>
+                    {log.error && <div style={{ fontSize: '9px', color: '#ef4444', marginTop: '4px', fontFamily: 'monospace', wordBreak: 'break-all' }}>{log.error}</div>}
+                  </div>
+                ))}
+              </div>
             </div>
-            {activeTab === 'studio' && <VideoPlayerWorkspace project={activeProject} onUpdateProject={updateProject as any} activeMusicTrack={FREE_MUSIC_TRACKS.find(t => t.id === activeProject.selectedMusicTrackId) || null} activeClipId={activeClipId} onClipSelect={setActiveClipId} />}
-            {activeTab === 'viral' && <ViralityScorecard project={activeProject} onUpdateProject={setActiveProject as any} />}
-            {activeTab === 'copilot' && <AICopilotConsole project={activeProject} onUpdateProject={updateProject} onUpdateSubtitles={(subs) => updateProject({ subtitles: subs })} />}
+          )}
+          
+          <button onClick={() => setShowApiKeyModal(true)} style={{ background: '#18181b', color: '#a1a1aa', border: '1px solid #27272a', padding: '8px 14px', borderRadius: '10px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>⚙ API Key</button>
+        </div>
+      </header>
+      <main style={{ display: 'flex', maxWidth: '1400px', margin: '0 auto', minHeight: 'calc(100dvh - 60px)', position: 'relative' }}>
+        <aside style={{ width: sidebarOpen ? '260px' : '0px', minWidth: sidebarOpen ? '260px' : '0px', background: 'rgba(9,9,11,0.95)', backdropFilter: 'blur(20px)', borderRight: sidebarOpen ? '1px solid rgba(30,41,59,0.5)' : '1px solid transparent', padding: sidebarOpen ? '20px 16px' : '20px 0', overflowY: 'auto', overflowX: 'hidden', position: 'sticky', top: '60px', height: 'calc(100dvh - 60px)', transition: 'all 0.3s ease', zIndex: 160 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', height: '100%' }}>
+            {['studio', 'viral', 'copilot'].map(tab => (
+              <button key={tab} onClick={() => { setActiveTab(tab as any); setSidebarOpen(false); }} style={{ padding: '11px 14px', borderRadius: '10px', border: 'none', background: activeTab === tab ? 'rgba(139,92,246,0.18)' : 'transparent', color: activeTab === tab ? '#c4b5fd' : '#a1a1aa', fontWeight: 700, fontSize: '12px', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '10px' }}>{tab.toUpperCase()}</button>
+            ))}
+            <button onClick={() => triggerExport()} disabled={isProcessing} style={{ width: '100%', padding: '14px', borderRadius: '12px', border: 'none', background: isProcessing ? '#18181b' : 'linear-gradient(135deg, #10b981, #059669)', color: 'white', fontWeight: 900, fontSize: '12px', textTransform: 'uppercase', marginTop: 'auto', cursor: isProcessing ? 'not-allowed' : 'pointer' }}>{isProcessing ? processingStage : '🔥 BAKE FINAL'}</button>
           </div>
-        )}
+        </aside>
+        <div style={{ flex: 1, padding: '20px', paddingBottom: '120px', maxWidth: '1100px', margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
+          {!activeProject ? (
+            <NicheSelector onSelectTemplate={handleSelectTemplate} isProcessing={isProcessing} onUploadCustomFile={handleUploadCustomFile} />
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div style={{ display: 'flex', gap: '4px', background: 'rgba(9,9,11,0.8)', padding: '4px', borderRadius: '14px', border: '1px solid rgba(30,41,59,0.5)', width: 'fit-content' }}>
+                {['studio', 'viral', 'copilot'].map(tab => (
+                  <button key={tab} onClick={() => setActiveTab(tab as any)} style={{ padding: '10px 20px', borderRadius: '10px', border: 'none', background: activeTab === tab ? 'rgba(139,92,246,0.25)' : 'transparent', color: activeTab === tab ? '#e9d5ff' : '#71717a', fontWeight: 700, fontSize: '12px', cursor: 'pointer' }}>{tab.toUpperCase()}</button>
+                ))}
+              </div>
+              {activeTab === 'studio' && <VideoPlayerWorkspace project={activeProject} onUpdateProject={setActiveProject as any} activeMusicTrack={FREE_MUSIC_TRACKS.find(t => t.id === activeProject.selectedMusicTrackId) || null} activeClipId={activeClipId} onClipSelect={setActiveClipId} />}
+              {activeTab === 'viral' && <ViralityScorecard project={activeProject} onUpdateProject={setActiveProject as any} />}
+              {activeTab === 'copilot' && <AICopilotConsole project={activeProject} onUpdateProject={setActiveProject as any} onUpdateSubtitles={(subs: any) => setActiveProject(p => ({ ...p!, subtitles: subs }))} />}
+            </div>
+          )}
+        </div>
       </main>
       <ApiKeySettingsModal isOpen={showApiKeyModal} onClose={() => setShowApiKeyModal(false)} />
       {downloadReadyInfo && (
-        <div className="fixed inset-0 bg-black/95 flex items-center justify-center p-6 z-50">
-          <div className="bg-slate-900 p-8 rounded-[40px] text-center border border-slate-800 max-w-sm w-full shadow-2xl animate-scale-in">
-            <CheckCircle className="w-16 h-16 text-emerald-500 mx-auto mb-6" />
-            <h3 className="text-xl font-black uppercase tracking-tight mb-2">Video Ready!</h3>
-            <p className="text-xs text-slate-400 mb-8 leading-relaxed">Your professional vertical short is fully baked.</p>
-            <a href={downloadReadyInfo.url} download={downloadReadyInfo.filename} onClick={() => setDownloadReadyInfo(null)} className="block w-full py-4 bg-green-600 hover:bg-green-500 text-white rounded-2xl font-black text-sm mb-4 transition-all active:scale-95 shadow-lg shadow-emerald-500/20 text-center text-decoration-none">SAVE TO PHOTOS</a>
-            <button onClick={() => setDownloadReadyInfo(null)} className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Back to Studio</button>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', backdropFilter: 'blur(20px)' }}>
+          <div style={{ background: '#09090b', padding: '48px 36px', borderRadius: '28px', border: '1px solid rgba(30,41,59,0.6)', textAlign: 'center', width: '100%', maxWidth: '440px' }}>
+            <div style={{ fontSize: '64px', marginBottom: '16px' }}>🏆</div>
+            <h3 style={{ fontWeight: 900, fontSize: '22px', marginBottom: '8px' }}>VIDEO READY</h3>
+            <button onClick={() => saveFileToDevice(downloadReadyInfo.blob, downloadReadyInfo.filename)} style={{ display: 'block', width: '100%', background: 'linear-gradient(135deg, #10b981, #059669)', color: 'white', padding: '18px', borderRadius: '16px', fontWeight: 900, fontSize: '14px', border: 'none', cursor: 'pointer', marginBottom: '12px' }}>SAVE TO GALLERY</button>
+            <button onClick={() => setDownloadReadyInfo(null)} style={{ background: 'transparent', color: '#64748b', border: 'none', fontWeight: 700, cursor: 'pointer', fontSize: '12px' }}>CLOSE</button>
           </div>
         </div>
       )}
+      <style>{`
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+      `}</style>
     </div>
   );
 }

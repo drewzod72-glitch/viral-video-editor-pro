@@ -1,42 +1,38 @@
 import { VideoProject, MusicTrack } from './types';
 
-// royalty-free royalty free synth loops, lofi beats, or cinematic track objects including real-world viral social media soundtracks
+// Massive Sonic Matrix — 30 tracks delivered by /public/audio/track-1.mp3..track-30.mp3
+const BASE_AUDIO = '/audio';
+
 export const FREE_MUSIC_TRACKS: MusicTrack[] = [
-  // HYPE / PHONK / ENERGY
-  { id: 'hype-1', name: 'Streetwear Phonk', artist: 'Phonk King', genre: 'Phonk', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3', intensity: 'hype' },
-  { id: 'hype-2', name: 'Cyberpunk Pulse', artist: 'Neon Knight', genre: 'Synthwave', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3', intensity: 'hype' },
-  { id: 'hype-3', name: 'Trap Power', artist: 'Beat Boss', genre: 'Trap', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3', intensity: 'hype' },
-  { id: 'hype-4', name: 'Industrial Grit', artist: 'Steel Mind', genre: 'Industrial', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3', intensity: 'hype' },
-  { id: 'hype-5', name: 'Aggressive Drive', artist: 'Fuel Junkie', genre: 'Rock', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-10.mp3', intensity: 'hype' },
-  { id: 'hype-6', name: 'Phonk Legend', artist: 'Bass Ghost', genre: 'Phonk', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-100.mp3', intensity: 'hype' },
-  { id: 'hype-7', name: 'Turbo Nitro', artist: 'Drift Boy', genre: 'Electronic', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-99.mp3', intensity: 'hype' },
-  
-  // LOFI / CHILL / STUDY
-  { id: 'lofi-1', name: 'Morning Coffee', artist: 'Lofi Curator', genre: 'Lofi', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', intensity: 'lofi' },
-  { id: 'lofi-2', name: 'Rainy Window', artist: 'Soft Keys', genre: 'Ambient', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3', intensity: 'lofi' },
-  { id: 'lofi-3', name: 'Midnight Study', artist: 'Chill Hop', genre: 'Lofi', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-11.mp3', intensity: 'lofi' },
-  { id: 'lofi-4', name: 'Beach Sunset', artist: 'Sand Beats', genre: 'Chill', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-7.mp3', intensity: 'lofi' },
-  { id: 'lofi-5', name: 'Cozy Fireplace', artist: 'Warm Vibes', genre: 'Jazz', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-14.mp3', intensity: 'lofi' },
-  { id: 'lofi-6', name: 'Quiet Garden', artist: 'Nature Boy', genre: 'Ambient', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-98.mp3', intensity: 'lofi' },
-  { id: 'lofi-7', name: 'Vintage Tape', artist: 'Retro Soul', genre: 'Lofi', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-97.mp3', intensity: 'lofi' },
+  // ── HYPE (9) ──────────────────────────────────────────────────────────
+  { id: 'hype-1',  name: 'Viral Hype',         artist: 'AutoViral', genre: 'Hype',      url: `${BASE_AUDIO}/track-1.mp3`,  intensity: 'hype' },
+  { id: 'hype-2',  name: 'Beat Drop Energy',   artist: 'AutoViral', genre: 'Hype',      url: `${BASE_AUDIO}/track-2.mp3`,  intensity: 'hype' },
+  { id: 'hype-3',  name: 'Trap Anthem',        artist: 'AutoViral', genre: 'Hype',      url: `${BASE_AUDIO}/track-3.mp3`,  intensity: 'hype' },
+  { id: 'hype-4',  name: 'Phonk Drift',        artist: 'AutoViral', genre: 'Hype',      url: `${BASE_AUDIO}/track-4.mp3`,  intensity: 'hype' },
+  { id: 'hype-5',  name: 'Street Pulse',       artist: 'AutoViral', genre: 'Hype',      url: `${BASE_AUDIO}/track-5.mp3`,  intensity: 'hype' },
+  { id: 'hype-6',  name: 'Power Surge',        artist: 'AutoViral', genre: 'Hype',      url: `${BASE_AUDIO}/track-6.mp3`,  intensity: 'hype' },
+  { id: 'hype-7',  name: 'Rush Hour',          artist: 'AutoViral', genre: 'Hype',      url: `${BASE_AUDIO}/track-7.mp3`,  intensity: 'hype' },
+  { id: 'hype-8',  name: 'Neon Drive',         artist: 'AutoViral', genre: 'Hype',      url: `${BASE_AUDIO}/track-8.mp3`,  intensity: 'hype' },
+  { id: 'hype-9',  name: 'Adrenaline',         artist: 'AutoViral', genre: 'Hype',      url: `${BASE_AUDIO}/track-9.mp3`,  intensity: 'hype' },
 
-  // CINEMATIC / DRAMATIC / EPIC
-  { id: 'epic-1', name: 'Last Stand', artist: 'Heroic Score', genre: 'Cinematic', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3', intensity: 'cinematic' },
-  { id: 'epic-2', name: 'Dawn of Glory', artist: 'Symphony X', genre: 'Orchestra', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3', intensity: 'cinematic' },
-  { id: 'epic-3', name: 'Ancient Mystery', artist: 'Old Soul', genre: 'World', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-12.mp3', intensity: 'cinematic' },
-  { id: 'epic-4', name: 'The Reveal', artist: 'Plot Twist', genre: 'Drama', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-15.mp3', intensity: 'cinematic' },
-  { id: 'epic-5', name: 'Sky High', artist: 'Aero', genre: 'Atmospheric', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-16.mp3', intensity: 'cinematic' },
-  { id: 'epic-6', name: 'Warlord', artist: 'Combat', genre: 'Battle', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-96.mp3', intensity: 'cinematic' },
-  { id: 'epic-7', name: 'Shadow Realm', artist: 'Fear', genre: 'Dark', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-95.mp3', intensity: 'cinematic' },
+  // ── LOFI (1) ──────────────────────────────────────────────────────────
+  { id: 'lofi-8',  name: 'Sunday Morning',     artist: 'AutoViral', genre: 'Lofi',      url: `${BASE_AUDIO}/track-18.mp3`, intensity: 'lofi' },
 
-  // LUXURY / CLEAN / MINIMAL
-  { id: 'lux-1', name: 'Clean Reveal', artist: 'Minimalist', genre: 'Tech', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-13.mp3', intensity: 'chill' },
-  { id: 'lux-2', name: 'Silk & Satin', artist: 'Vogue', genre: 'Fashion', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-17.mp3', intensity: 'chill' },
-  { id: 'lux-3', name: 'Modern Living', artist: 'Estate', genre: 'Lounge', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-18.mp3', intensity: 'chill' },
-  { id: 'lux-4', name: 'Crystal Clear', artist: 'Prism', genre: 'Electronic', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-19.mp3', intensity: 'chill' },
-  { id: 'lux-5', name: 'Golden Hour', artist: 'Aura', genre: 'Deep House', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-20.mp3', intensity: 'chill' },
-  { id: 'lux-6', name: 'White Marble', artist: 'Pristine', genre: 'Corporate', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-94.mp3', intensity: 'chill' },
-  { id: 'lux-7', name: 'Cloud Nine', artist: 'Float', genre: 'Lounge', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-93.mp3', intensity: 'chill' },
+  // ── CINEMATIC (7) ─────────────────────────────────────────────────────
+  { id: 'epic-1',  name: 'Cinematic Reveal',   artist: 'AutoViral', genre: 'Cinematic', url: `${BASE_AUDIO}/track-19.mp3`, intensity: 'cinematic' },
+  { id: 'epic-2',  name: 'Epic Trailer',       artist: 'AutoViral', genre: 'Cinematic', url: `${BASE_AUDIO}/track-20.mp3`, intensity: 'cinematic' },
+  { id: 'epic-3',  name: 'Dark Orchestra',     artist: 'AutoViral', genre: 'Cinematic', url: `${BASE_AUDIO}/track-21.mp3`, intensity: 'cinematic' },
+  { id: 'epic-4',  name: 'Heroic Rise',        artist: 'AutoViral', genre: 'Cinematic', url: `${BASE_AUDIO}/track-22.mp3`, intensity: 'cinematic' },
+  { id: 'epic-5',  name: 'Cinematic Tension',  artist: 'AutoViral', genre: 'Cinematic', url: `${BASE_AUDIO}/track-23.mp3`, intensity: 'cinematic' },
+  { id: 'epic-6',  name: 'Orchestral Pulse',   artist: 'AutoViral', genre: 'Cinematic', url: `${BASE_AUDIO}/track-24.mp3`, intensity: 'cinematic' },
+  { id: 'epic-7',  name: 'Final Stand',        artist: 'AutoViral', genre: 'Cinematic', url: `${BASE_AUDIO}/track-25.mp3`, intensity: 'cinematic' },
+
+  // ── TECH / CHILL (5) ──────────────────────────────────────────────────
+  { id: 'tech-1',  name: 'Digital Pulse',      artist: 'AutoViral', genre: 'Tech',      url: `${BASE_AUDIO}/track-26.mp3`, intensity: 'chill' },
+  { id: 'tech-2',  name: 'Synthwave Grid',     artist: 'AutoViral', genre: 'Tech',      url: `${BASE_AUDIO}/track-27.mp3`, intensity: 'chill' },
+  { id: 'tech-3',  name: 'Cyber Glitch',       artist: 'AutoViral', genre: 'Tech',      url: `${BASE_AUDIO}/track-28.mp3`, intensity: 'chill' },
+  { id: 'tech-4',  name: 'AI Circuit',         artist: 'AutoViral', genre: 'Tech',      url: `${BASE_AUDIO}/track-29.mp3`, intensity: 'chill' },
+  { id: 'tech-5',  name: 'Neon Server',        artist: 'AutoViral', genre: 'Tech',      url: `${BASE_AUDIO}/track-30.mp3`, intensity: 'chill' },
 ];
 
 export const RAW_VIDEO_TEMPLATES = [
@@ -44,7 +40,7 @@ export const RAW_VIDEO_TEMPLATES = [
     id: 'template-cooking',
     name: 'Sizzling Garlic Ribeye Steak (Cooking)',
     niche: 'cooking' as const,
-    videoUrl: 'https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4', // beautiful vertical steak prep from Pexels
+    videoUrl: 'https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4',
     originalDuration: 30,
     userDescription: 'Cooking a juicy, thick ribeye steak in a piping hot cast iron skillet with generous butter, fresh garlic cloves, and rosemary sprigs. Real fast sizzle sequence.',
     defaultTranscribe: 'Yo! Check this out! Today, we are cooking the ultimate juicy ribeye steak in a piping hot cast iron skillet. First, we get a beautiful sear on high heat. Look at that gorgeous crust! Now, we toss in a massive chunk of unsalted butter, crushed fresh garlic, and green rosemary sprigs. Keep spooning that rich garlic butter over the steak. Hear that beautiful sizzle? Slice it open, perfect medium rare, absolutely mouthwatering! Let\'s eat!'
@@ -71,7 +67,7 @@ export const RAW_VIDEO_TEMPLATES = [
     id: 'template-podcast',
     name: 'AI & The Future of Creator Economy (Podcast)',
     niche: 'education' as const,
-    videoUrl: 'https://raw.githubusercontent.com/intel-iot-devkit/sample-videos/master/store-aisle-detection.mp4', // vertical podcast speaker interview from Pexels
+    videoUrl: 'https://raw.githubusercontent.com/intel-iot-devkit/sample-videos/master/store-aisle-detection.mp4',
     originalDuration: 40,
     userDescription: 'Two tech podcasters debating how automated AI tools are going to give standard creators super powers to edit videos in under 5 seconds with zero code or costs.',
     defaultTranscribe: 'Do you realize how insanely fast creator tools are changing? Literally, six months ago, if you wanted a cinematic short clip, you had to hire a professional video editor, pay them hundreds of dollars, and wait three days for the final render. Now, the absolute crazy thing is that anyone with a simple raw smartphone vlog can press one button and completely automate the hook, sync the dynamic subtitles, and analyze the optimal retention curve. It feels illegal to use this for free!'
@@ -80,7 +76,7 @@ export const RAW_VIDEO_TEMPLATES = [
     id: 'template-fitness',
     name: 'Insane Kinetic Core Workout (Fitness)',
     niche: 'fitness' as const,
-    videoUrl: 'https://test-videos.co.uk/vids/jellyfish/mp4/h264/360/Jellyfish_360_10s_1MB.mp4', // vertical fitness exercise active from Pexels
+    videoUrl: 'https://test-videos.co.uk/vids/jellyfish/mp4/h264/360/Jellyfish_360_10s_1MB.mp4',
     originalDuration: 25,
     userDescription: 'High energy vertical shot of an athlete crushing heavy workout sequence. Strong motivational tone about zero excuses.',
     defaultTranscribe: 'Stop scrolling! No excuses. It is exactly five AM, the whole world is fast asleep, and you are still lying in bed thinking about what is coming tomorrow. Get up right now! Every single repetition you skip, your competitor is hitting with double intensity. We are pushing today beyond limits, testing our willpower, and building real focus. Remember, progress does not care about your feelings. Put in the work, grind hard, and let\'s dominate this day!'
@@ -107,7 +103,7 @@ export const RAW_VIDEO_TEMPLATES = [
     id: 'template-tech',
     name: 'Mechanical Keyboard Satisfying Build (Tech)',
     niche: 'tech' as const,
-    videoUrl: 'https://raw.githubusercontent.com/intel-iot-devkit/sample-videos/master/people-detection.mp4', // keyboard work vertical from Pexels
+    videoUrl: 'https://raw.githubusercontent.com/intel-iot-devkit/sample-videos/master/people-detection.mp4',
     originalDuration: 35,
     userDescription: 'Satisfying sound review and keycaps installation of custom custom linear mechanical keyboard. ASMR keyboard building vibe.',
     defaultTranscribe: 'This is officially the most satisfying mechanical keyboard build I have ever laid mine eyes on. These switches are butter-smooth linear switches lubricated by hand with genuine grease. Let\'s click them in. Listen to that deep, creamy, thocky sound. Now we mount these aesthetic retro PBT keycaps. Testing keys in 3, 2, 1... Oh, my goodness, the feedback is absolutely mind-blowing. Is this keyboard perfection?'
