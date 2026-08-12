@@ -61,7 +61,7 @@ export default function App() {
       description: template.userDescription || '',
       subtitles: [],
       highlights: [{ id: '1', title: 'Full Clip', start: 0, end: 30 }],
-      selectedMusicTrackId: 'lofi-8',
+      selectedMusicTrackId: 'lofi-1',
       captionStyle: 'hormozi',
       colorGrade: 'vibrant_pop',
       enableSubtitles: true, enableZooms: true, musicVolume: 0.4,
@@ -156,9 +156,9 @@ export default function App() {
       const { blob, extension } = result;
       
       // Size-Gate: if too small, silently re-render once
-      if (blob && blob.size > 100_000) {
+      if (blob && blob.size > 500_000) {
         setDownloadReadyInfo({ blob, filename: `${activeProject.name}_viral.${extension}` });
-      } else if (blob && blob.size <= 100_000) {
+      } else if (blob && blob.size <= 500_000) {
         setProcessingStage("Re-rendering...");
         const retryResult = await renderVideoInBrowser(
           activeProject,
@@ -166,7 +166,7 @@ export default function App() {
           activeClipId
         );
         const { blob: retryBlob, extension: retryExt } = retryResult;
-        if (retryBlob && retryBlob.size > 100_000) {
+        if (retryBlob && retryBlob.size > 500_000) {
           setDownloadReadyInfo({ blob: retryBlob, filename: `${activeProject.name}_viral.${retryExt}` });
         } else {
           alert('Export failed. Rendered file is empty or too small after retry.');
@@ -671,7 +671,9 @@ export default function App() {
               SAVE TO GALLERY
             </button>
             <button
-              onClick={() => setDownloadReadyInfo(null)}
+              onClick={() => {
+                setDownloadReadyInfo(null);
+              }}
               style={{ background: 'transparent', color: '#64748b', border: 'none', fontWeight: 700, cursor: 'pointer', fontSize: '12px', fontFamily: '"Inter", sans-serif' }}
             >
               CLOSE

@@ -87,14 +87,16 @@ export const AICopilotConsole: React.FC<any> = ({
       // Director Feedback: make the AI's decision explicit
       const subCount = data.subtitles?.length || 0;
       let advice = data.advice || 'Optimization complete.';
-      if (actionType === 'hookboost' && subCount > 0) {
-        advice = `Director's note: I kept the visual clean and strengthened ${subCount} hook captions to maximize retention in the first 3 seconds.`;
-      } else if (actionType === 'spellcheck' && subCount > 0) {
-        advice = `Director's note: Auto-corrected ${subCount} captions for maximum readability.`;
-      } else if (actionType === 'pacing') {
-        advice = `Director's note: Tightened the pacing. Removed dead air and accelerated cut transitions to keep viewers watching.`;
-      } else if (actionType === 'gaprepair') {
-        advice = `Director's note: Cleaned up ${subCount} caption gaps. The flow is now seamless.`;
+      if (!data.advice || data.advice.trim() === '' || data.advice === 'Optimization complete.') {
+        if (actionType === 'hookboost' && subCount > 0) {
+          advice = `Director's note: I kept the visual clean and strengthened ${subCount} hook captions to maximize retention in the first 3 seconds.`;
+        } else if (actionType === 'spellcheck' && subCount > 0) {
+          advice = `Director's note: Auto-corrected ${subCount} captions for maximum readability.`;
+        } else if (actionType === 'pacing') {
+          advice = `Director's note: Tightened the pacing. Removed dead air and accelerated cut transitions to keep viewers watching.`;
+        } else if (actionType === 'gaprepair') {
+          advice = `Director's note: Cleaned up ${subCount} caption gaps. The flow is now seamless.`;
+        }
       }
       
       setAiResponse(advice);
@@ -403,7 +405,7 @@ export const AICopilotConsole: React.FC<any> = ({
             <MessageSquare size={12} />
             RESPONSE_STREAM.log
           </div>
-          {responseLines.length === 0 && (
+          {responseLines.length === 0 && !isLoading && (
             <div style={{ color: '#475569' }}>
               {aiResponse}
             </div>
@@ -417,6 +419,11 @@ export const AICopilotConsole: React.FC<any> = ({
               {line}
             </div>
           ))}
+          {!isLoading && responseLines.length > 0 && (
+            <div style={{ color: '#475569', marginTop: '8px', borderTop: '1px solid #18181b', paddingTop: '8px' }}>
+              {aiResponse}
+            </div>
+          )}
           {isLoading && (
             <div style={{ color: '#8b5cf6', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span style={{

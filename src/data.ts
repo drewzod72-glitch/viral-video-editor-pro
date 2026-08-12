@@ -1,39 +1,17 @@
 import { VideoProject, MusicTrack } from './types';
 
 // Massive Sonic Matrix — mapped to existing /public/audio files only.
-// Verified existing: track-1.mp3 through track-9.mp3, track-18.mp3 through track-30.mp3.
 const BASE_AUDIO = '/audio';
 
 export const FREE_MUSIC_TRACKS: MusicTrack[] = [
-  // ── HYPE (9) ──────────────────────────────────────────────────────────
-  { id: 'hype-1',  name: 'Viral Hype',         artist: 'AutoViral', genre: 'Hype',      url: `${BASE_AUDIO}/track-1.mp3`,  intensity: 'hype' },
-  { id: 'hype-2',  name: 'Beat Drop Energy',   artist: 'AutoViral', genre: 'Hype',      url: `${BASE_AUDIO}/track-2.mp3`,  intensity: 'hype' },
-  { id: 'hype-3',  name: 'Trap Anthem',        artist: 'AutoViral', genre: 'Hype',      url: `${BASE_AUDIO}/track-3.mp3`,  intensity: 'hype' },
-  { id: 'hype-4',  name: 'Phonk Drift',        artist: 'AutoViral', genre: 'Hype',      url: `${BASE_AUDIO}/track-4.mp3`,  intensity: 'hype' },
-  { id: 'hype-5',  name: 'Street Pulse',       artist: 'AutoViral', genre: 'Hype',      url: `${BASE_AUDIO}/track-5.mp3`,  intensity: 'hype' },
-  { id: 'hype-6',  name: 'Power Surge',        artist: 'AutoViral', genre: 'Hype',      url: `${BASE_AUDIO}/track-6.mp3`,  intensity: 'hype' },
-  { id: 'hype-7',  name: 'Rush Hour',          artist: 'AutoViral', genre: 'Hype',      url: `${BASE_AUDIO}/track-7.mp3`,  intensity: 'hype' },
-  { id: 'hype-8',  name: 'Neon Drive',         artist: 'AutoViral', genre: 'Hype',      url: `${BASE_AUDIO}/track-8.mp3`,  intensity: 'hype' },
-  { id: 'hype-9',  name: 'Adrenaline',         artist: 'AutoViral', genre: 'Hype',      url: `${BASE_AUDIO}/track-9.mp3`,  intensity: 'hype' },
+  // ── HYPE (1) ──────────────────────────────────────────────────────────
+  { id: 'hype-1',  name: 'Viral Hype',         artist: 'AutoViral', genre: 'Hype',      url: `${BASE_AUDIO}/hype-1.mp3`,  intensity: 'hype' },
 
   // ── LOFI (1) ──────────────────────────────────────────────────────────
-  { id: 'lofi-8',  name: 'Sunday Morning',     artist: 'AutoViral', genre: 'Lofi',      url: `${BASE_AUDIO}/track-18.mp3`, intensity: 'lofi' },
+  { id: 'lofi-1',  name: 'Sunday Morning',     artist: 'AutoViral', genre: 'Lofi',      url: `${BASE_AUDIO}/lofi-1.mp3`,  intensity: 'lofi' },
 
-  // ── CINEMATIC (7) ─────────────────────────────────────────────────────
-  { id: 'epic-1',  name: 'Cinematic Reveal',   artist: 'AutoViral', genre: 'Cinematic', url: `${BASE_AUDIO}/track-19.mp3`, intensity: 'cinematic' },
-  { id: 'epic-2',  name: 'Epic Trailer',       artist: 'AutoViral', genre: 'Cinematic', url: `${BASE_AUDIO}/track-20.mp3`, intensity: 'cinematic' },
-  { id: 'epic-3',  name: 'Dark Orchestra',     artist: 'AutoViral', genre: 'Cinematic', url: `${BASE_AUDIO}/track-21.mp3`, intensity: 'cinematic' },
-  { id: 'epic-4',  name: 'Heroic Rise',        artist: 'AutoViral', genre: 'Cinematic', url: `${BASE_AUDIO}/track-22.mp3`, intensity: 'cinematic' },
-  { id: 'epic-5',  name: 'Cinematic Tension',  artist: 'AutoViral', genre: 'Cinematic', url: `${BASE_AUDIO}/track-23.mp3`, intensity: 'cinematic' },
-  { id: 'epic-6',  name: 'Orchestral Pulse',   artist: 'AutoViral', genre: 'Cinematic', url: `${BASE_AUDIO}/track-24.mp3`, intensity: 'cinematic' },
-  { id: 'epic-7',  name: 'Final Stand',        artist: 'AutoViral', genre: 'Cinematic', url: `${BASE_AUDIO}/track-25.mp3`, intensity: 'cinematic' },
-
-  // ── TECH / CHILL (5) ──────────────────────────────────────────────────
-  { id: 'tech-1',  name: 'Digital Pulse',      artist: 'AutoViral', genre: 'Tech',      url: `${BASE_AUDIO}/track-26.mp3`, intensity: 'chill' },
-  { id: 'tech-2',  name: 'Synthwave Grid',     artist: 'AutoViral', genre: 'Tech',      url: `${BASE_AUDIO}/track-27.mp3`, intensity: 'chill' },
-  { id: 'tech-3',  name: 'Cyber Glitch',       artist: 'AutoViral', genre: 'Tech',      url: `${BASE_AUDIO}/track-28.mp3`, intensity: 'chill' },
-  { id: 'tech-4',  name: 'AI Circuit',         artist: 'AutoViral', genre: 'Tech',      url: `${BASE_AUDIO}/track-29.mp3`, intensity: 'chill' },
-  { id: 'tech-5',  name: 'Neon Server',        artist: 'AutoViral', genre: 'Tech',      url: `${BASE_AUDIO}/track-30.mp3`, intensity: 'chill' },
+  // ── CINEMATIC (1) ─────────────────────────────────────────────────────
+  { id: 'epic-1',  name: 'Cinematic Reveal',   artist: 'AutoViral', genre: 'Cinematic', url: `${BASE_AUDIO}/epic-1.mp3`, intensity: 'cinematic' },
 ];
 
 export const RAW_VIDEO_TEMPLATES = [

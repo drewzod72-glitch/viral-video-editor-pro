@@ -90,11 +90,6 @@ export async function saveFileToDevice(blob: Blob, filename: string): Promise<vo
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-
-      // Also try opening in new tab as ultimate fallback
-      setTimeout(() => {
-        window.open(objectUrl, '_blank');
-      }, 500);
     } else {
       // Desktop / Android: standard anchor download
       const a = document.createElement('a');

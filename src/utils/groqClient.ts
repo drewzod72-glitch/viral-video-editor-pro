@@ -32,7 +32,7 @@ const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const TEXT_MODELS = [
   'llama-3.3-70b-versatile',
   'llama-3.1-8b-instant',
-  'llama-3.2-90b-text-preview',
+  'llama-3.1-70b-versatile',
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

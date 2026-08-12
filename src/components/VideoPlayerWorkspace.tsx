@@ -30,6 +30,7 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
   const vRef = useRef<HTMLVideoElement>(null);
   const aRef = useRef<HTMLAudioElement>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
   const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -98,7 +99,7 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
         if (s?.id !== lastSubIdRef.current) {
           setActiveSub(s || null);
           setLastSubId(s?.id || null);
-          if (s && sfxPopEnabledRef.current) playViralSFX('pop');
+          if (s && sfxPopEnabledRef.current) playViralSFX('pop', undefined, audioCtxRef.current || undefined);
         }
 
         let zScale = 1.0;
@@ -109,7 +110,7 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
         if (currentZoomRef.current !== zScale) setCurrentZoom(zScale);
 
         const hl = activeHighlightsRef.current.find((h: any) => h.id === activeClipIdRef.current);
-        if (hl && t >= hl.end) {
+        if (hl && t >= hl.end && (hl.end - hl.start) > 0.05) {
           v.currentTime = hl.start;
           setTime(hl.start);
         }
@@ -135,6 +136,17 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
     }
   }, [playing, activeMusicTrack, volume]);
 
+  // Ensure AudioContext exists and is resumed for SFX
+  useEffect(() => {
+    const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
+    if (!audioCtxRef.current && AudioCtx) {
+      audioCtxRef.current = new AudioCtx();
+    }
+    if (audioCtxRef.current?.state === 'suspended') {
+      audioCtxRef.current.resume();
+    }
+  }, []);
+
   // Load video duration
   useEffect(() => {
     const v = vRef.current;
@@ -151,14 +163,33 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
   }, [project.subtitles, project.highlights, activeClipId]);
 
   // Timeline scrubber
-  const handleTimelineClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+  const handleTimelineInteraction = useCallback((clientX: number) => {
     if (!timelineRef.current || !vRef.current) return;
     const rect = timelineRef.current.getBoundingClientRect();
-    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
     const newTime = clipStart + pct * clipDuration;
     vRef.current.currentTime = newTime;
     setTime(newTime);
   }, [clipStart, clipDuration]);
+
+  const handleTimelineClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    handleTimelineInteraction(e.clientX);
+  }, [handleTimelineInteraction]);
+
+  const handleTimelineTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+    setIsDragging(true);
+    handleTimelineInteraction(e.touches[0].clientX);
+  }, [handleTimelineInteraction]);
+
+  const handleTimelineTouchMove = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+    if (isDraggingRef.current) {
+      handleTimelineInteraction(e.touches[0].clientX);
+    }
+  }, [handleTimelineInteraction]);
+
+  const handleTimelineTouchEnd = useCallback(() => {
+    setIsDragging(false);
+  }, []);
 
   const toggle = useCallback(() => {
     if (!vRef.current) return;
@@ -201,7 +232,7 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
     return () => window.removeEventListener('keydown', handleKey);
   }, [toggle, skip]);
 
-  const progressPct = duration > 0 ? ((time - clipStart) / clipDuration) * 100 : 0;
+  const progressPct = duration > 0 ? Math.max(0, Math.min(100, ((time - clipStart) / clipDuration) * 100)) : 0;
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', paddingBottom: '40px' }}>
@@ -413,6 +444,9 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
           <div
             ref={timelineRef}
             onClick={handleTimelineClick}
+            onTouchStart={handleTimelineTouchStart}
+            onTouchMove={handleTimelineTouchMove}
+            onTouchEnd={handleTimelineTouchEnd}
             style={{
               width: '100%', height: '32px',
               background: 'rgba(30,41,59,0.3)',
@@ -420,7 +454,8 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
               cursor: 'pointer',
               position: 'relative',
               overflow: 'hidden',
-              border: '1px solid rgba(30,41,59,0.4)'
+              border: '1px solid rgba(30,41,59,0.4)',
+              touchAction: 'none'
             }}
           >
             {/* Progress fill */}
