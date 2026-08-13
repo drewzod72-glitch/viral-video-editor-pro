@@ -58,7 +58,6 @@ export default function App() {
       videoUrl: template.videoUrl,
       name: template.name,
       type: 'sample',
-      videoUrl: template.videoUrl,
       duration: template.originalDuration || 30,
       originalDuration: template.originalDuration || 30,
       userDescription: template.userDescription || '',

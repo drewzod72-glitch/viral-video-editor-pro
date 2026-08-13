@@ -194,8 +194,8 @@ export async function renderVideoInBrowser(
           ? [project.highlights.find((h: any) => h.id === activeClipId)].filter(Boolean)
           : [{ start: 0, end: video.duration || 30, duration: video.duration || 30 }];
 
-      const totalDuration = highlights.reduce(
-        (s, h) => s + (h.duration || (h.end - h.start)),
+      const totalDuration = (highlights as Array<{ duration?: number; start?: number; end?: number }>).reduce(
+        (s, h) => s + (h.duration || ((h.end ?? 0) - (h.start ?? 0)) || 0),
         0
       );
       const totalFrames = Math.max(1, Math.floor(totalDuration * FPS));
@@ -251,7 +251,7 @@ export async function renderVideoInBrowser(
           const originalHandler = recorder.ondataavailable;
           recorder.ondataavailable = (e: BlobEvent) => {
             if (e.data.size > 0) checkGate();
-            if (originalHandler) originalHandler(e);
+            if (originalHandler) originalHandler.call(recorder, e);
           };
         });
       } catch (gateError: any) {
@@ -289,7 +289,7 @@ export async function renderVideoInBrowser(
           const originalHandler = recorder.ondataavailable;
           recorder.ondataavailable = (e: BlobEvent) => {
             if (e.data.size > 0) checkGate();
-            if (originalHandler) originalHandler(e);
+            if (originalHandler) originalHandler.call(recorder, e);
           };
         });
       }

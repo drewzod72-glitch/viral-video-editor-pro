@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { VideoProject } from '../types';
 import { FREE_MUSIC_TRACKS } from '../data';
 import { ThumbnailGenerator } from './ThumbnailGenerator';
+import { playViralSFX } from '../utils/sfx';
 
 const fixDunikTypo = (str: string) => str?.replace(/dunik/gi, 'Dunk') || '';
 
