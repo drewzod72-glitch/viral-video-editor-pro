@@ -1,469 +1,298 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { VideoProject, MusicTrack, getCaptionStyles } from '../types';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
+import { VideoProject } from '../types';
 import { FREE_MUSIC_TRACKS } from '../data';
-import { playViralSFX } from '../utils/sfx';
 import { ThumbnailGenerator } from './ThumbnailGenerator';
-import {
-  Play,
-  Pause,
-  RotateCcw,
-  Volume2,
-  VolumeX,
-  Sliders,
-  Sparkles,
-  Tv,
-  Scissors,
-  Music,
-  Smartphone,
-  Grid,
-  Heart,
-  MessageSquare,
-  Bookmark,
-  Share2,
-  Disc,
-  Wand2,
-  Zap,
-  Flame,
-  CheckCircle2
-} from 'lucide-react';
+import { playViralSFX } from '../utils/sfx';
 
-const fixDunikTypo = (str: string): string => {
-  if (!str) return str;
-  return str.replace(/dunik/gi, (match) => {
-    if (match === match.toUpperCase()) return 'DUNK';
-    if (match === match.toLowerCase()) return 'dunk';
-    if (match[0] === match[0].toUpperCase()) return 'Dunk';
-    return 'Dunk';
-  });
-};
+const fixDunikTypo = (str: string) => str?.replace(/dunik/gi, 'Dunk') || '';
 
-interface VideoPlayerWorkspaceProps {
-  project: VideoProject;
-  activeMusicTrack: MusicTrack | null;
-  activeClipId: string | null;
-  onClipSelect: (clipId: string | null) => void;
-  onUpdateProject: (updated: VideoProject) => void;
-  requestedSeekTime?: number | null;
-  onSeekConsumed?: () => void;
-}
+const MOOD_CATEGORIES = [
+  { key: 'hype', label: 'Hype', emoji: '🔥', color: '#ef4444' },
+  { key: 'lofi', label: 'Lofi', emoji: '☕', color: '#f59e0b' },
+  { key: 'cinematic', label: 'Cinematic', emoji: '🎬', color: '#8b5cf6' },
+  { key: 'chill', label: 'Tech / Chill', emoji: '💿', color: '#06b6d4' },
+] as const;
 
-export default function VideoPlayerWorkspace({
-  project,
-  activeMusicTrack,
-  activeClipId,
-  onClipSelect,
-  onUpdateProject,
-  requestedSeekTime,
-  onSeekConsumed,
-}: VideoPlayerWorkspaceProps) {
-  // Safety check for project object
-  if (!project) return <div className="p-20 text-center uppercase font-black text-slate-500">Loading Workspace...</div>;
+export default function VideoPlayerWorkspace({ project, activeMusicTrack, activeClipId, onClipSelect, onUpdateProject }: any) {
+  if (!project) return null;
 
-  // Destructure persistent settings with fallbacks to prevent ReferenceErrors
-  const { 
+  const {
     enableSubtitles = true,
     enableZooms = true,
-    enableColorGrade = true,
     musicVolume = 0.4,
-    jumpCuts = true,
-    speedRamp = true,
-    sfxSparks = true,
-    emojiBounces = true,
-    autoZoomPunch = true,
+    enableColorGrade = true,
     shakeOnPunch = true,
-    camRecorderHUD = false,
-    captionRotation = 0,
-    captionPosition = 'bottom'
+    autoZoomPunch = true
   } = project;
 
-  // Use a local internal reference for highlights to avoid ReferenceError
   const activeHighlights = project.highlights || [];
+  const updateSettings = (up: any) => onUpdateProject({ ...project, ...up });
 
-  // Local helper for state updates
-  const updateSettings = (updates: Partial<VideoProject>) => onUpdateProject({ ...project, ...updates });
+  const vRef = useRef<HTMLVideoElement>(null);
+  const aRef = useRef<HTMLAudioElement>(null);
+  const timelineRef = useRef<HTMLDivElement>(null);
 
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const musicAudioRef = useRef<HTMLAudioElement>(null);
-  const stageRef = useRef<HTMLDivElement>(null);
-  const loadedMusicTrackIdRef = useRef<string | null>(null);
+  // States
+  const [playing, setPlaying] = useState(false);
+  const [time, setTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [activeSub, setActiveSub] = useState<any>(null);
+  const [lastSubId, setLastSubId] = useState<string | null>(null);
+  const [currentZoom, setCurrentZoom] = useState(1);
+  const [volume, setVolume] = useState(musicVolume);
+  const [showSafeZone, setShowSafeZone] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [musicMood, setMusicMood] = useState<string>('hype');
 
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [videoDuration, setVideoDuration] = useState(project?.duration || 30);
-  const [currentZoomScale, setCurrentZoomScale] = useState(1);
-  const [activeSubtitle, setActiveSubtitle] = useState<any>(null);
-  const [stageWidth, setStageWidth] = useState<number>(281);
-  const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
-  const [analyzeStep, setAnalyzeStep] = useState<number>(0);
-  const [isShaking, setIsShaking] = useState<boolean>(false);
-  const [isMuted, setIsMuted] = useState(false);
-  
-  // Custom Trimmer State (to prevent ReferenceError on delete/apply)
-  const [clipEditTitle, setClipEditTitle] = useState('');
-  
-  // Internal behavior settings
-  const autoDucking = true;
-  const continuousMusic = true;
+  // Sync Refs (Kilo Fix)
+  const playingRef = useRef(playing);
+  const isDraggingRef = useRef(isDragging);
+  const zoomRef = useRef(currentZoom);
+  const projectRef = useRef(project);
+  const activeClipIdRef = useRef(activeClipId);
+  const highlightsRef = useRef(activeHighlights);
+  const lastSubIdRef = useRef(lastSubId);
 
-  // Social Stats
-  const [mockupMode, setMockupMode] = useState<'none' | 'tiktok' | 'reels' | 'shorts'>('none');
-  const [showSafeZone, setShowSafeZone] = useState<boolean>(false);
-  const [showHeartPop, setShowHeartPop] = useState<{ x: number; y: number; id: number }[]>([]);
+  useEffect(() => { playingRef.current = playing; }, [playing]);
+  useEffect(() => { isDraggingRef.current = isDragging; }, [isDragging]);
+  useEffect(() => { zoomRef.current = currentZoom; }, [currentZoom]);
+  useEffect(() => { projectRef.current = project; }, [project]);
+  useEffect(() => { activeClipIdRef.current = activeClipId; }, [activeClipId]);
+  useEffect(() => { highlightsRef.current = activeHighlights; }, [activeHighlights]);
+  useEffect(() => { lastSubIdRef.current = lastSubId; }, [lastSubId]);
 
-  // Music Search
-  const [musicSearchQuery, setMusicSearchQuery] = useState('');
-  const [activeMoodFilter, setActiveMoodFilter] = useState<'all' | 'lofi' | 'hype' | 'chill' | 'cinematic'>('all');
+  const currentHighlight = activeClipId
+    ? activeHighlights.find((h: any) => h.id === activeClipId)
+    : null;
+  const clipStart = currentHighlight?.start ?? 0;
+  const clipEnd = currentHighlight?.end ?? duration;
+  const clipDuration = clipEnd - clipStart || duration;
 
-  const filteredMusic = FREE_MUSIC_TRACKS.filter((t) => {
-    const matchesSearch = t.name.toLowerCase().includes(musicSearchQuery.toLowerCase()) || 
-                         t.genre.toLowerCase().includes(musicSearchQuery.toLowerCase());
-    const matchesMood = activeMoodFilter === 'all' || t.intensity === activeMoodFilter;
-    return matchesSearch && matchesMood;
-  });
+  const filteredTracks = FREE_MUSIC_TRACKS.filter(t => t.intensity === musicMood);
 
-  const triggerTransition = (type?: string) => {
-    const t = type || project.transitionStyle || 'flash';
-    if (t === 'none') return;
-    if (project.sfxWhooshEnabled !== false) playViralSFX('swoosh');
-  };
-
+  // UI Heartbeat Interval (Kilo Fix)
   useEffect(() => {
-    if (!stageRef.current) return;
-    const observer = new ResizeObserver((entries) => {
-      for (let entry of entries) {
-        if (entry.contentRect && entry.contentRect.width > 0) setStageWidth(entry.contentRect.width);
+    const heartbeat = setInterval(() => {
+      if (vRef.current && playingRef.current && !isDraggingRef.current) {
+        setTime(vRef.current.currentTime);
       }
-    });
-    observer.observe(stageRef.current);
-    return () => observer.disconnect();
+    }, 500);
+    return () => clearInterval(heartbeat);
   }, []);
 
+  // MASTER SYNC LOOP - Empty Dependency Array (Kilo Fix)
   useEffect(() => {
-    if (musicAudioRef.current) {
-      const vol = isMuted ? 0 : (autoDucking && activeSubtitle ? musicVolume * 0.25 : musicVolume);
-      musicAudioRef.current.volume = Math.max(0, Math.min(1, vol));
-    }
-  }, [musicVolume, isMuted, activeSubtitle, autoDucking]);
+    let raf: number;
+    let lastLoopT = 0;
+    const loop = (now: number) => {
+      const v = vRef.current;
+      if (v && playingRef.current && !isDraggingRef.current) {
+        const t = v.currentTime;
+        // setTime(t); // Moved to heartbeat for performance/stability
 
-  useEffect(() => {
-    if (musicAudioRef.current && activeMusicTrack) {
-      if (loadedMusicTrackIdRef.current !== activeMusicTrack.id) {
-        musicAudioRef.current.src = activeMusicTrack.url;
-        musicAudioRef.current.load();
-        loadedMusicTrackIdRef.current = activeMusicTrack.id;
+        if (now - lastLoopT > 100) {
+          const proj = projectRef.current;
+          const s = proj.subtitles?.find((i: any) => t >= i.start && t <= i.end);
+          
+          if (s?.id !== lastSubIdRef.current) {
+            setActiveSub(s || null);
+            setLastSubId(s?.id || null);
+            lastSubIdRef.current = s?.id || null;
+            if (s && proj.sfxPopEnabled) playViralSFX('pop');
+          }
+
+          let zScale = 1.0;
+          if (proj.enableZooms) {
+            const zoom = proj.zoomEffects?.find((z: any) => t >= z.timestamp && t <= z.timestamp + z.duration);
+            zScale = zoom ? zoom.scale : (proj.autoZoomPunch && s ? 1.22 : 1.0);
+          }
+          if (zoomRef.current !== zScale) {
+            setCurrentZoom(zScale);
+            zoomRef.current = zScale;
+          }
+
+          const hl = highlightsRef.current.find((h: any) => h.id === activeClipIdRef.current);
+          if (hl && t >= hl.end) { v.currentTime = hl.start; }
+
+          lastLoopT = now;
+        }
       }
-      if (isPlaying || continuousMusic) musicAudioRef.current.play().catch(() => {});
-      else musicAudioRef.current.pause();
-    }
-  }, [activeMusicTrack, isPlaying, continuousMusic]);
-
-  const selectedClip = activeHighlights.find((c: any) => c.id === activeClipId);
-  const startLimit = selectedClip ? selectedClip.start : 0;
-  const endLimit = selectedClip ? selectedClip.end : (project.duration || 30);
-
-  // Helper functions for Trimmer
-  const handleAddCustomClip = () => {
-    const newId = `clip-${Date.now()}`;
-    const newHl = {
-      id: newId,
-      title: 'New Cut',
-      start: currentTime,
-      end: Math.min(currentTime + 5, videoDuration),
-      viralityScore: 85
+      raf = requestAnimationFrame(loop);
     };
-    onUpdateProject({ ...project, highlights: [...activeHighlights, newHl] });
-    onClipSelect(newId);
-  };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, []);
 
-  const handleApplyTrim = () => {
-    if (!activeClipId) return;
-    const updatedHls = activeHighlights.map((h: any) => 
-      h.id === activeClipId ? { ...h, title: clipEditTitle || h.title } : h
-    );
-    onUpdateProject({ ...project, highlights: updatedHls });
-  };
-
-  const handleDeleteClip = (id: string) => {
-    onUpdateProject({ ...project, highlights: activeHighlights.filter((h: any) => h.id !== id) });
-    onClipSelect(null);
-  };
-
-  const togglePlay = () => {
-    if (!videoRef.current) return;
-    const video = videoRef.current;
-    const audio = musicAudioRef.current;
-
-    try {
-      const AudioCtxClass = (window as any).AudioContext || (window as any).webkitAudioContext;
-      if (!(window as any)._viralAudioCtx) (window as any)._viralAudioCtx = new AudioCtxClass();
-      if ((window as any)._viralAudioCtx.state === 'suspended') (window as any)._viralAudioCtx.resume();
-    } catch (e) {}
-
-    if (video.paused) {
-      if (video.currentTime < startLimit - 0.1 || video.currentTime >= endLimit - 0.1) video.currentTime = startLimit;
-      if (audio && activeMusicTrack) {
-        if (!audio.src || !audio.src.includes(activeMusicTrack.url)) {
-           audio.src = activeMusicTrack.url;
-           audio.load();
-        }
-        audio.currentTime = Math.max(0, video.currentTime - startLimit);
-        audio.play().catch(() => {
-           setTimeout(() => audio.play().catch(() => {}), 150);
-        });
+  // AUDIO LOCK
+  useEffect(() => {
+    if (!aRef.current) return;
+    if (activeMusicTrack && playing) {
+      if (aRef.current.src !== activeMusicTrack.url) {
+        aRef.current.src = activeMusicTrack.url;
+        aRef.current.load();
       }
-      video.play().catch(() => {});
-      setIsPlaying(true);
+      aRef.current.volume = volume;
+      aRef.current.play().catch(() => {});
     } else {
-      video.pause();
-      if (audio) audio.pause();
-      setIsPlaying(false);
+      aRef.current.pause();
     }
-  };
+  }, [playing, activeMusicTrack, volume]);
 
-  const handleTimeUpdate = () => {
-    if (!videoRef.current) return;
-    const t = videoRef.current.currentTime;
-    setCurrentTime(t);
+  useEffect(() => {
+    const v = vRef.current;
+    if (!v) return;
+    const onMeta = () => setDuration(v.duration);
+    v.addEventListener('loadedmetadata', onMeta);
+    return () => v.removeEventListener('loadedmetadata', onMeta);
+  }, [project.videoUrl]);
 
-    if (activeClipId === 'smart-cuts' && project.highlights.length > 0) {
-      const currentHlIdx = project.highlights.findIndex((hl) => t >= hl.start && t < hl.end);
-      if (currentHlIdx !== -1) {
-        const currentHl = project.highlights[currentHlIdx];
-        if (t >= currentHl.end - 0.05) {
-          if (currentHlIdx < project.highlights.length - 1) {
-            videoRef.current.currentTime = project.highlights[currentHlIdx + 1].start;
-          } else {
-            videoRef.current.currentTime = project.highlights[0].start;
-            videoRef.current.pause();
-            setIsPlaying(false);
-          }
-        }
-      }
-    } else if (activeClipId !== 'smart-cuts' && t >= endLimit) {
-      videoRef.current.currentTime = startLimit;
-      videoRef.current.pause();
-      setIsPlaying(false);
+  const handleTimelineClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!timelineRef.current || !vRef.current) return;
+    const rect = timelineRef.current.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const newTime = clipStart + pct * clipDuration;
+    vRef.current.currentTime = newTime;
+    setTime(newTime);
+  }, [clipStart, clipDuration]);
+
+  const toggle = useCallback(() => {
+    if (!vRef.current) return;
+    if (vRef.current.paused) {
+      vRef.current.play();
+      setPlaying(true);
+    } else {
+      vRef.current.pause();
+      setPlaying(false);
     }
+  }, []);
 
-    if (enableSubtitles && project.subtitles) {
-      const sub = project.subtitles.find((s) => t >= s.start && t <= s.end);
-      setActiveSubtitle(sub || null);
-    }
+  const skip = useCallback((delta: number) => {
+    if (!vRef.current) return;
+    const newTime = Math.max(0, Math.min(duration, vRef.current.currentTime + delta));
+    vRef.current.currentTime = newTime;
+    setTime(newTime);
+  }, [duration]);
 
-    if (enableZooms) {
-      let targetScale = 1.0;
-      const zoom = project.zoomEffects?.find((z) => t >= z.timestamp && t <= z.timestamp + z.duration);
-      if (zoom) targetScale = zoom.scale;
-      else if (autoZoomPunch && activeSubtitle) {
-        const idx = project.subtitles.findIndex(s => s.id === activeSubtitle.id);
-        targetScale = idx % 2 === 0 ? 1.22 : 1.0;
-      }
-      if (currentZoomScale !== targetScale) setCurrentZoomScale(targetScale);
-    }
-  };
-
-  const runSmartBooster = () => {
-    setIsAnalyzing(true);
-    setAnalyzeStep(0);
-    playViralSFX('whoosh');
-    const steps = [
-      () => setAnalyzeStep(1),
-      () => setAnalyzeStep(2),
-      () => setAnalyzeStep(3),
-      () => {
-        const fullDuration = videoDuration || 14;
-        let enhancedSubtitles = [...(project.subtitles || [])];
-        if (enhancedSubtitles.length > 0) {
-          enhancedSubtitles[0].text = `🤫 THE SECRET TO ${enhancedSubtitles[0].text.toUpperCase()}`;
-          enhancedSubtitles[0].highlightWords = ['SECRET'];
-        }
-        const mergedSubtitles: any[] = [];
-        for (let i = 0; i < enhancedSubtitles.length; i++) {
-          const sub = enhancedSubtitles[i];
-          if (mergedSubtitles.length > 0) {
-            const last = mergedSubtitles[mergedSubtitles.length - 1];
-            if ((last.end - last.start) < 2.2 && (sub.end - last.start) < 4.5) {
-              last.text += ' ' + sub.text;
-              last.end = sub.end;
-              continue;
-            }
-          }
-          mergedSubtitles.push({...sub});
-        }
-        enhancedSubtitles = mergedSubtitles;
-        const newHighlights = [];
-        let cur = 0;
-        let idx = 0;
-        while (cur < fullDuration) {
-          const step = 2.2 + Math.random();
-          const end = Math.min(cur + step, fullDuration);
-          newHighlights.push({
-            id: `viral-cut-${idx}`,
-            title: idx === 0 ? '🚨 THE HOOK' : `Scene ${idx + 1}`,
-            start: cur,
-            end: end,
-            duration: end - cur,
-            viralityScore: 100,
-            description: "Viral Interrupt",
-            whyEngaging: "High speed",
-            speed: idx % 2 === 0 ? 1.08 : 1.0
-          });
-          cur = end;
-          idx++;
-        }
-        const newZoomEffects = newHighlights.map((hl, i) => ({ timestamp: hl.start, scale: i % 2 === 0 ? 1.28 : 1.0, duration: hl.duration }));
-        onUpdateProject({
-          ...project,
-          subtitles: enhancedSubtitles,
-          highlights: newHighlights,
-          zoomEffects: newZoomEffects,
-          captionStyle: 'hormozi',
-          colorGrade: 'vibrant_pop',
-          viralityScore: 100,
-          enableSubtitles: true,
-          enableZooms: true,
-          enableColorGrade: true,
-          jumpCuts: true,
-          speedRamp: true,
-          sfxSparks: true,
-          emojiBounces: true,
-          autoZoomPunch: true,
-          shakeOnPunch: true,
-        });
-        setIsAnalyzing(false);
-        onClipSelect('smart-cuts');
-      }
-    ];
-    setTimeout(steps[0], 650);
-    setTimeout(steps[1], 1300);
-    setTimeout(steps[2], 2000);
-    setTimeout(steps[3], 2600);
-  };
-
-  const renderStyledText = () => {
-    if (!activeSubtitle) return null;
-    const { text, emoji, highlightWords = [] } = activeSubtitle;
-    const correctedText = fixDunikTypo(text);
-    const parts = correctedText.split(' ');
-    const styles = getCaptionStyles(project.captionStyle || 'hormozi', text.length, stageWidth || 281);
-    
-    return (
-      <div className="flex flex-col items-center justify-center text-center max-w-[90%] px-2 mx-auto">
-        <div style={{ fontFamily: styles.fontFamily, textTransform: styles.textTransform, backgroundColor: styles.hasBox ? styles.boxBg : 'transparent', borderRadius: `${styles.boxRadius}px`, padding: styles.hasBox ? `${styles.boxPaddingY}px ${styles.boxPaddingX}px` : 0 }} className="flex flex-wrap items-center justify-center transition-all duration-150">
-          {parts.map((word, idx) => {
-            const clean = word.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"").toLowerCase();
-            const isH = highlightWords.some(h => clean.includes(h.toLowerCase()));
-            return <span key={idx} style={{ fontSize: `${isH ? styles.highlightFontSize : styles.fontSize}px`, color: isH ? styles.highlightColor : styles.textColor, fontWeight: project.captionStyle === 'minimalist' ? 500 : 900 }} className="inline-block mx-1.5">{word}</span>;
-          })}
-          {emoji && <span className="ml-1 animate-bounce">{emoji}</span>}
-        </div>
-      </div>
-    );
-  };
-
-  const handleStageDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const newHeart = { x: e.clientX - rect.left, y: e.clientY - rect.top, id: Date.now() };
-    setShowHeartPop((prev) => [...prev, newHeart]);
-    setTimeout(() => setShowHeartPop((prev) => prev.filter((h) => h.id !== newHeart.id)), 850);
-  };
+  const progressPct = duration > 0 ? ((time - clipStart) / clipDuration) * 100 : 0;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-      <div className="lg:col-span-3 flex flex-col bg-slate-950 border border-slate-900 rounded-2xl overflow-hidden shadow-2xl relative">
-        <div className="bg-slate-900/80 p-3.5 border-b border-slate-905 flex items-center justify-between gap-3 text-xs backdrop-blur-md">
-           <div className="flex items-center gap-2"><Smartphone className="w-4 h-4 text-brand-purple" /> <span className="font-extrabold uppercase tracking-wider text-slate-200">Social Simulator</span></div>
-           <div className="flex gap-2">
-             {(['none', 'tiktok', 'reels', 'shorts'] as const).map(m => (
-               <button key={m} onClick={() => setMockupMode(m)} className={`px-3 py-1 rounded-md text-[11px] font-bold transition-all ${mockupMode === m ? 'bg-brand-purple text-white shadow-md' : 'text-slate-400 hover:text-slate-200'}`}>{m}</button>
-             ))}
-           </div>
-        </div>
-
-        <div id="video-preview-stage" ref={stageRef} onDoubleClick={handleStageDoubleClick} className="relative aspect-[9/16] h-[500px] max-h-[60vh] max-w-[281px] mx-auto flex items-center justify-center bg-zinc-950 rounded-2xl overflow-hidden shadow-[0_8px_48px_rgba(0,0,0,0.95)] border border-slate-900/80 my-4 cursor-pointer">
-          <video ref={videoRef} src={project.videoUrl} onTimeUpdate={handleTimeUpdate} onLoadedMetadata={() => setVideoDuration(videoRef.current?.duration || 30)} playsInline style={{ transform: `scale(${currentZoomScale})` }} className={`w-full h-full object-cover transition-all duration-300 ${enableColorGrade && project.colorGrade !== 'none' ? `filter-${project.colorGrade}` : ''} ${isShaking ? 'animate-[rumble]' : ''}`} />
-          {enableSubtitles && activeSubtitle && <div className={`absolute left-0 right-0 pointer-events-none flex items-center justify-center px-4 z-20 ${project.captionPosition === 'top' ? 'top-16' : project.captionPosition === 'center' ? 'top-1/2 -translate-y-1/2' : 'bottom-28'}`}>{renderStyledText()}</div>}
-          {showHeartPop.map((h) => <div key={h.id} style={{ left: h.x, top: h.y }} className="absolute pointer-events-none z-50 animate-heart-pop"><Heart className="w-16 h-16 text-brand-pink fill-brand-pink" /></div>)}
-          {!isPlaying && <div onClick={togglePlay} className="absolute inset-0 bg-slate-950/45 flex items-center justify-center cursor-pointer group z-10"><div className="w-13 h-13 rounded-full bg-brand-purple text-white flex items-center justify-center shadow-2xl transform group-hover:scale-110 transition-all"><Play className="w-5.5 h-5.5 fill-white translate-x-0.5" /></div></div>}
-        </div>
-
-        <div className="bg-slate-900/60 p-4 border-t border-slate-900 backdrop-blur-md">
-          <div className="flex items-center gap-3 mb-4">
-            <span className="text-[10px] text-slate-400 font-mono w-10">{currentTime.toFixed(1)}s</span>
-            <div className="flex-1 relative py-1"><input type="range" min={0} max={videoDuration || 30} step={0.05} value={currentTime} onChange={(e) => { videoRef.current!.currentTime = Number(e.target.value); setCurrentTime(Number(e.target.value)); }} className="w-full h-1.5 rounded-lg appearance-none cursor-pointer bg-slate-950 accent-brand-purple focus:outline-none" /></div>
-            <span className="text-[10px] text-slate-400 font-mono w-10 text-right">{videoDuration.toFixed(1)}s</span>
-          </div>
-          <div className="flex justify-between items-center gap-4">
-            <div className="flex items-center gap-2"><button onClick={togglePlay} className="p-2.5 rounded-xl bg-slate-800 text-white shadow-lg">{isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}</button><button onClick={() => { videoRef.current!.currentTime = startLimit; setCurrentTime(startLimit); }} className="p-2.5 rounded-xl bg-slate-800 text-slate-300"><RotateCcw className="w-4 h-4" /></button></div>
-            <div className="flex gap-1 bg-slate-950 p-1 rounded-xl"><button onClick={() => onClipSelect(null)} className={`px-3 py-1 rounded-lg text-xs ${activeClipId === null ? 'bg-slate-800 text-white' : 'text-slate-400'}`}>Full</button>{project.highlights.length > 0 && <button onClick={() => onClipSelect('smart-cuts')} className={`px-3 py-1 rounded-lg text-xs font-bold ${activeClipId === 'smart-cuts' ? 'bg-brand-purple text-white shadow-lg' : 'text-brand-cyan'}`}>AI Smart Cuts</button>}</div>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px', paddingBottom: '40px' }}>
+      <div style={{ background: 'rgba(9,9,11,0.6)', padding: '24px', borderRadius: '32px', border: '1px solid rgba(255,255,255,0.05)', backdropFilter: 'blur(20px)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <button
+            onClick={() => setShowSafeZone(!showSafeZone)}
+            style={{
+              padding: '8px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)',
+              background: showSafeZone ? 'rgba(251,255,0,0.1)' : 'rgba(255,255,255,0.02)',
+              color: showSafeZone ? '#fbff00' : '#a1a1aa',
+              fontSize: '11px', fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s'
+            }}
+          >
+            {showSafeZone ? '🟡 Safe Zone Active' : '⬜ Show Safe Zones'}
+          </button>
+          <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 800, fontFamily: 'monospace' }}>
+            {Math.floor(time)}s / {Math.floor(duration)}s
           </div>
         </div>
 
-        <div id="clip-cuts-trimmer-control" className="mt-4 bg-slate-900/40 p-4 rounded-2xl border border-slate-800/80 backdrop-blur-md">
-           <div className="flex items-center justify-between mb-3">
-             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5"><Scissors className="w-3.5 h-3.5 text-brand-purple" /> Timeline Clips</h3>
-             <button onClick={handleAddCustomClip} className="px-2.5 py-1 text-[10px] bg-brand-cyan/25 text-brand-cyan rounded-lg font-bold transition-all">+ Cut Moment</button>
-           </div>
-           {activeClipId && activeClipId !== 'smart-cuts' && (
-             <div className="space-y-3 bg-slate-950/60 p-3.5 rounded-xl border border-slate-800/60">
-               <input type="text" value={fixDunikTypo(clipEditTitle)} onChange={(e) => setClipEditTitle(e.target.value)} className="w-full bg-slate-950 text-slate-200 text-xs px-2.5 py-1.5 rounded-lg border border-slate-800" />
-               <button onClick={handleApplyTrim} className="w-full py-1.5 rounded-lg bg-brand-purple text-white font-bold text-xs">Apply Trim</button>
-               <button onClick={() => handleDeleteClip(activeClipId)} className="w-full text-xs text-red-500 font-bold">Delete Clip</button>
-             </div>
-           )}
-        </div>
-        <div className="mt-6"><ThumbnailGenerator project={project} currentTime={currentTime} videoRef={videoRef} onUpdateProject={onUpdateProject} /></div>
-      </div>
+        {/* 9:16 Studio Stage */}
+        <div style={{
+          position: 'relative', width: '100%', maxWidth: '340px', aspectRatio: '9/16',
+          background: '#000', margin: '0 auto', borderRadius: '24px', overflow: 'hidden',
+          border: '4px solid #18181b', boxShadow: '0 30px 60px rgba(0,0,0,0.6)'
+        }}>
+          <video
+            ref={vRef} src={project.videoUrl} playsInline muted
+            style={{ width: '100%', height: '100%', objectFit: 'cover', transform: `scale(${currentZoom})`, transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)' }}
+            className={enableColorGrade && project.colorGrade !== 'none' ? `filter-${project.colorGrade}` : ''}
+          />
 
-      <div className="space-y-4">
-        <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1.5"><Tv className="w-3.5 h-3.5 text-brand-purple" /> AI Subtitles</h3>
-          <div className="grid grid-cols-2 gap-2">
-            {(['mrbeast', 'hormozi', 'minimalist', 'impact', 'comic'] as const).map(style => (
-              <button key={style} onClick={() => updateSettings({ captionStyle: style })} className={`p-2 rounded-xl text-left border text-xs capitalize transition-all ${project.captionStyle === style ? 'border-brand-purple bg-brand-purple/10 text-white font-semibold' : 'border-slate-800 bg-slate-950 text-slate-400'}`}>{style}</button>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl">
-          <div className="flex items-center justify-between mb-4"><h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5"><Music className="w-3.5 h-3.5 text-brand-cyan" /> Sonic Library</h3><span className="text-[9px] bg-slate-950 px-2 py-0.5 rounded-full text-slate-500 font-bold">{FREE_MUSIC_TRACKS.length} TRACKS</span></div>
-          <div className="space-y-3 mb-4">
-            <div className="relative">
-              <input type="text" placeholder="Search feeling..." value={musicSearchQuery} onChange={(e) => setMusicSearchQuery(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-9 py-2 text-xs focus:border-brand-cyan focus:outline-none transition-all placeholder:text-slate-700" />
-              <Sliders className="w-3.5 h-3.5 text-slate-600 absolute left-3 top-1/2 -translate-y-1/2" />
+          {/* Social Mockup Rail */}
+          <div style={{ position: 'absolute', right: '12px', bottom: '120px', display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'center', zIndex: 60, pointerEvents: 'none' }}>
+            <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(135deg, #444, #111)', border: '2px solid white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>👤</div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '24px' }}>❤️</div>
+              <div style={{ fontSize: '10px', fontWeight: 900 }}>842K</div>
             </div>
-            <div className="flex gap-1 overflow-x-auto pb-1 no-scrollbar">
-              {(['all', 'lofi', 'hype', 'chill', 'cinematic'] as const).map(m => <button key={m} onClick={() => setActiveMoodFilter(m)} className={`px-2 py-1 rounded-full text-[8px] font-black uppercase border transition-all ${activeMoodFilter === m ? 'bg-brand-cyan/20 border-brand-cyan text-brand-cyan' : 'bg-slate-950 border-slate-800 text-slate-500'}`}>{m}</button>)}
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '24px' }}>💬</div>
+              <div style={{ fontSize: '10px', fontWeight: 900 }}>12K</div>
             </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '24px' }}>↗️</div>
+              <div style={{ fontSize: '10px', fontWeight: 900 }}>Share</div>
+            </div>
+            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'conic-gradient(#333, #000, #333)', border: '4px solid #222', animation: 'spin 3s linear infinite' }} />
           </div>
-          <div className="max-h-[150px] overflow-y-auto space-y-1.5 custom-scrollbar pr-1">
-            {filteredMusic.map(t => (
-              <button key={t.id} onClick={() => updateSettings({ selectedMusicTrackId: t.id })} className={`w-full text-left p-2 rounded-xl border transition-all ${project.selectedMusicTrackId === t.id ? 'border-brand-cyan bg-brand-cyan/10 text-brand-cyan' : 'border-transparent hover:bg-slate-800/40 text-slate-200'}`}><div className="text-xs font-bold truncate">{t.name}</div><div className="text-[8px] text-slate-500">{t.artist}</div></button>
-            ))}
-          </div>
-          <div className="mt-4 pt-4 border-t border-slate-800/60"><div className="flex justify-between text-[11px] text-slate-400 mb-1.5"><span>Mix Level</span><span>{Math.round(musicVolume * 100)}%</span></div><input type="range" min={0} max={0.5} step={0.01} value={musicVolume} onChange={(e) => updateSettings({ musicVolume: Number(e.target.value) })} className="w-full h-1 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-brand-cyan" /></div>
-        </div>
 
-        <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-4 font-sans">
-          <div className="flex items-center justify-between border-b border-slate-800/80 pb-3"><h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5"><Sparkles className="w-3.5 h-3.5 text-brand-cyan animate-pulse" /> AI Booster</h3><span className="text-[10px] bg-slate-950 px-2 py-0.5 rounded border border-slate-800 text-brand-green font-mono font-bold">SCORE: {project.viralityScore}%</span></div>
-          {isAnalyzing ? (
-            <div className="bg-slate-950 p-4 rounded-xl border border-brand-cyan/25 space-y-3 relative overflow-hidden"><div className="w-full bg-slate-900 rounded-full h-1.5 mt-2 overflow-hidden"><div className="bg-brand-purple h-1.5 transition-all duration-300" style={{ width: `${(analyzeStep + 1) * 20}%` }} /></div></div>
-          ) : (
-            <button onClick={runSmartBooster} className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-brand-cyan/95 via-brand-purple/95 to-brand-pink/95 text-white font-bold text-xs shadow-lg transition-all active:scale-95 group">⚡ AUTO-EDIT FOR MAXIMUM RETENTION</button>
+          <div style={{ position: 'absolute', left: '16px', bottom: '32px', zIndex: 60, pointerEvents: 'none', maxWidth: '70%' }}>
+            <div style={{ fontWeight: 900, fontSize: '14px', marginBottom: '4px' }}>@viral_director</div>
+            <div style={{ fontSize: '12px', opacity: 0.9 }}>{project.title} #viral #ai #edit</div>
+          </div>
+
+          {showSafeZone && (
+            <div style={{ position: 'absolute', inset: '10% 8% 20% 8%', border: '1px dashed rgba(251,255,0,0.3)', borderRadius: '8px', pointerEvents: 'none' }} />
           )}
-          <div className="space-y-2">
-            {[
-              { label: 'Jump-Cut Silences', val: jumpCuts, key: 'jumpCuts' },
-              { label: 'Retention Zooms', val: enableZooms, key: 'enableZooms' },
-              { label: 'Camera Rumble', val: shakeOnPunch, key: 'shakeOnPunch' },
-              { label: 'Color Grade', val: enableColorGrade, key: 'enableColorGrade' }
-            ].map(rail => (
-              <div key={rail.label} className="flex items-center justify-between bg-slate-950 p-2.5 rounded-xl border border-slate-950 hover:border-slate-800"><span className="text-[11px] text-slate-200 font-semibold">{rail.label}</span><button onClick={() => updateSettings({ [rail.key]: !rail.val })} className={`w-8 h-4.5 rounded-full p-0.5 transition-all ${rail.val ? 'bg-brand-cyan' : 'bg-slate-800'}`}><div className={`w-3.5 h-3.5 rounded-full bg-white transition-all ${rail.val ? 'translate-x-3.5' : 'translate-x-0'}`} /></button></div>
-            ))}
+
+          {enableSubtitles && activeSub && (
+            <div style={{ position: 'absolute', bottom: '100px', left: 0, right: 0, padding: '0 20px', textAlign: 'center', pointerEvents: 'none', zIndex: 50 }}>
+              <div style={{ background: 'rgba(0,0,0,0.85)', padding: '12px 20px', borderRadius: '16px', display: 'inline-block', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <p style={{ margin: 0, fontWeight: 900, fontSize: '18px', color: '#FBFF00', textShadow: '2px 2px 0px black', fontFamily: 'Impact, sans-serif' }}>
+                  {fixDunikTypo(activeSub.text).toUpperCase()}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {!playing && (
+            <div onClick={toggle} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 100 }}>
+              <div style={{ width: '70px', height: '70px', borderRadius: '50%', background: '#8b5cf6', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 40px rgba(139,92,246,0.6)' }}>
+                <div style={{ borderLeft: '20px solid white', borderTop: '12px solid transparent', borderBottom: '12px solid transparent', marginLeft: '6px' }} />
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div style={{ marginTop: '24px' }}>
+          <div ref={timelineRef} onClick={handleTimelineClick} style={{ width: '100%', height: '40px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', cursor: 'pointer', position: 'relative', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${progressPct}%`, background: 'rgba(139,92,246,0.2)', transition: 'width 0.1s linear' }} />
+            <div style={{ position: 'absolute', left: `${progressPct}%`, top: 0, bottom: 0, width: '2px', background: '#8b5cf6', boxShadow: '0 0 10px #8b5cf6' }} />
           </div>
         </div>
+
+        <div style={{ marginTop: '20px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <button onClick={toggle} style={{ padding: '12px 24px', background: '#18181b', color: 'white', borderRadius: '12px', border: '1px solid #27272a', fontWeight: 800, fontSize: '12px', cursor: 'pointer' }}>
+            {playing ? '⏸ PAUSE' : '▶ PLAY'}
+          </button>
+          <button onClick={() => onClipSelect(null)} style={{ padding: '12px 20px', background: !activeClipId ? '#8b5cf6' : '#18181b', color: 'white', borderRadius: '12px', border: 'none', fontWeight: 800, fontSize: '11px', cursor: 'pointer' }}>FULL VIDEO</button>
+          {activeHighlights.map((h: any) => (
+            <button key={h.id} onClick={() => { onClipSelect(h.id); vRef.current!.currentTime = h.start; }} style={{ padding: '12px 20px', background: activeClipId === h.id ? '#8b5cf6' : '#18181b', color: 'white', borderRadius: '12px', border: 'none', fontWeight: 800, fontSize: '11px', cursor: 'pointer' }}>
+              {h.title.toUpperCase()}
+            </button>
+          ))}
+        </div>
       </div>
-      <audio ref={musicAudioRef} loop crossOrigin="anonymous" className="hidden" />
+
+      <div style={{ background: 'rgba(9,9,11,0.6)', padding: '24px', borderRadius: '32px', border: '1px solid rgba(255,255,255,0.05)', backdropFilter: 'blur(20px)' }}>
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
+          {MOOD_CATEGORIES.map(cat => (
+            <button key={cat.key} onClick={() => setMusicMood(cat.key)} style={{ padding: '10px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: musicMood === cat.key ? cat.color : 'transparent', color: 'white', fontSize: '11px', fontWeight: 800, cursor: 'pointer' }}>
+              {cat.emoji} {cat.label}
+            </button>
+          ))}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '10px', maxHeight: '240px', overflowY: 'auto' }}>
+          {filteredTracks.map((t) => (
+            <button key={t.id} onClick={() => updateSettings({ selectedMusicTrackId: t.id })} style={{ padding: '16px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)', background: project.selectedMusicTrackId === t.id ? 'rgba(139,92,246,0.1)' : 'rgba(0,0,0,0.2)', color: 'white', textAlign: 'left', cursor: 'pointer' }}>
+              <div style={{ fontWeight: 800, fontSize: '13px' }}>{t.name}</div>
+              <div style={{ fontSize: '10px', opacity: 0.5 }}>{t.genre}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <ThumbnailGenerator project={project} currentTime={time} videoRef={vRef} onUpdateProject={onUpdateProject} />
+      <audio ref={aRef} loop style={{ display: 'none' }} />
     </div>
   );
 }

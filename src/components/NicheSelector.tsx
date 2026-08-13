@@ -1,11 +1,10 @@
 import React, { useRef, useState } from 'react';
 import { RAW_VIDEO_TEMPLATES } from '../data';
 import { VideoNiche } from '../types';
-import { Upload, Video as VideoIcon, Sparkles, Flame } from 'lucide-react';
 
 export default function NicheSelector({ onSelectTemplate, onUploadCustomFile, isProcessing }: any) {
   const [activeTab, setActiveTab] = useState<'presets' | 'custom'>('presets');
-  const [selectedNiche, setSelectedNiche] = useState<VideoNiche>('general');
+  const [selectedNiche, setSelectedNiche] = useState<VideoNiche>('unboxing');
   const [customDescription, setCustomDescription] = useState('');
   const [customFileName, setCustomFileName] = useState('');
   const [selectedFileObj, setSelectedFileObj] = useState<File | null>(null);
@@ -16,121 +15,156 @@ export default function NicheSelector({ onSelectTemplate, onUploadCustomFile, is
     if (file) {
       setSelectedFileObj(file);
       setCustomFileName(file.name);
-      // Removed the auto-setting of customDescription to allow user to type it
     }
   };
 
-  const handleCustomSubmit = () => {
+  const handleCustomSubmit = (e: any) => {
+    e.preventDefault();
     if (isProcessing) return;
     if (!selectedFileObj) {
-      alert("Please choose a video file first by tapping the upload box.");
+      alert("Please upload a video file first.");
       return;
     }
-    // Correctly call handleUploadCustomFile with all required parameters
-    onUploadCustomFile(selectedFileObj, customFileName, selectedNiche, customDescription || 'Analyze this video and make it viral', '');
+    onUploadCustomFile(selectedFileObj, customFileName, selectedNiche, customDescription || 'Master review and viral hype edit.');
+  };
+
+  const NICHE_ICONS: Record<string, string> = {
+    unboxing: '📦', sales: '💼', fitness: '💪', cooking: '👨‍🍳',
+    general: '🎬', education: '🎓', comedy: '😂', motivation: '🔥',
+    pets: '🐾', tech: '💻',
   };
 
   return (
-    <div className="bg-slate-900 rounded-[40px] p-6 border border-slate-800 shadow-2xl space-y-8">
-      <div className="flex gap-3 p-1.5 bg-slate-950 rounded-[24px] border border-slate-900">
-        <button onClick={() => setActiveTab('presets')} className={`flex-1 py-3 rounded-[18px] text-[10px] uppercase tracking-widest font-black transition-all ${activeTab === 'presets' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>Presets</button>
-        <button onClick={() => setActiveTab('custom')} className={`flex-1 py-3 rounded-[18px] text-[10px] uppercase tracking-widest font-black transition-all ${activeTab === 'custom' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>Custom Upload</button>
+    <div style={{ maxWidth: '900px', margin: '0 auto', padding: '0 8px' }}>
+      <style>{`
+        @media (max-width: 480px) {
+          .niche-grid { grid-template-columns: repeat(3, 1fr) !important; }
+        }
+        @media (min-width: 481px) and (max-width: 640px) {
+          .niche-grid { grid-template-columns: repeat(4, 1fr) !important; }
+        }
+      `}</style>
+      {/* ── HERO ── */}
+      <div style={{ textAlign: 'center', marginBottom: '36px' }}>
+        <div style={{ fontSize: '11px', color: '#8b5cf6', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '10px' }}>
+          Zero-Cost Browser Engine
+        </div>
+        <h2 style={{ fontWeight: 900, fontSize: 'clamp(28px, 5vw, 44px)', letterSpacing: '-2px', fontFamily: '"Inter", sans-serif', margin: '0 0 12px 0', lineHeight: 1.1 }}>
+          CREATE VIRAL CONTENT
+        </h2>
+        <p style={{ color: '#94a3b8', fontSize: '13px', maxWidth: '480px', margin: '0 auto', fontWeight: 500, lineHeight: 1.6 }}>
+          Professional studio-grade editor. Frame-by-frame canvas forge. Works on any device, any browser. No install. No cloud bill.
+        </p>
+      </div>
+
+      {/* ── TAB SWITCHER ── */}
+      <div style={{ display: 'flex', gap: '4px', background: 'rgba(9,9,11,0.8)', backdropFilter: 'blur(20px)', padding: '4px', borderRadius: '16px', border: '1px solid rgba(30,41,59,0.6)', marginBottom: '24px', width: 'fit-content', margin: '0 auto 28px auto' }}>
+        <button
+          onClick={() => setActiveTab('presets')}
+          style={{ padding: '10px 28px', borderRadius: '12px', border: 'none', cursor: 'pointer', fontWeight: 800, fontSize: '12px', fontFamily: '"Inter", sans-serif', textTransform: 'uppercase', letterSpacing: '0.8px', background: activeTab === 'presets' ? 'rgba(139,92,246,0.25)' : 'transparent', color: activeTab === 'presets' ? '#e9d5ff' : '#64748b', transition: 'all 0.2s' }}
+        >
+          Presets
+        </button>
+        <button
+          onClick={() => setActiveTab('custom')}
+          style={{ padding: '10px 28px', borderRadius: '12px', border: 'none', cursor: 'pointer', fontWeight: 800, fontSize: '12px', fontFamily: '"Inter", sans-serif', textTransform: 'uppercase', letterSpacing: '0.8px', background: activeTab === 'custom' ? 'rgba(139,92,246,0.25)' : 'transparent', color: activeTab === 'custom' ? '#e9d5ff' : '#64748b', transition: 'all 0.2s' }}
+        >
+          Custom Upload
+        </button>
       </div>
 
       {activeTab === 'presets' ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '12px' }}>
           {RAW_VIDEO_TEMPLATES.map((tpl) => (
-            <button 
-              key={tpl.id} 
-              onClick={() => onSelectTemplate(tpl)} 
-              className="group relative overflow-hidden p-6 bg-slate-950 border border-slate-800 rounded-[32px] text-left hover:border-cyan-500/50 hover:bg-slate-900/40 transition-all duration-300 shadow-xl"
+            <button
+              key={tpl.id}
+              onClick={() => onSelectTemplate(tpl)}
+              disabled={isProcessing}
+              style={{ background: 'linear-gradient(180deg, rgba(24,24,27,0.9) 0%, rgba(9,9,11,0.95) 100%)', border: '1px solid rgba(30,41,59,0.6)', borderRadius: '20px', padding: '20px', textAlign: 'left', cursor: isProcessing ? 'not-allowed' : 'pointer', width: '100%', transition: 'all 0.25s', backdropFilter: 'blur(12px)', opacity: isProcessing ? 0.5 : 1 }}
+              onMouseEnter={(e) => { if (!isProcessing) e.currentTarget.style.borderColor = 'rgba(139,92,246,0.5)'; }}
+              onMouseLeave={(e) => e.currentTarget.style.borderColor = 'rgba(30,41,59,0.6)'}
             >
-              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-30 transition-opacity">
-                <VideoIcon className="w-12 h-12 text-white" />
+              {/* Social Simulator Mockup */}
+              <div style={{ width: '100%', aspectRatio: '9/16', maxHeight: '180px', background: '#000', borderRadius: '14px', marginBottom: '14px', overflow: 'hidden', position: 'relative', border: '1px solid rgba(30,41,59,0.8)' }}>
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(180deg, transparent 60%, rgba(0,0,0,0.8) 100%)' }}>
+                  <div style={{ fontSize: '40px', opacity: 0.9 }}>{NICHE_ICONS[tpl.niche] || '🎬'}</div>
+                </div>
+                {/* Safe Zone Guides */}
+                <div style={{ position: 'absolute', top: '12%', left: '10%', right: '10%', bottom: '18%', border: '1px dashed rgba(255,255,255,0.15)', borderRadius: '8px', pointerEvents: 'none' }} />
+                <div style={{ position: 'absolute', bottom: '8px', left: '50%', transform: 'translateX(-50%)', fontSize: '9px', color: 'rgba(255,255,255,0.4)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>
+                  {tpl.niche}
+                </div>
               </div>
-              <span className="inline-block px-3 py-1 rounded-full text-[9px] bg-purple-500/10 text-purple-400 font-black uppercase tracking-widest border border-purple-500/20 mb-3">
-                {tpl.niche}
-              </span>
-              <p className="text-sm font-black text-white leading-snug group-hover:text-cyan-400 transition-colors">{tpl.name}</p>
-              <div className="mt-4 flex items-center gap-2 text-[10px] text-slate-500 font-bold uppercase tracking-tighter">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Ready to Forge
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
+                <div style={{ fontSize: '10px', color: '#8b5cf6', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px' }}>{tpl.niche}</div>
+                <div style={{ fontSize: '9px', color: '#10b981', fontWeight: 700, background: 'rgba(16,185,129,0.1)', padding: '3px 8px', borderRadius: '6px' }}>● READY</div>
+              </div>
+              <div style={{ color: '#f1f5f9', fontWeight: 800, fontSize: '13px', fontFamily: '"Inter", sans-serif', lineHeight: 1.3, marginBottom: '8px' }}>
+                {tpl.name}
+              </div>
+              <div style={{ color: '#64748b', fontSize: '11px', fontWeight: 500, lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                {tpl.userDescription}
               </div>
             </button>
           ))}
         </div>
       ) : (
-        <div className="space-y-4">
-          <div 
-            onClick={() => fileInputRef.current?.click()} 
-            className="group relative border-4 border-dashed border-slate-800 hover:border-cyan-500/50 rounded-[40px] p-12 flex flex-col items-center justify-center bg-slate-950/40 hover:bg-slate-900/60 transition-all duration-300 cursor-pointer"
-            style={{ WebkitTapHighlightColor: 'transparent' }}
+        <div style={{ maxWidth: '560px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* Upload Zone */}
+          <div
+            onClick={() => fileInputRef.current?.click()}
+            style={{ border: '2px dashed #27272a', borderRadius: '24px', padding: '56px 24px', textAlign: 'center', cursor: 'pointer', background: 'linear-gradient(180deg, rgba(24,24,27,0.6) 0%, rgba(9,9,11,0.8) 100%)', transition: 'all 0.25s', backdropFilter: 'blur(12px)' }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#8b5cf6'; e.currentTarget.style.background = 'linear-gradient(180deg, rgba(139,92,246,0.08) 0%, rgba(9,9,11,0.9) 100%)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#27272a'; e.currentTarget.style.background = 'linear-gradient(180deg, rgba(24,24,27,0.6) 0%, rgba(9,9,11,0.8) 100%)'; }}
           >
-            <input ref={fileInputRef} type="file" accept="video/*" onChange={handleFileChange} className="hidden" />
-            <div className="w-16 h-16 bg-slate-800 rounded-3xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-cyan-500/10 transition-all">
-              <Upload className="w-8 h-8 text-slate-500 group-hover:text-cyan-400" />
+            <input ref={fileInputRef} type="file" accept="video/*" onChange={handleFileChange} style={{ display: 'none' }} />
+            <div style={{ fontSize: '52px', marginBottom: '14px', filter: 'drop-shadow(0 0 20px rgba(139,92,246,0.3))' }}>📹</div>
+            <div style={{ color: '#f1f5f9', fontWeight: 800, fontSize: '14px', fontFamily: '"Inter", sans-serif', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              {customFileName || 'TAP TO UPLOAD VIDEO'}
             </div>
-            <p className="text-sm font-black text-center text-slate-300 tracking-tight">{customFileName || 'SELECT VIDEO FILE'}</p>
-            <p className="text-[10px] text-slate-500 mt-2 font-bold uppercase tracking-widest">Supports MP4, MOV, WebM</p>
+            <div style={{ color: '#64748b', fontSize: '11px', fontWeight: 500 }}>
+              MP4, MOV, WebM — max 500MB
+            </div>
           </div>
-          
-          <div className="space-y-3">
-            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-4 flex items-center gap-2">
-              <Sparkles className="w-3 h-3 text-purple-500" />
-              AI Editing Instructions (Prompt)
-            </label>
+
+          {/* AI Instructions */}
+          <div>
+            <div style={{ color: '#64748b', fontSize: '10px', fontWeight: 800, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1.5px' }}>AI Creative Direction</div>
             <textarea
               value={customDescription}
               onChange={(e) => setCustomDescription(e.target.value)}
-              placeholder="e.g. 'Add a hook about money, use fire emojis, make cuts fast' or 'Tell a story about this product'..."
-              className="w-full bg-slate-950 border border-slate-800 rounded-[24px] p-5 text-sm font-medium min-h-[140px] focus:border-purple-500 focus:ring-1 focus:ring-purple-500/20 focus:outline-none transition-all placeholder:text-slate-700 shadow-inner"
+              placeholder="e.g. 'Zoom on the product soles, fast cuts, make it hype'..."
+              style={{ width: '100%', background: 'rgba(9,9,11,0.6)', border: '1px solid rgba(30,41,59,0.6)', borderRadius: '16px', padding: '16px', color: '#f1f5f9', minHeight: '110px', fontSize: '13px', outline: 'none', boxSizing: 'border-box', fontFamily: '"Inter", sans-serif', resize: 'vertical', backdropFilter: 'blur(12px)' }}
             />
           </div>
 
-          <div className="space-y-3">
-            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-4 flex items-center gap-2">
-              <Flame className="w-3 h-3 text-orange-500" />
-              Content Niche
-            </label>
-            <div className="grid grid-cols-2 gap-2 p-1 bg-slate-950 border border-slate-800 rounded-[24px]">
-              {[
-                { id: 'unboxing', label: 'Unboxing' },
-                { id: 'sales', label: 'Sales Pitch' },
-                { id: 'general', label: 'Daily Vlog' },
-                { id: 'comedy', label: 'Comedy' },
-                { id: 'education', label: 'Podcast' },
-                { id: 'fitness', label: 'Fitness' }
-              ].map((niche) => (
+          {/* Niche Grid */}
+          <div>
+            <div style={{ color: '#64748b', fontSize: '10px', fontWeight: 800, marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '1.5px' }}>Content Niche</div>
+            <div className="niche-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px' }}>
+              {['unboxing', 'sales', 'fitness', 'cooking', 'general', 'education', 'comedy', 'motivation', 'pets', 'tech'].map((n) => (
                 <button
-                  key={niche.id}
-                  onClick={() => setSelectedNiche(niche.id as any)}
-                  className={`py-3 px-4 rounded-[18px] text-[10px] font-black uppercase tracking-widest transition-all ${
-                    selectedNiche === niche.id 
-                      ? 'bg-slate-800 text-white shadow-md' 
-                      : 'text-slate-500 hover:text-slate-300'
-                  }`}
+                  key={n}
+                  onClick={() => setSelectedNiche(n as any)}
+                  style={{ background: selectedNiche === n ? 'rgba(139,92,246,0.2)' : 'rgba(9,9,11,0.4)', border: selectedNiche === n ? '1px solid rgba(139,92,246,0.5)' : '1px solid rgba(30,41,59,0.5)', color: 'white', padding: '10px 6px', borderRadius: '12px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', cursor: 'pointer', fontFamily: '"Inter", sans-serif', letterSpacing: '0.3px', transition: 'all 0.2s', backdropFilter: 'blur(8px)' }}
                 >
-                  {niche.label}
+                  {NICHE_ICONS[n] ? `${NICHE_ICONS[n]} ${n.slice(0, 4)}` : n.slice(0, 6)}
                 </button>
               ))}
             </div>
           </div>
 
+          {/* Submit */}
           <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              handleCustomSubmit();
-            }}
-            className="group relative w-full py-6 bg-white text-black font-black text-xl uppercase rounded-[30px] shadow-[0_20px_40px_rgba(255,255,255,0.05)] transition-all active:scale-95 overflow-hidden"
-            style={{ cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
+            onClick={handleCustomSubmit}
+            disabled={isProcessing}
+            style={{ background: isProcessing ? '#18181b' : 'linear-gradient(135deg, #8b5cf6, #7c3aed)', color: isProcessing ? '#64748b' : 'white', border: 'none', borderRadius: '18px', padding: '20px', fontWeight: 900, textTransform: 'uppercase', cursor: isProcessing ? 'not-allowed' : 'pointer', fontSize: '15px', fontFamily: '"Inter", sans-serif', letterSpacing: '1px', boxShadow: isProcessing ? 'none' : '0 12px 40px rgba(139,92,246,0.35)', transition: 'all 0.2s', marginTop: '8px' }}
           >
-            <span className="relative z-10">{isProcessing ? 'ENGINEERING...' : 'FORGE VIDEO'}</span>
-            <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-purple-500 opacity-0 group-hover:opacity-10 transition-opacity" />
+            {isProcessing ? '⚙ Engineering...' : '🔥 FORGE FINAL VIDEO'}
           </button>
         </div>
       )}
     </div>
-
   );
 }

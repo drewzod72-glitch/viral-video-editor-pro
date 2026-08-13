@@ -2,7 +2,6 @@ import React from 'react';
 import { VideoProject } from '../types';
 import { FolderHeart, Trash2, Calendar, ClipboardList } from 'lucide-react';
 
-// Helper to fix the "DUNIK" -> "DUNK" typo in subtitles, titles, names, descriptions
 const fixDunikTypo = (str: string): string => {
   if (!str) return str;
   return str.replace(/dunik/gi, (match) => {
@@ -38,65 +37,59 @@ export default function LibraryPanel({
   };
 
   return (
-    <div id="library-panel" className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl">
-      <h2 className="font-display text-xl font-bold text-white flex items-center gap-2 mb-2">
-        <FolderHeart className="text-brand-pink w-5 h-5" />
+    <div id="library-panel" style={{ background: '#09090b', borderRadius: '24px', border: '1px solid rgba(30,41,59,0.5)', backdropFilter: 'blur(12px)', padding: '24px' }}>
+      <h2 style={{ fontWeight: 900, fontSize: '16px', color: 'white', display: 'flex', alignItems: 'center', gap: '10px', fontFamily: '"Inter", sans-serif', marginBottom: '4px' }}>
+        <FolderHeart style={{ color: '#ec4899', width: '20px', height: '20px' }} />
         Project Drafting Vault & Archives
       </h2>
-      <p className="text-sm text-slate-400 mb-6">
-        Stored securely in your browser's private vault cache. Access your creative projects anytime with zero delay.
+      <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '20px' }}>
+        Stored securely in your browser's private vault cache.
       </p>
 
       {pastProjects.length === 0 ? (
-        <div className="p-8 text-center bg-slate-950/40 rounded-xl border border-slate-850 border-dashed">
-          <ClipboardList className="w-8 h-8 text-slate-600 mx-auto mb-2" />
-          <p className="text-xs text-slate-500">No drafted projects found. Generate your first video editing pipeline to archive it here!</p>
+        <div style={{ padding: '24px', textAlign: 'center', background: 'rgba(2,6,23,0.4)', borderRadius: '12px', border: '1px dashed #27272a' }}>
+          <ClipboardList style={{ width: '32px', height: '32px', color: '#27272a', margin: '0 auto 8px' }} />
+          <p style={{ fontSize: '12px', color: '#475569' }}>No drafted projects found. Generate your first video editing pipeline to archive it here!</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '10px' }}>
           {pastProjects.map((proj) => {
             const isActive = proj.id === activeProjectId;
             const formattedDate = new Date(proj.createdAt).toLocaleDateString(undefined, {
-              month: 'short',
-              day: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit'
+              month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
             });
 
             return (
               <div
                 key={proj.id}
                 onClick={() => onLoadProject(proj.id)}
-                className={`p-4 rounded-xl border cursor-pointer transition-all duration-200 flex flex-col justify-between ${
-                  isActive
-                    ? 'border-brand-pink bg-brand-pink/5 hover:bg-brand-pink/10 shadow-lg'
-                    : 'border-slate-800 bg-slate-950 hover:bg-slate-800'
-                }`}
+                style={{
+                  padding: '14px', borderRadius: '12px', border: isActive ? '1px solid rgba(236,72,153,0.4)' : '1px solid rgba(30,41,59,0.4)',
+                  background: isActive ? 'rgba(236,72,153,0.05)' : 'rgba(2,6,23,0.3)',
+                  cursor: 'pointer', transition: 'all 0.2s'
+                }}
               >
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-lg">{formatNicheIcon(proj.niche)}</span>
-                    <span className="text-[10px] text-slate-500 font-mono flex items-center gap-1">
-                      <Calendar className="w-3 h-3" />
-                      {formattedDate}
-                    </span>
-                  </div>
-                  <h3 className="text-xs font-bold text-white truncate max-w-full">
-                    {fixDunikTypo(proj.name)}
-                  </h3>
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className="text-[10px] bg-slate-800 text-slate-300 font-semibold px-2 py-0.5 rounded capitalize">
-                      {proj.niche}
-                    </span>
-                    <span className="text-[10px] text-brand-green bg-brand-green/10 px-1.5 py-0.5 rounded font-mono font-bold">
-                      Score: {proj.viralityScore}%
-                    </span>
-                  </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '20px' }}>{formatNicheIcon(proj.niche)}</span>
+                  <span style={{ fontSize: '10px', color: '#475569', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <Calendar style={{ width: '10px', height: '10px' }} />
+                    {formattedDate}
+                  </span>
                 </div>
-
-                <div className="flex justify-between items-center mt-4 pt-3 border-t border-slate-900">
-                  <span className="text-[10px] text-slate-500 font-mono">
-                    {proj.subtitles.length} Captions Aligned
+                <h3 style={{ fontSize: '12px', fontWeight: 700, color: 'white', fontFamily: '"Inter", sans-serif' }}>
+                  {fixDunikTypo(proj.name)}
+                </h3>
+                <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
+                  <span style={{ fontSize: '9px', background: '#18181b', color: '#a1a1aa', fontWeight: 600, padding: '2px 8px', borderRadius: '4px', textTransform: 'capitalize' }}>
+                    {proj.niche}
+                  </span>
+                  <span style={{ fontSize: '9px', background: 'rgba(16,185,129,0.1)', color: '#10b981', padding: '2px 8px', borderRadius: '4px', fontFamily: 'monospace', fontWeight: 700 }}>
+                    Score: {proj.viralityScore}%
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px', paddingTop: '10px', borderTop: '1px solid #18181b' }}>
+                  <span style={{ fontSize: '10px', color: '#475569', fontFamily: 'monospace' }}>
+                    {proj.subtitles.length} Captions
                   </span>
                   <button
                     type="button"
@@ -106,10 +99,10 @@ export default function LibraryPanel({
                         onDeleteProject(proj.id);
                       }
                     }}
-                    className="p-2 rounded-md text-slate-600 hover:text-brand-pink hover:bg-slate-900/60 transition-all duration-150"
+                    style={{ padding: '4px 8px', background: 'transparent', border: 'none', color: '#475569', cursor: 'pointer', borderRadius: '4px' }}
                     title="Delete project"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash2 style={{ width: '14px', height: '14px' }} />
                   </button>
                 </div>
               </div>

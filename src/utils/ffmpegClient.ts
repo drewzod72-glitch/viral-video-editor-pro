@@ -1,204 +1,186 @@
-import { VideoProject, SubtitleItem, getCaptionStyles } from '../types';
+import { VideoProject, getCaptionStyles } from '../types';
 import { FREE_MUSIC_TRACKS } from '../data';
+import { playViralSFX } from './sfx';
 
-const getProxyUrl = (originalUrl: string) => {
-  return `/api/music-proxy?url=${encodeURIComponent(originalUrl)}`;
-};
+const FPS = 30;
+const W = 1080;
+const H = 1920;
+const CANVAS_BITRATE = 4_000_000; // 4 Mbps per Kilo
+const FRAME_CAPTURE_DELAY_MS = 12; // 12 ms per Kilo
 
-/**
- * OFFLINE FORGE ENGINE (V18.6) - SAFARI MUSIC STABILITY
- * Fixed: Safari CORS block on music (via Proxy)
- * Fixed: Race condition where music plays before loading
- */
+function wait(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+function getBestMimeType(): string {
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const candidates = isIOS 
+    ? ['video/mp4; codecs=avc1', 'video/mp4', 'video/webm; codecs=vp9', 'video/webm']
+    : ['video/webm; codecs=vp9', 'video/webm; codecs=vp8', 'video/webm', 'video/mp4'];
+  
+  for (const mime of candidates) {
+    if (MediaRecorder.isTypeSupported(mime)) return mime;
+  }
+  return isIOS ? 'video/mp4' : 'video/webm';
+}
+
 export async function renderVideoInBrowser(
   project: VideoProject,
   onProgress: (progress: number) => void,
   activeClipId: string | null = null
-): Promise<Blob> {
-  const AudioCtxClass = (window as any).AudioContext || (window as any).webkitAudioContext;
-  const audioCtx = new AudioCtxClass();
-  
+): Promise<{ blob: Blob; extension: string }> {
   return new Promise(async (resolve, reject) => {
+    let cancelled = false;
+    const abort = (err: unknown) => { if (!cancelled) { cancelled = true; reject(err); } };
+
     try {
       const video = document.createElement('video');
       video.src = project.videoUrl;
-      video.crossOrigin = 'anonymous';
-      video.muted = true;
-      video.playsInline = true;
-      
-      await new Promise((r) => {
-        video.onloadedmetadata = r;
+      video.muted = true; video.playsInline = true; video.crossOrigin = 'anonymous';
+      await new Promise((res, rej) => {
+        video.onloadedmetadata = res;
+        video.onerror = () => rej(new Error('Failed to load video source'));
         video.load();
       });
 
-      const W = 720; 
-      const H = 1280;
       const canvas = document.createElement('canvas');
       canvas.width = W; canvas.height = H;
       const ctx = canvas.getContext('2d', { alpha: false });
-      
-      const highlights = activeClipId === 'smart-cuts' 
-        ? project.highlights 
-        : (activeClipId ? [project.highlights.find(h => h.id === activeClipId)!].filter(Boolean) : [{ start: 0, end: video.duration || project.duration || 30, duration: video.duration || project.duration || 30 }]);
+      if (!ctx) throw new Error('Canvas context unavailable');
 
-      const totalTargetDuration = highlights.reduce((s, h) => s + (h.duration || (h.end - h.start)), 0);
+      const canvasStream = canvas.captureStream(FPS);
+      const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
+      const audioCtx = new AudioCtx();
+      if (audioCtx.state === 'suspended') await audioCtx.resume(); // Resume immediately
 
-      // AUDIO SETUP
-      const dest = audioCtx.createMediaStreamDestination();
+      const audioDest = audioCtx.createMediaStreamDestination();
+
       const videoSource = audioCtx.createMediaElementSource(video);
       const videoGain = audioCtx.createGain();
-      videoGain.gain.value = 1.6;
-      videoSource.connect(videoGain);
-      videoGain.connect(dest);
+      videoGain.gain.value = 1.0;
+      videoSource.connect(videoGain); videoGain.connect(audioDest);
 
       let musicEl: HTMLAudioElement | null = null;
       if (project.selectedMusicTrackId && project.selectedMusicTrackId !== 'none') {
-        const track = FREE_MUSIC_TRACKS.find(t => t.id === project.selectedMusicTrackId);
+        const track = FREE_MUSIC_TRACKS.find((t) => t.id === project.selectedMusicTrackId);
         if (track) {
-          musicEl = new Audio();
-          musicEl.crossOrigin = 'anonymous';
-          musicEl.src = getProxyUrl(track.url); // USE PROXY
+          musicEl = new Audio(track.url); 
+          musicEl.crossOrigin = 'anonymous'; 
           musicEl.loop = true;
-          
-          // WAIT FOR MUSIC BEFORE STARTING
-          await new Promise((res, rej) => {
-            const timeout = setTimeout(() => rej(new Error("Music Timeout")), 10000);
-            musicEl!.oncanplaythrough = () => { clearTimeout(timeout); res(null); };
-            musicEl!.onerror = () => { clearTimeout(timeout); rej(new Error("Music Load Error")); };
-            musicEl!.load();
-          });
-
-          const musicSource = audioCtx.createMediaElementSource(musicEl);
+          musicEl.currentTime = 0; 
+          musicEl.volume = 1.0; // Music volume to 1.0 per Kilo
+          const mSource = audioCtx.createMediaElementSource(musicEl);
           const musicGain = audioCtx.createGain();
-          musicGain.gain.value = project.musicVolume || 0.4;
-          musicSource.connect(musicGain);
-          musicGain.connect(dest);
+          musicGain.gain.value = project.musicVolume ?? 0.4;
+          mSource.connect(musicGain); mSource.connect(audioDest);
+          // musicEl.play() will happen during handshake
         }
       }
 
-      const canvasStream = canvas.captureStream(30);
-      const mixedStream = new MediaStream([
-        canvasStream.getVideoTracks()[0],
-        ...dest.stream.getAudioTracks()
+      // ── SYNCED AUDIO BUS ──
+      const audioTracks = audioDest.stream.getAudioTracks();
+      const combinedStream = new MediaStream([
+        ...canvasStream.getVideoTracks(),
+        ...(audioTracks.length > 0 ? audioTracks : [])
       ]);
 
-      let mimeType = 'video/mp4';
-      if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
-
-      const recorder = new MediaRecorder(mixedStream, { 
-        mimeType, 
-        videoBitsPerSecond: 5000000 
-      });
-      
-      const chunks: Blob[] = [];
+      const mimeType = getBestMimeType();
+      const extension = mimeType.includes('mp4') ? 'mp4' : 'webm';
+      let recorder = new MediaRecorder(combinedStream, { mimeType, videoBitsPerSecond: CANVAS_BITRATE });
+      let chunks: Blob[] = [];
       recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
-      recorder.onstop = () => {
-        const finalBlob = new Blob(chunks, { type: mimeType });
-        resolve(finalBlob);
-      };
 
-      if (audioCtx.state === 'suspended') await audioCtx.resume();
-      recorder.start();
-      if (musicEl) musicEl.play().catch(() => {});
+      // Audio Handshake Handlers
+      const musicPlayPromise = musicEl ? new Promise<void>((res) => {
+        if (!musicEl) return res();
+        const onPlaying = () => {
+          musicEl.removeEventListener('playing', onPlaying);
+          res();
+        };
+        musicEl.addEventListener('playing', onPlaying);
+        musicEl.play().catch(() => res());
+        setTimeout(res, 2000); // 2s per Kilo
+      }) : Promise.resolve();
 
-      let currentHlIdx = 0;
-      let elapsedInPreviousSegments = 0;
+      // Start Recorder
+      recorder.start(100);
 
-      const renderFrame = () => {
-        const currentHl = highlights[currentHlIdx];
-        if (!currentHl) {
-          recorder.stop();
-          if (musicEl) musicEl.pause();
-          return;
-        }
+      // Trimmed Warm-Up (3 frames) per Kilo
+      for (let i = 0; i < 3; i++) {
+        ctx.clearRect(0, 0, W, H); ctx.drawImage(video, 0, 0, W, H);
+        await new Promise(r => requestAnimationFrame(r));
+      }
 
-        if (video.currentTime >= currentHl.end || video.paused) {
-          elapsedInPreviousSegments += (currentHl.end - currentHl.start);
-          currentHlIdx++;
-          if (currentHlIdx < highlights.length) {
-            video.currentTime = highlights[currentHlIdx].start;
-            video.play().catch(() => {});
-            requestAnimationFrame(renderFrame);
-          } else {
+      // Wait for Music Handshake
+      await musicPlayPromise;
+
+      // Zero-Failure Handshake Gating (3s) per Kilo
+      let firstChunkReceived = false;
+      await new Promise<void>((res) => {
+        const timer = setTimeout(() => {
+          if (!firstChunkReceived) {
+            console.warn('Switching to Stream-Legacy mode...');
             recorder.stop();
-            if (musicEl) musicEl.pause();
+            const legacyStream = new MediaStream([...canvasStream.getVideoTracks()]);
+            recorder = new MediaRecorder(legacyStream, { mimeType, videoBitsPerSecond: CANVAS_BITRATE });
+            recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+            recorder.start(100);
           }
-          return;
-        }
+          res();
+        }, 3000);
+        const original = recorder.ondataavailable;
+        recorder.ondataavailable = (e) => {
+          if (e.data.size > 0) { firstChunkReceived = true; clearTimeout(timer); res(); }
+          if (original) original(e);
+        };
+      });
 
-        const globalT = elapsedInPreviousSegments + (video.currentTime - currentHl.start);
+      const hl = activeClipId ? project.highlights.find(h => h.id === activeClipId) : null;
+      const start = hl?.start ?? 0;
+      const end = hl?.end ?? video.duration;
+      const totalFrames = Math.floor((end - start) * FPS);
+
+      let currentFrame = 0;
+      const render = async () => {
+        if (cancelled || currentFrame >= totalFrames) { recorder.stop(); return; }
+        const t = start + (currentFrame / FPS);
+        video.currentTime = t;
         
-        // CROP & ZOOM LOGIC
-        let currentScale = 1.0;
-        if (project.enableZooms) {
-          const zoom = project.zoomEffects?.find(z => globalT >= z.timestamp && globalT <= z.timestamp + z.duration);
-          if (zoom) currentScale = zoom.scale;
+        if (musicEl && Math.abs(musicEl.currentTime - (currentFrame / FPS)) > 0.1) {
+          musicEl.currentTime = currentFrame / FPS;
         }
 
-        const zoomW = video.videoWidth / currentScale;
-        const zoomH = video.videoHeight / currentScale;
-        const zoomX = (video.videoWidth - zoomW) / 2;
-        const zoomY = (video.videoHeight - zoomH) / 2;
-
-        ctx.drawImage(video, zoomX, zoomY, zoomW, zoomH, 0, 0, W, H);
-
-        // SUBTITLES (High-Retention Two-Tone Matrix)
-        const sub = project.subtitles?.find(s => globalT >= s.start && globalT <= s.end);
-        if (sub) {
-          const style = getCaptionStyles(project.captionStyle || 'hormozi', sub.text.length, W);
-          ctx.font = `900 ${style.fontSize}px sans-serif`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          
-          const text = sub.text.toUpperCase();
-          const words = text.split(' ');
-          const x = W / 2;
-          
-          let y = H * 0.75;
-          if (project.captionPosition === 'top') y = H * 0.15;
-          else if (project.captionPosition === 'center') y = H * 0.5;
-
-          // Draw background box if style requires it
-          if (style.hasBox) {
-            ctx.fillStyle = style.boxBg || 'rgba(0,0,0,0.8)';
-            const metrics = ctx.measureText(text);
-            const padX = 20; const padY = 10;
-            ctx.fillRect(x - metrics.width/2 - padX, y - style.fontSize/2 - padY, metrics.width + padX*2, style.fontSize + padY*2);
-          }
-
-          // Individual Word Highlighting
-          let currentX = x - ctx.measureText(text).width / 2;
-          words.forEach((word, i) => {
-            const isHighlight = sub.highlightWords?.some(hw => word.toLowerCase().includes(hw.toLowerCase())) || i === 0;
-            
-            if (isHighlight) {
-              ctx.fillStyle = (i % 2 === 0) ? '#FBFF00' : '#FF00FF'; // Yellow & Pink Matrix
-            } else {
-              ctx.fillStyle = (style.textColor || '#FFFFFF');
-            }
-
-            ctx.shadowColor = 'black';
-            ctx.shadowBlur = 10;
-            ctx.shadowOffsetX = 4;
-            ctx.shadowOffsetY = 4;
-
-            const wordWidth = ctx.measureText(word).width;
-            ctx.fillText(word, currentX + wordWidth / 2, y);
-            
-            ctx.shadowBlur = 0; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
-            currentX += ctx.measureText(word + ' ').width;
-          });
+        await new Promise(r => { 
+          const onSeeked = () => { video.removeEventListener('seeked', onSeeked); r(null); };
+          video.addEventListener('seeked', onSeeked);
+          setTimeout(onSeeked, 800); 
+        });
+        
+        ctx.clearRect(0, 0, W, H); ctx.drawImage(video, 0, 0, W, H);
+        
+        const s = project.subtitles?.find(i => t >= i.start && t <= i.end);
+        if (s && project.enableSubtitles) {
+          const style = getCaptionStyles(project.captionStyle || 'hormozi', s.text.length, W);
+          ctx.font = `900 ${style.fontSize}px ${style.fontFamily}`;
+          ctx.textAlign = 'center'; ctx.shadowColor = 'black'; ctx.shadowBlur = 20;
+          ctx.fillStyle = '#FFFFFF'; ctx.fillText(s.text.toUpperCase(), W / 2, H * 0.78);
         }
 
-        onProgress(Math.min(99, Math.round((globalT / totalTargetDuration) * 100)));
-        requestAnimationFrame(renderFrame);
+        onProgress(Math.round((currentFrame / totalFrames) * 100));
+        currentFrame++;
+        
+        await wait(FRAME_CAPTURE_DELAY_MS); 
+        requestAnimationFrame(render);
       };
 
-      video.currentTime = highlights[0].start;
-      video.play().then(() => {
-        requestAnimationFrame(renderFrame);
-      }).catch(err => reject(err));
+      recorder.onstop = () => {
+        resolve({ blob: new Blob(chunks, { type: mimeType }), extension });
+        if (musicEl) { musicEl.pause(); musicEl.src = ''; }
+        audioCtx.close().catch(() => {});
+        onProgress(100);
+      };
 
-    } catch (err) { reject(err); }
+      render();
+    } catch (err) { abort(err); }
   });
 }
