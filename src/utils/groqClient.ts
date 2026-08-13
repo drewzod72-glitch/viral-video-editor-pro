@@ -148,27 +148,28 @@ async function captureFrames(file: File): Promise<string[]> {
       try {
         const snapshots: string[] = [];
         const canvas = document.createElement('canvas');
-        canvas.width = 320; canvas.height = 180;
+        // Small frames keep the vision request inside free-tier TPM budgets.
+        // Empirically: 3 frames @ 320x180 + prompt ≈ 7,600 input tokens,
+        // which blew the 8,000 TPM limit on on_demand orgs (Groq 413).
+        canvas.width = 256; canvas.height = 144;
         const ctx = canvas.getContext('2d');
 
         const duration = v.duration;
-        // Groq vision models currently cap input at 3 images per request,
-        // so capture only 3 frames, biased toward the hook/first half
-        // where product-review moments live (Kilo 1a24083).
+        // Two hook-biased frames: enough context for product-review/hook
+        // detection while staying under the 8K TPM budget (Kilo 1a24083).
         const timestamps = [
           Math.min(1.5, duration * 0.1),
-          duration * 0.25,
-          duration * 0.40
+          duration * 0.45
         ];
 
         for (const t of timestamps) {
           v.currentTime = t;
           await waitForSeeked(v, 1500);
-          ctx?.clearRect(0, 0, 320, 180);
-          ctx?.drawImage(v, 0, 0, 320, 180);
-          const data = canvas.toDataURL('image/jpeg', 0.18);
+          ctx?.clearRect(0, 0, 256, 144);
+          ctx?.drawImage(v, 0, 0, 256, 144);
+          const data = canvas.toDataURL('image/jpeg', 0.15);
           if (data.includes(',')) snapshots.push(data.split(',')[1]);
-          if (snapshots.length >= 3) break; // qwen3.6 vision max = 3 images
+          if (snapshots.length >= 2) break; // hard cap: never exceed budget
         }
 
         URL.revokeObjectURL(url); v.remove();
@@ -255,14 +256,14 @@ Rules:
 - If no change is needed, return the original subtitles unchanged.`;
 
 // ─── Low-level Groq caller with retry + status logging ──────────────────────
-async function callGroq(model: string, messages: any[], retries = 2, mode: 'vision' | 'text' = 'text'): Promise<string> {
+async function callGroq(model: string, messages: any[], retries = 2, mode: 'vision' | 'text' = 'text', baseMaxTokens = 4096): Promise<string> {
   const key = getApiKey();
   let jsonMode = true;
   for (let attempt = 0; attempt <= retries; attempt++) {
     // Reduce max_tokens on retry to mitigate TPM/context limit issues (Kilo).
-    // Base is 4096 — 1024 truncated subtitle JSON on larger models (qwen),
-    // which caused json_validate_failed rejections.
-    const maxTokens = attempt === 0 ? 4096 : 2048;
+    // Base is 4096 for text; vision passes 2048 because image inputs already
+    // consume most of the 8K free-tier TPM budget (qwen3.6 on_demand).
+    const maxTokens = attempt === 0 ? baseMaxTokens : Math.floor(baseMaxTokens / 2);
 
     try {
       const body: Record<string, any> = {
@@ -286,12 +287,13 @@ async function callGroq(model: string, messages: any[], retries = 2, mode: 'visi
       if (!res.ok) {
         const snippet = text.slice(0, 200);
 
-        // Handle 413 Request Too Large / TPM limit errors: retry with a
-        // smaller max_tokens (Kilo).
+        // Handle 413 Request Too Large / TPM limit errors: wait for the
+        // rolling TPM window (60s) to drain, then retry with smaller
+        // max_tokens (Kilo).
         if (res.status === 413) {
           addLogEntry(model, mode, false, `413: ${snippet}`);
           if (attempt < retries) {
-            await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+            await new Promise(r => setTimeout(r, 5000 * (attempt + 1)));
             continue; // retry with reduced max_tokens
           }
           throw new Error(`Groq 413: ${snippet}`);
@@ -353,7 +355,7 @@ export async function runAnalyzeVideo(params: any): Promise<any> {
               }))
             ];
 
-            const raw = await callGroq(model, [{ role: 'user', content }], 2, 'vision');
+            const raw = await callGroq(model, [{ role: 'user', content }], 2, 'vision', 2048);
             lastRaw = raw;
             const parsed = extractAndRepair(raw);
 
