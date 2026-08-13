@@ -30,16 +30,18 @@ const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 // NOTE: llama-3.1-8b-instant and llama-3.3-70b-versatile are being SHUT DOWN
 // by Groq on 2026-08-16. The TEXT_MODELS below are the officially recommended
 // replacements (see console.groq.com/docs/deprecations).
+// NOTE: llama-3.1-8b-instant and llama-3.3-70b-versatile shut down 2026-08-16,
+// llama-4-maverick shut down 2026-03-09, llama-4-scout shut down 2026-07-17.
+// The lists below use Groq's officially recommended replacements only
+// (see console.groq.com/docs/deprecations).
 const VISION_MODELS = [
-  'meta-llama/llama-4-scout-17b-16e-instruct',
-  'meta-llama/llama-4-maverick-17b-128e-instruct',
+  'openai/gpt-oss-120b', // Groq's recommended vision replacement for llama-4
 ];
-
 
 const TEXT_MODELS = [
   'openai/gpt-oss-20b',
   'qwen/qwen3.6-27b',
-  'meta-llama/llama-4-scout-17b-16e-instruct',
+  'openai/gpt-oss-120b',
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
