@@ -33,8 +33,8 @@ const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 // by Groq on 2026-08-16. These are the officially recommended replacements
 // (see console.groq.com/docs/deprecations).
 const TEXT_MODELS = [
-  'qwen/qwen3.6-27b',
   'openai/gpt-oss-20b',
+  'qwen/qwen3.6-27b',
   'meta-llama/llama-4-scout-17b-16e-instruct',
 ];
 
@@ -157,26 +157,40 @@ Rules:
 // ─── Low-level Groq caller with retry + status logging ──────────────────────
 async function callGroq(model: string, messages: any[], retries = 2): Promise<string> {
   const key = getApiKey();
+  let jsonMode = true;
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
+      const body: Record<string, any> = {
+        model,
+        messages,
+        temperature: 0.5,
+        max_tokens: 4096, // 1024 truncated subtitle JSON on larger models (qwen) → json_validate_failed
+      };
+      if (jsonMode) body.response_format = { type: 'json_object' };
+
       const res = await fetch(GROQ_API_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${key}`,
         },
-        body: JSON.stringify({
-          model,
-          messages,
-          temperature: 0.7,
-          max_tokens: 1024,
-          response_format: { type: 'json_object' }
-        }),
+        body: JSON.stringify(body),
       });
 
       const text = await res.text();
       if (!res.ok) {
         const snippet = text.slice(0, 200);
+
+        // Some models (e.g. qwen3.6-27b) can fail strict JSON mode even with a
+        // valid prompt. Retry the SAME model once in free-form mode — the
+        // extractAndRepair parser salvages JSON from plain text output.
+        if (res.status === 400 && snippet.includes('json_validate_failed') && jsonMode) {
+          addLogEntry(model, false, '400 json_validate_failed — retrying without JSON mode');
+          jsonMode = false;
+          attempt--; // don't consume a retry slot for this recovery path
+          continue;
+        }
+
         addLogEntry(model, false, `${res.status}: ${snippet}`);
         if (res.status === 400 || res.status === 401 || res.status === 403 || res.status === 404) {
           throw new Error(`Groq ${res.status}: ${snippet}`);
