@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { VideoProject } from './types';
 import { FREE_MUSIC_TRACKS, RAW_VIDEO_TEMPLATES } from './data';
 import NicheSelector from './components/NicheSelector';
@@ -24,6 +24,7 @@ export default function App() {
   const [activeClipId, setActiveClipId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [aiSuccess, setAiSuccess] = useState(false);
+  const [analysisMode, setAnalysisMode] = useState<'vision' | 'text' | null>(null);
   const [apiStatusLog, setApiStatusLog] = useState<any[]>([]);
   const [showApiStatus, setShowApiStatus] = useState(false);
 
@@ -36,13 +37,15 @@ export default function App() {
   };
 
   // Clean up object URLs to prevent memory leaks
+  const prevProjectRef = useRef<VideoProject | null>(null);
   useEffect(() => {
-    return () => {
-      if (activeProject?.videoUrl?.startsWith('blob:')) {
-        URL.revokeObjectURL(activeProject.videoUrl);
-      }
-    };
-  }, [activeProject?.videoUrl]);
+    const prev = prevProjectRef.current;
+    if (prev?.videoUrl?.startsWith('blob:') && prev.videoUrl !== activeProject?.videoUrl) {
+      URL.revokeObjectURL(prev.videoUrl);
+    }
+    prevProjectRef.current = activeProject;
+  }, [activeProject]);
+
 
   // Poll API status log for UI feedback
   useEffect(() => {
@@ -75,12 +78,12 @@ export default function App() {
       selectedMusicTrackId: 'lofi-1',
       colorGrade: 'vibrant_pop',
       zoomEffects: [],
-      enableSubtitles: true, enableZooms: true, musicVolume: 0.4,
+      enableSubtitles: true, enableZooms: true, enableColorGrade: true, musicVolume: 0.4,
       jumpCuts: false, speedRamp: false, sfxSparks: false, emojiBounces: false,
       autoZoomPunch: true, shakeOnPunch: true, camRecorderHUD: false,
       sfxPopEnabled: true, sfxWhooshEnabled: true,
       createdAt: new Date().toISOString()
-    } as any;
+    };
 
     setActiveProject(proj);
     setActiveTab('studio');
@@ -93,12 +96,14 @@ export default function App() {
         console.log('[App] AI analysis result:', result);
         if (result?.success && result.project) {
           setActiveProject(prev => {
-            const merged = { ...prev, ...result.project } as any;
+            if (!prev) return prev;
+            const merged = { ...prev, ...result.project } as VideoProject;
             const scored = computeViralityScore(merged);
             return { ...merged, viralityScore: scored.score, viralityFeedback: scored.feedback };
           });
+          setAnalysisMode(result.mode || 'text');
           setAiSuccess(true);
-          setTimeout(() => setAiSuccess(false), 2500);
+          setTimeout(() => { setAiSuccess(false); setAnalysisMode(null); }, 3000);
         } else {
           console.warn('AI offline — manual mode active:', result?.error);
           setActiveProject(prev => {
@@ -144,12 +149,12 @@ export default function App() {
       selectedMusicTrackId: 'hype-1',
       colorGrade: 'vibrant_pop',
       zoomEffects: [],
-      enableSubtitles: true, enableZooms: true, musicVolume: 0.4,
+      enableSubtitles: true, enableZooms: true, enableColorGrade: true, musicVolume: 0.4,
       jumpCuts: false, speedRamp: false, sfxSparks: false, emojiBounces: false,
       autoZoomPunch: true, shakeOnPunch: true, camRecorderHUD: false,
       sfxPopEnabled: true, sfxWhooshEnabled: true,
       createdAt: new Date().toISOString()
-    } as any;
+    };
 
     setActiveProject(proj);
     setActiveTab('studio');
@@ -162,12 +167,14 @@ export default function App() {
         console.log('[App] AI analysis result (upload):', result);
         if (result?.success && result.project) {
           setActiveProject(prev => {
-            const merged = { ...prev, ...result.project } as any;
+            if (!prev) return prev;
+            const merged = { ...prev, ...result.project } as VideoProject;
             const scored = computeViralityScore(merged);
             return { ...merged, viralityScore: scored.score, viralityFeedback: scored.feedback };
           });
+          setAnalysisMode(result.mode || 'text');
           setAiSuccess(true);
-          setTimeout(() => setAiSuccess(false), 2500);
+          setTimeout(() => { setAiSuccess(false); setAnalysisMode(null); }, 3000);
         } else {
           console.warn('AI offline — manual mode active:', result?.error);
           setActiveProject(prev => {
@@ -382,7 +389,7 @@ export default function App() {
       ].map(tab => (
         <button
           key={tab.key}
-          onClick={() => { setActiveTab(tab.key as any); setSidebarOpen(false); }}
+          onClick={() => { setActiveTab(tab.key as 'studio' | 'viral' | 'copilot'); setSidebarOpen(false); }}
           style={{
             padding: '11px 14px', borderRadius: '10px', border: 'none',
             background: activeTab === tab.key ? 'rgba(139,92,246,0.18)' : 'transparent',
@@ -576,7 +583,7 @@ export default function App() {
                 ].map(tab => (
                   <button
                     key={tab.key}
-                    onClick={() => setActiveTab(tab.key as any)}
+                    onClick={() => setActiveTab(tab.key as 'studio' | 'viral' | 'copilot')}
                     style={{
                       padding: '10px 20px', borderRadius: '10px', border: 'none',
                       background: activeTab === tab.key ? 'rgba(139,92,246,0.25)' : 'transparent',
@@ -595,30 +602,35 @@ export default function App() {
                   {aiSuccess && (
                     <div style={{
                       position: 'absolute', top: '-8px', left: '50%', transform: 'translateX(-50%)',
-                      background: 'linear-gradient(135deg, #10b981, #059669)',
+                      background: analysisMode === 'vision' 
+                        ? 'linear-gradient(135deg, #06b6d4, #0891b2)' 
+                        : 'linear-gradient(135deg, #10b981, #059669)',
                       color: 'white', padding: '6px 16px', borderRadius: '20px',
                       fontSize: '10px', fontWeight: 800, zIndex: 50,
                       textTransform: 'uppercase', letterSpacing: '0.5px',
-                      boxShadow: '0 4px 20px rgba(16,185,129,0.4)',
-                      animation: 'pulse-glow 2s ease-in-out infinite'
+                      boxShadow: analysisMode === 'vision'
+                        ? '0 4px 20px rgba(6,182,212,0.4)'
+                        : '0 4px 20px rgba(16,185,129,0.4)',
+                      animation: 'pulse-glow 2s ease-in-out infinite',
+                      whiteSpace: 'nowrap'
                     }}>
-                      ✓ AI EDIT APPLIED
+                      {analysisMode === 'vision' ? '👁 VISION AI EDIT APPLIED' : '✓ AI EDIT APPLIED'}
                     </div>
                   )}
                   <VideoPlayerWorkspace
                     project={activeProject}
-                    onUpdateProject={setActiveProject as any}
+                    onUpdateProject={(up) => setActiveProject(up as VideoProject)}
                     activeMusicTrack={FREE_MUSIC_TRACKS.find(t => t.id === activeProject.selectedMusicTrackId) || null}
                     activeClipId={activeClipId}
                     onClipSelect={setActiveClipId}
                   />
                 </div>
               )}
-              {activeTab === 'viral' && <ViralityScorecard project={activeProject} onUpdateProject={setActiveProject as any} />}
+              {activeTab === 'viral' && <ViralityScorecard project={activeProject} onUpdateProject={(up) => setActiveProject(up as VideoProject)} />}
               {activeTab === 'copilot' && (
                 <AICopilotConsole
                   project={activeProject}
-                  onUpdateProject={setActiveProject as any}
+                  onUpdateProject={(up) => setActiveProject(up as VideoProject)}
                   onUpdateSubtitles={(subs: any) => setActiveProject(p => ({ ...p!, subtitles: subs }))}
                 />
               )}

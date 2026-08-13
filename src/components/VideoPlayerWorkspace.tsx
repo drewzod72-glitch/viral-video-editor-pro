@@ -281,7 +281,11 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
           aspectRatio: '9/16', background: '#000',
           margin: '0 auto', borderRadius: '20px', overflow: 'hidden',
           border: '2px solid #18181b',
-          boxShadow: '0 24px 80px rgba(0,0,0,0.5)'
+          boxShadow: '0 24px 80px rgba(0,0,0,0.5)',
+          paddingTop: 'env(safe-area-inset-top, 0px)',
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+          paddingLeft: 'env(safe-area-inset-left, 0px)',
+          paddingRight: 'env(safe-area-inset-right, 0px)'
         }}>
           <video
             ref={vRef}
