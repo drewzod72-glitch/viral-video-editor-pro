@@ -32,10 +32,11 @@ const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 // replacements (see console.groq.com/docs/deprecations).
 // NOTE: llama-3.1-8b-instant and llama-3.3-70b-versatile shut down 2026-08-16,
 // llama-4-maverick shut down 2026-03-09, llama-4-scout shut down 2026-07-17.
-// The lists below use Groq's officially recommended replacements only
-// (see console.groq.com/docs/deprecations).
+// openai/gpt-oss-120b is text-only on Groq (image content → 400
+// "messages[0].content must be a string"). qwen/qwen3.6-27b is the current
+// vision-capable model (Text+Images input, max 3 images per request).
 const VISION_MODELS = [
-  'openai/gpt-oss-120b', // Groq's recommended vision replacement for llama-4
+  'qwen/qwen3.6-27b',
 ];
 
 const TEXT_MODELS = [
@@ -151,12 +152,11 @@ async function captureFrames(file: File): Promise<string[]> {
         const ctx = canvas.getContext('2d');
 
         const duration = v.duration;
+        // Groq vision models currently cap input at 3 images per request,
+        // so capture only 3 well-spaced frames.
         const timestamps = [
           Math.min(1.5, duration * 0.1),
-          duration * 0.25,
-          duration * 0.40,
-          duration * 0.60,
-          duration * 0.75,
+          duration * 0.5,
           Math.max(duration - 1.5, duration * 0.85)
         ];
 
@@ -304,7 +304,10 @@ async function callGroq(model: string, messages: any[], retries = 2, mode: 'visi
     } catch (e: any) {
       const msg = e?.message || 'network error';
       addLogEntry(model, mode, false, msg);
-      if (attempt === retries) throw e;
+      // 4xx = permanent error (bad key, bad model, unsupported payload).
+      // Retrying the identical request can never succeed — fail fast so the
+      // fallback chain (next model / text mode) starts immediately.
+      if (msg.startsWith('Groq 4') || attempt === retries) throw e;
       await new Promise(r => setTimeout(r, 800 * (attempt + 1)));
     }
   }
