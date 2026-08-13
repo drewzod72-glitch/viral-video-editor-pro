@@ -56,6 +56,7 @@ export interface VideoProject {
   };
   viralityFeedback: string[];
   highlights: HighlightClip[];
+  cuts?: Array<{ id: string; start: number; end: number; reason: string }>;
   subtitles: SubtitleItem[];
   captionStyle: CaptionStyle;
   selectedMusicTrackId: string;
@@ -114,6 +115,8 @@ export interface CaptionStyleConfig {
   boxPaddingX?: number;
   boxPaddingY?: number;
   boxRadius?: number;
+  /** Vertical anchor as a fraction of frame height (0 = top, 1 = bottom). */
+  yPositionFraction?: number;
 }
 
 /**
@@ -145,6 +148,7 @@ export function getCaptionStyles(style: string, textLen: number, W: number): Cap
       ? `0 ${Math.round(3 * scale)}px ${Math.round(6 * scale)}px rgba(0,0,0,0.85)`
       : `${Math.round(3 * scale)}px ${Math.round(3 * scale)}px 0px rgba(0,0,0,1)`,
     hasBox: metrics.hasBox,
+    yPositionFraction: metrics.yPositionFraction,
   };
 
   if (metrics.hasBox) {

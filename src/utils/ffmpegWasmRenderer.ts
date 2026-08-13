@@ -76,7 +76,8 @@ export async function renderVideoWithFFmpegWasm(options: FFmpegWasmRendererOptio
 
   if (mode === 'canvas') {
     const { renderVideoInBrowser } = await import('./ffmpegClient');
-    return (await renderVideoInBrowser(project, onProgress, activeClipId)).blob;
+    const canvasResult = await renderVideoInBrowser(project, onProgress, activeClipId);
+    return canvasResult.blob;
   }
 
   // FFmpeg.wasm mode with retry and transparent fallback
@@ -175,13 +176,15 @@ export async function renderVideoWithFFmpegWasm(options: FFmpegWasmRendererOptio
       console.warn('[FFmpeg.wasm] All attempts failed, falling back to canvas renderer:', error);
       
       const { renderVideoInBrowser } = await import('./ffmpegClient');
-      return (await renderVideoInBrowser(project, onProgress, activeClipId)).blob;
+      const canvasResult = await renderVideoInBrowser(project, onProgress, activeClipId);
+      return canvasResult.blob;
     }
   }
 
   // Should never reach here, but just in case
   const { renderVideoInBrowser } = await import('./ffmpegClient');
-  return (await renderVideoInBrowser(project, onProgress, activeClipId)).blob;
+  const canvasResult = await renderVideoInBrowser(project, onProgress, activeClipId);
+  return canvasResult.blob;
 }
 
 // ─── SRT Generator ──────────────────────────────────────────────────────────

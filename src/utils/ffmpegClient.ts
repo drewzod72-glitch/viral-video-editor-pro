@@ -12,18 +12,18 @@ const SEEK_THRESHOLD = 0.15; // only seek if drift exceeds 150ms
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
-function waitForSeeked(video: HTMLVideoElement, timeoutMs = 1500): Promise<void> {
+function waitForSeeked(el: HTMLVideoElement | HTMLAudioElement, timeoutMs = 1500): Promise<void> {
   return new Promise((resolve) => {
     const onSeeked = () => {
-      video.removeEventListener('seeked', onSeeked);
+      el.removeEventListener('seeked', onSeeked);
       clearTimeout(timer);
       resolve();
     };
     const timer = setTimeout(() => {
-      video.removeEventListener('seeked', onSeeked);
+      el.removeEventListener('seeked', onSeeked);
       resolve();
     }, timeoutMs);
-    video.addEventListener('seeked', onSeeked);
+    el.addEventListener('seeked', onSeeked);
   });
 }
 
@@ -194,11 +194,6 @@ export async function renderVideoInBrowser(
           ? [project.highlights.find((h: any) => h.id === activeClipId)].filter(Boolean)
           : [{ start: 0, end: video.duration || 30, duration: video.duration || 30 }];
 
-      const totalDuration = (highlights as Array<{ duration?: number; start?: number; end?: number }>).reduce(
-        (s, h) => s + (h.duration || ((h.end ?? 0) - (h.start ?? 0)) || 0),
-        0
-      );
-      const totalFrames = Math.max(1, Math.floor(totalDuration * FPS));
 
       // ── 5. START RECORDER + WARM-UP ──────────────────────────────────
       const createRecorder = (stream: MediaStream) => {
@@ -296,19 +291,33 @@ export async function renderVideoInBrowser(
 
       onProgress(1);
 
-      // ── 6. FRAME-LOCKED RENDER LOOP ───────────────────────────────────
+      // ── 6. SMOOTH NATURAL-PLAYBACK RENDER LOOP ─────────────────────────
+      // Select highlights based on activeClipId (same logic as before)
+      const selectedHighlights = activeClipId === 'smart-cuts'
+        ? project.highlights
+        : activeClipId
+          ? [project.highlights.find((h: any) => h.id === activeClipId)].filter(Boolean)
+          : [{ start: 0, end: video.duration || 30, duration: video.duration || 30 }];
+      
+      // Guard against zero-duration highlights causing infinite loops
+      const safeHighlights = selectedHighlights.filter((h) => (h.duration || (h.end - h.start)) > 0.05);
+      
+      // If no valid highlights, render full video
+      if (safeHighlights.length === 0) {
+        safeHighlights.push({ start: 0, end: video.duration || 30, duration: video.duration || 30 });
+      }
+      
+      // Recalculate total frames based on selected highlights (includes transition frames)
+      const totalDuration = safeHighlights.reduce(
+        (s, h) => s + (h.duration || (h.end - h.start)),
+        0
+      );
+      const transitionFrames = safeHighlights.length > 1 ? (safeHighlights.length - 1) * 16 : 0; // 8 fade in + 8 fade out per transition
+      const totalFrames = Math.max(1, Math.floor(totalDuration * FPS) + transitionFrames);
+
       let currentFrame = 0;
       let lastSubId: string | null = null;
-
-      const getGlobalTime = (frameIdx: number): number => {
-        let remaining = frameIdx;
-        for (const h of highlights) {
-          const hDur = h.duration || (h.end - h.start);
-          if (remaining < hDur * FPS) return h.start + remaining / FPS;
-          remaining -= hDur * FPS;
-        }
-        return highlights[highlights.length - 1]?.end ?? 0;
-      };
+      let cancelled = false;
 
       const onSubtitleChange = (subId: string) => {
         if (project.sfxPopEnabled && !useNoAudio) {
@@ -317,32 +326,73 @@ export async function renderVideoInBrowser(
         lastSubId = subId;
       };
 
-      // Guard against zero-duration highlights causing infinite seek loops
-      const safeHighlights = highlights.filter((h) => (h.duration || (h.end - h.start)) > 0.05);
-
-      const renderNextFrame = async () => {
-        try {
-          if (cancelled || currentFrame >= totalFrames) {
-            await finishRender();
-            return;
-          }
-
-          const frameStartTime = performance.now();
-          const globalT = getGlobalTime(currentFrame);
-
-          // ── PAUSE + SEEK ────────────────────────────────────────────────
-          // Only seek if drift exceeds threshold — avoids per-frame seeking jank
-          if (Math.abs(video.currentTime - globalT) > SEEK_THRESHOLD) {
+      const renderSegment = async (h: any): Promise<number> => {
+        const segStart = h.start;
+        const segEnd = h.end;
+        const segDuration = h.duration || (h.end - h.start);
+        const segFrames = Math.max(1, Math.floor(segDuration * FPS));
+        
+        // Seek to segment start (both video and audio element on iOS)
+        video.pause();
+        video.currentTime = segStart;
+        if (videoAudioEl) {
+          videoAudioEl.currentTime = segStart;
+        }
+        await waitForSeeked(video, 1000);
+        if (videoAudioEl) {
+          await waitForSeeked(videoAudioEl, 1000);
+        }
+        
+        // Small settle time after seek
+        await wait(100);
+        
+        // Play video naturally for this segment
+        await video.play().catch(() => {});
+        if (videoAudioEl) {
+          await videoAudioEl.play().catch(() => {});
+        }
+        
+        let framesDrawn = 0;
+        const segmentStartTime = performance.now();
+        
+        for (let f = 0; f < segFrames; f++) {
+          if (cancelled) break;
+          
+          const expectedTime = segStart + (f / FPS);
+          const actualTime = video.currentTime;
+          
+          // If video drifts too far ahead or behind, re-sync both video and audio
+          if (Math.abs(actualTime - expectedTime) > 0.3) {
             video.pause();
-            video.currentTime = globalT;
-            await waitForSeeked(video, 1500);
+            video.currentTime = expectedTime;
+            if (videoAudioEl) {
+              videoAudioEl.currentTime = expectedTime;
+            }
+            await waitForSeeked(video, 800);
+            if (videoAudioEl) {
+              await waitForSeeked(videoAudioEl, 800);
+            }
+            await video.play().catch(() => {});
+            if (videoAudioEl) {
+              await videoAudioEl.play().catch(() => {});
+            }
           }
-
-          // ── DRAW ────────────────────────────────────────────────────────
+          
+          // Wait for video to be ready
+          if (video.readyState < 2) {
+            await new Promise((r) => {
+              video.addEventListener('loadeddata', r, { once: true });
+              setTimeout(r, 500);
+            });
+          }
+          
+          const globalT = video.currentTime;
+          
+          // ── DRAW FRAME ─────────────────────────────────────────────────
           ctx.clearRect(0, 0, W, H);
           ctx.drawImage(video, 0, 0, W, H);
 
-          // Color grade overlay
+          // Color grade overlay (canvas 2D composite, not CSS filter)
           if (project.enableColorGrade && project.colorGrade && project.colorGrade !== 'none') {
             ctx.globalCompositeOperation = 'overlay';
             ctx.globalAlpha = 0.22;
@@ -351,6 +401,9 @@ export async function renderVideoInBrowser(
               warm_vintage: '#5c3a1a',
               vibrant_pop: '#5c1a3a',
               moody_cyber: '#1a1a2e',
+              film_noir: '#000000',
+              neon_nights: '#1a0a2e',
+              golden_hour: '#5c4a1a',
             };
             ctx.fillStyle = gradeColors[project.colorGrade] || 'transparent';
             ctx.fillRect(0, 0, W, H);
@@ -376,7 +429,7 @@ export async function renderVideoInBrowser(
             ctx.restore();
           }
 
-          // Subtitles
+          // Subtitles - using getCaptionStyles for consistent colors
           const s = project.subtitles?.find(
             (i: any) => globalT >= i.start && globalT <= i.end
           );
@@ -387,7 +440,7 @@ export async function renderVideoInBrowser(
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             const x = W / 2;
-            const y = H * 0.78;
+            const y = H * (style.yPositionFraction || 0.78);
             const words = s.text.toUpperCase().split(' ');
             const measured = words.map((w) => ctx.measureText(w).width);
             const spaceW = ctx.measureText(' ').width;
@@ -420,7 +473,7 @@ export async function renderVideoInBrowser(
                 (kw: string) => w.toLowerCase().includes(kw.toLowerCase())
               ) || i === 0;
               ctx.fillStyle = isH
-                ? (i % 2 === 0 ? '#FBFF00' : '#FF00FF')
+                ? (style.highlightColor || '#FBFF00')
                 : (style.textColor || '#FFFFFF');
               ctx.fillText(w, curX + measured[i] / 2, y);
               curX += measured[i] + spaceW;
@@ -431,40 +484,63 @@ export async function renderVideoInBrowser(
             if (s.id !== lastSubId) onSubtitleChange(s.id);
           }
 
-          // ── CAPTURE CONFIRMATION ────────────────────────────────────────
+          // ── CAPTURE FRAME ────────────────────────────────────────────────
           await new Promise((r) => requestAnimationFrame(r));
           await wait(FRAME_CAPTURE_DELAY_MS);
 
           // ── PROGRESS ────────────────────────────────────────────────────
-          const progress = Math.min(99, Math.round((currentFrame / totalFrames) * 100));
-          onProgress(progress);
-
-          // ── MEMORY CLEANUP (per frame) ──────────────────────────────────
-          ctx.clearRect(0, 0, W, H);
           currentFrame++;
+          framesDrawn++;
+          const overallProgress = Math.min(95, Math.round((currentFrame / totalFrames) * 100));
+          onProgress(overallProgress);
 
-          // ── TIMING ─────────────────────────────────────────────────────
-          const elapsed = performance.now() - frameStartTime;
-          const targetInterval = 1000 / FPS;
-          const remaining = targetInterval - elapsed;
+          // Small timing buffer to keep FPS steady
+          const frameElapsed = performance.now() - segmentStartTime;
+          const expectedElapsed = (f / FPS) * 1000;
+          const remaining = expectedElapsed - frameElapsed;
           if (remaining > 0) {
             await wait(remaining);
           }
-
-          renderNextFrame();
-        } catch (frameErr) {
-          console.error('[Forge] Frame error:', frameErr);
-          if (!cancelled && currentFrame < totalFrames) {
-            // Try to continue with next frame instead of crashing
-            currentFrame++;
-            renderNextFrame();
-          } else {
-            await finishRender();
-          }
         }
+        
+        // Pause video at end of segment (but keep audio playing for smooth transitions)
+        video.pause();
+        // Note: intentionally NOT pausing videoAudioEl so audio continues through fades
+        return framesDrawn;
       };
 
+      // Render each highlight segment with fade transitions
+      for (let i = 0; i < safeHighlights.length; i++) {
+        if (cancelled) break;
+        
+        // Fade in from black at start of first segment or after a cut
+        if (i > 0) {
+          for (let fade = 0; fade < 8; fade++) {
+            ctx.fillStyle = `rgba(0,0,0,${1 - fade / 8})`;
+            ctx.fillRect(0, 0, W, H);
+            await new Promise((r) => requestAnimationFrame(r));
+            await wait(FRAME_CAPTURE_DELAY_MS);
+            currentFrame++;
+          }
+        }
+        
+        await renderSegment(safeHighlights[i]);
+        
+        // Fade to black between segments (except last)
+        if (i < safeHighlights.length - 1) {
+          for (let fade = 0; fade < 8; fade++) {
+            ctx.fillStyle = `rgba(0,0,0,${fade / 8})`;
+            ctx.fillRect(0, 0, W, H);
+            await new Promise((r) => requestAnimationFrame(r));
+            await wait(FRAME_CAPTURE_DELAY_MS);
+            currentFrame++;
+          }
+        }
+      }
+
+      // ── FINALIZE ─────────────────────────────────────────────────────
       const finishRender = async () => {
+        video.pause();
         recorder.stop();
 
         await new Promise<void>((res) => {
@@ -472,7 +548,6 @@ export async function renderVideoInBrowser(
             const finalBlob = new Blob(chunks, { type: mimeType });
 
             // ── FULL MEMORY DISPOSAL ────────────────────────────────────
-            video.pause();
             video.removeAttribute('src');
             video.load();
             video.remove();
@@ -507,8 +582,7 @@ export async function renderVideoInBrowser(
         onProgress(100);
       };
 
-      // Kick off the render loop
-      renderNextFrame();
+      await finishRender();
 
     } catch (err) {
       abort(err);

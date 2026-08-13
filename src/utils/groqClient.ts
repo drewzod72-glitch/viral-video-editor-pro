@@ -115,27 +115,119 @@ function extractAndRepair(text: string): any {
 
 function generateMockSubtitles(niche: string, duration = 30): Array<{ id: string; text: string; start: number; end: number }> {
   const hooks: Record<string, string[]> = {
-    cooking: ['SIZZLING STEAK', 'BUTTER BASTING', 'PERFECT CRUST', 'MEDIUM RARE', 'SERVE IT UP'],
-    unboxing: ['NEW ARRIVAL', 'TEAR THE PAPER', 'QUALITY CHECK', 'SOLE DETAIL', 'STEAL DEAL'],
-    sales: ['STOP SCROLLING', 'ULTIMATE BAG', 'ITALIAN LEATHER', 'HIDDEN POCKET', 'CLICK LINK'],
-    education: ['FUTURE IS NOW', 'AI EDITING', 'ZERO CODE', 'RENDER IN SECONDS', 'GAME CHANGER'],
-    fitness: ['NO EXCUSES', 'WAKE UP', 'GRIND HARD', 'PUSH LIMITS', 'DOMINATE'],
-    pets: ['HAPPY PUPPY', 'GOOD BOY', 'HEAD TILT', 'STRESS RELIEF', 'LIKE & FOLLOW'],
-    tech: ['BUTTERY SWITCHES', 'THOCKY SOUND', 'PBT KEYCAPS', 'MECH PURPLE', 'BUILD COMPLETE'],
-    default: ['WATCH THIS', 'VIRAL MOMENT', 'GAME CHANGER', 'MUST TRY', 'SHARE NOW'],
+    cooking: ['SIZZLING STEAK', 'BUTTER BASTING', 'PERFECT CRUST', 'MEDIUM RARE', 'SERVE IT UP', 'REST THE MEAT', 'SLICE AGAINST GRAIN', 'PLATE IT', 'ADD HERBS', 'FINAL TOUCH'],
+    unboxing: ['NEW ARRIVAL', 'TEAR THE PAPER', 'QUALITY CHECK', 'SOLE DETAIL', 'STEAL DEAL', 'UNBOXING NOW', 'FIRST IMPRESSION', 'WORTH IT', 'BUILD QUALITY', 'VERDICT'],
+    sales: ['STOP SCROLLING', 'ULTIMATE BAG', 'ITALIAN LEATHER', 'HIDDEN POCKET', 'CLICK LINK', 'BEST VALUE', 'LIMITED STOCK', 'ADD TO CART', 'SAVE NOW', 'DON\'T MISS'],
+    education: ['FUTURE IS NOW', 'AI EDITING', 'ZERO CODE', 'RENDER IN SECONDS', 'GAME CHANGER', 'LEARN FAST', 'SKILL UP', 'TRY THIS', 'NEXT LEVEL', 'GO WILD'],
+    fitness: ['NO EXCUSES', 'WAKE UP', 'GRIND HARD', 'PUSH LIMITS', 'DOMINATE', 'STAY STRONG', 'KEEP GOING', 'ONE MORE', 'FINISH HIM', 'BE LEGEND'],
+    pets: ['HAPPY PUPPY', 'GOOD BOY', 'HEAD TILT', 'STRESS RELIEF', 'LIKE & FOLLOW', 'CUTE ALERT', 'PLAY TIME', 'TASTY TREAT', 'NAP TIME', 'BEST FRIEND'],
+    tech: ['BUTTERY SWITCHES', 'THOCKY SOUND', 'PBT KEYCAPS', 'MECH PURPLE', 'BUILD COMPLETE', 'TYPE FAST', 'GAME READY', 'SETUP TOUR', 'RGB SYNC', 'UPGRADE NOW'],
+    default: ['WATCH THIS', 'VIRAL MOMENT', 'GAME CHANGER', 'MUST TRY', 'SHARE NOW', 'FOLLOW ME', 'LINK IN BIO', 'TAG A FRIEND', 'SAVE THIS', 'COMMENT BELOW'],
   };
+  
   const words = hooks[niche] || hooks['default'];
   const subs: Array<{ id: string; text: string; start: number; end: number }> = [];
-  const interval = duration / words.length;
-  words.forEach((text, i) => {
+  const interval = 2.5; // One caption every 2.5 seconds for full coverage
+  
+  for (let t = 0; t < duration; t += interval) {
+    const wordIndex = Math.floor(t / interval) % words.length;
     subs.push({
-      id: `mock-${i}`,
-      text,
-      start: parseFloat((i * interval).toFixed(2)),
-      end: parseFloat((i * interval + interval).toFixed(2)),
+      id: `mock-${Math.floor(t / interval)}`,
+      text: words[wordIndex],
+      start: parseFloat(t.toFixed(2)),
+      end: parseFloat(Math.min(t + interval, duration).toFixed(2)),
     });
-  });
+  }
+  
   return subs;
+}
+
+function generateSmartCuts(duration: number): Array<{ id: string; start: number; end: number; reason: string }> {
+  // Generate 2-4 smart cuts to remove dead air and keep only viral moments
+  const cuts: Array<{ id: string; start: number; end: number; reason: string }> = [];
+  const segmentDuration = 5.0; // 5-second segments
+  
+  // Keep first 5s (hook) and last 5s (CTA), cut middle dead air
+  if (duration > 15) {
+    cuts.push({
+      id: 'cut-1',
+      start: 5.0,
+      end: Math.min(5.0 + segmentDuration, duration - 5),
+      reason: 'Dead air - no speech or action'
+    });
+  }
+  
+  if (duration > 20) {
+    cuts.push({
+      id: 'cut-2', 
+      start: Math.min(10.0, duration - 5),
+      end: Math.min(15.0, duration - 5),
+      reason: 'Slow pacing - trimming for retention'
+    });
+  }
+  
+  return cuts;
+}
+
+function generateSmartHighlights(duration: number, cuts: Array<{ start: number; end: number }>): Array<any> {
+  // Generate highlights from segments NOT cut
+  const highlights: Array<any> = [];
+  let currentTime = 0;
+  let highlightId = 1;
+  
+  // Sort cuts by start time
+  const sortedCuts = [...cuts].sort((a, b) => a.start - b.start);
+  
+  for (const cut of sortedCuts) {
+    if (currentTime < cut.start) {
+      highlights.push({
+        id: `h${highlightId}`,
+        title: `Viral Moment ${highlightId}`,
+        start: currentTime,
+        end: cut.start,
+        duration: cut.start - currentTime,
+        viralityScore: 75 + Math.floor(Math.random() * 25),
+        description: 'Strong hook or engaging content',
+        whyEngaging: 'Stops scrollers and builds curiosity',
+        speed: 1.0
+      });
+      highlightId++;
+    }
+    currentTime = cut.end;
+  }
+  
+  // Add final segment after last cut
+  if (currentTime < duration) {
+    highlights.push({
+      id: `h${highlightId}`,
+      title: `Viral Moment ${highlightId}`,
+      start: currentTime,
+      end: duration,
+      duration: duration - currentTime,
+      viralityScore: 75 + Math.floor(Math.random() * 25),
+      description: 'CTA or closing moment',
+      whyEngaging: 'Drives action and completion',
+      speed: 1.0
+    });
+  }
+  
+  // Ensure we have at least 3 highlights
+  if (highlights.length < 3 && duration > 10) {
+    const third = duration / 3;
+    highlights.push({
+      id: `h${highlightId}`,
+      title: `Viral Moment ${highlightId}`,
+      start: third * 2,
+      end: Math.min(third * 2 + third, duration),
+      duration: Math.min(third, duration - third * 2),
+      viralityScore: 80,
+      description: 'Engaging middle segment',
+      whyEngaging: 'Maintains viewer interest',
+      speed: 1.0
+    });
+  }
+  
+  return highlights;
 }
 
 async function captureFrames(file: File): Promise<string[]> {
@@ -181,38 +273,27 @@ async function captureFrames(file: File): Promise<string[]> {
   });
 }
 
-// ─── Prompts ────────────────────────────────────────────────────────────────
-const VISION_PROMPT = `You are a viral short-form video director. Analyze these video frames.
-1. Decide if this video NEEDS subtitles. Silent B-roll/cinematic shots should stay clean. Talking heads, product pitches, and educational content need viral captions.
-2. If subtitles are needed, write punchy captions (2-4 words each, 1.5-2.5s duration).
-3. Identify PRODUCT REVIEW moments: sole close-ups, stitching details, logo reveals, texture macros, fit/angle showcases.
-4. Identify the CTA (call to action — close, question, link, save).
-5. Generate SMART CUT timestamps for each Product Review moment.
+const VISION_PROMPT = (duration: number) => `You are a viral short-form video director analyzing a ${duration.toFixed(1)}s video.
+
+TASK: Create a PROFESSIONAL EDIT with CUTS and FULL COVERAGE subtitles.
+
+1. SUBTITLES (MANDATORY):
+   - Generate subtitles for the ENTIRE ${duration.toFixed(1)}s duration
+   - Minimum subtitle count: ${Math.ceil(duration / 2.5)}
+   - Each subtitle: 2-4 words, UPPERCASE, punchy
+   - Coverage: every second must have a subtitle OR be explicitly marked as silent B-roll
+   - Start times: 0, 2.5, 5.0, 7.5, 10.0... covering full duration
+
+2. SMART CUTS (MANDATORY):
+   - Identify 3-5 MOMENTS to KEEP (viral highlights)
+   - Identify 2-3 MOMENTS to CUT (dead air, boring parts)
+   - Each cut: {"start": X, "end": Y, "reason": "dead air/silence"}
+   - Each keep: {"start": X, "end": Y, "viralityScore": 85-100, "reason": "hook/emotion/CTA"}
+
+3. PRODUCT REVIEW moments: sole close-ups, stitching details, logo reveals, texture macros.
+4. CTA: identify the call to action.
 
 Return ONLY JSON:
-{
-  "title": "Viral headline (max 60 chars)",
-  "description": "Short social copy with emojis",
-  "captionStyle": "hormozi",
-  "needsSubtitles": true,
-  "subtitles": [{"id":"1","text":"HOOK TEXT","start":0,"end":2.5}],
-  "highlights": [
-    {"id":"h1","title":"Product Review: Sole","start":4.5,"end":8.2,"viralityScore":92,"description":"Macro sole close-up","whyEngaging":"Texture detail drives shares","speed":1.0}
-  ],
-  "archetype": "hype"
-}
-
-MANDATORY RULES:
-- "needsSubtitles" MUST be a boolean. Set to false ONLY for pure cinematic/B-roll content.
-- If needsSubtitles is true, the "subtitles" array MUST contain at least 5 items.
-- If needsSubtitles is false, the "subtitles" array should be empty.`;
-
-const TEXT_ANALYSIS_PROMPT = (niche: string, description: string) => `You are a viral short-form video director.
-
-Niche: ${niche}
-Description: ${description || 'No description provided.'}
-
-Generate a JSON object with these exact keys:
 {
   "title": "Viral headline (max 60 chars)",
   "description": "Short social copy with emojis",
@@ -222,6 +303,43 @@ Generate a JSON object with these exact keys:
     {"id":"1","text":"HOOK TEXT","start":0,"end":2.5},
     {"id":"2","text":"NEXT CAPTION","start":2.5,"end":5.0}
   ],
+  "cuts": [
+    {"id":"c1","start":12.0,"end":15.0,"reason":"Dead air, no speech"}
+  ],
+  "highlights": [
+    {"id":"h1","title":"Product Review: Sole","start":4.5,"end":8.2,"viralityScore":92,"description":"Macro sole close-up","whyEngaging":"Texture detail drives shares","speed":1.0}
+  ],
+  "archetype": "hype"
+}
+
+MANDATORY RULES:
+- "subtitles" array MUST have at least ${Math.ceil(duration / 2.5)} items covering 0 to ${duration.toFixed(1)}s
+- "cuts" array MUST have at least 2 items removing boring segments
+- "highlights" array MUST have at least 3 items keeping viral moments
+- Total kept duration (highlights) must be 60-80% of original for pacing
+- No markdown, no explanations.`;
+
+const TEXT_ANALYSIS_PROMPT = (niche: string, description: string, duration: number) => `You are a viral short-form video director.
+
+Niche: ${niche}
+Description: ${description || 'No description provided.'}
+Duration: ${duration.toFixed(1)}s
+
+Generate a PROFESSIONAL EDIT plan with CUTS and FULL COVERAGE subtitles.
+
+Return ONLY JSON:
+{
+  "title": "Viral headline (max 60 chars)",
+  "description": "Short social copy with emojis",
+  "captionStyle": "hormozi",
+  "needsSubtitles": true,
+  "subtitles": [
+    {"id":"1","text":"HOOK TEXT","start":0,"end":2.5},
+    {"id":"2","text":"NEXT CAPTION","start":2.5,"end":5.0}
+  ],
+  "cuts": [
+    {"id":"c1","start":12.0,"end":15.0,"reason":"Dead air"}
+  ],
   "highlights": [
     {"id":"h1","title":"Key Moment","start":0,"end":5.0,"viralityScore":92,"description":"Strong hook","whyEngaging":"Stops scrollers","speed":1.0}
   ],
@@ -230,9 +348,12 @@ Generate a JSON object with these exact keys:
 
 RULES:
 - needsSubtitles must be true.
-- Return at least 5 subtitles covering the full duration.
-- Subtitles must be 2-4 words, uppercase, punchy.
-- Do not include markdown or explanations.`;
+- Subtitles: at least ${Math.ceil(duration / 2.5)} items covering FULL ${duration.toFixed(1)}s duration
+- Cuts: at least 2 segments to REMOVE (dead air, boring parts)
+- Highlights: at least 3 segments to KEEP (viral moments)
+- Kept duration = 60-80% of original for professional pacing
+- Subtitles: 2-4 words, UPPERCASE, punchy
+- No markdown, no explanations.`;
 
 const COPILOT_PROMPT = (actionType: string, command: string, existingPlan: any) => `You are a short-form video editor AI refining an EXISTING edit plan.
 
@@ -361,13 +482,13 @@ export async function runAnalyzeVideo(params: any): Promise<any> {
       if (frames.length > 0) {
         for (const model of VISION_MODELS) {
           try {
-            const content: any = [
-              { type: 'text', text: VISION_PROMPT },
-              ...frames.map(f => ({
-                type: 'image_url',
-                image_url: { url: `data:image/jpeg;base64,${f}` }
-              }))
-            ];
+              const content: any = [
+                { type: 'text', text: VISION_PROMPT(params.originalDuration || 30) },
+                ...frames.map(f => ({
+                  type: 'image_url',
+                  image_url: { url: `data:image/jpeg;base64,${f}` }
+                }))
+              ];
 
             const raw = await callGroq(model, [{ role: 'user', content }], 2, 'vision', 2048);
             lastRaw = raw;
@@ -397,7 +518,7 @@ export async function runAnalyzeVideo(params: any): Promise<any> {
     const niche = params.niche || 'default';
     const description = params.userDescription || params.description || '';
     const duration = params.originalDuration || 30;
-    const prompt = TEXT_ANALYSIS_PROMPT(niche, description);
+    const prompt = TEXT_ANALYSIS_PROMPT(niche, description, duration);
 
     for (const model of TEXT_MODELS) {
       try {
@@ -428,6 +549,10 @@ export async function runAnalyzeVideo(params: any): Promise<any> {
   console.error('[Groq] All models failed:', errors);
   console.error('[Groq] Last raw response:', lastRaw);
 
+  // ── LOCAL FALLBACK: Generate professional edit with smart cuts ────────
+  const cuts = generateSmartCuts(params.originalDuration || 30);
+  const highlights = generateSmartHighlights(params.originalDuration || 30, cuts);
+  const subtitles = generateMockSubtitles(params.niche || 'default', params.originalDuration || 30);
 
   const fallbackProject = {
     title: params.name || 'Viral Video',
@@ -435,12 +560,13 @@ export async function runAnalyzeVideo(params: any): Promise<any> {
     captionStyle: 'hormozi',
     needsSubtitles: true,
     enableSubtitles: true,
-    subtitles: generateMockSubtitles(params.niche || 'default', params.originalDuration || 30),
-    highlights: [{ id: 'h1', title: 'Full Clip', start: 0, end: params.originalDuration || 30, viralityScore: 75, description: 'Full video analysis', whyEngaging: 'Complete content review', speed: 1.0 }],
+    subtitles,
+    cuts,
+    highlights,
     archetype: params.niche || 'default'
   };
 
-  return { success: true, mode: usedVision ? 'vision' : 'text', project: fallbackProject };
+  return { success: true, mode: 'local', project: fallbackProject };
 }
 
 export async function runCopilotOptimize(params: any): Promise<any> {

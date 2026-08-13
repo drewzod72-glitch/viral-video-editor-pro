@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { VideoProject } from '../types';
+import { VideoProject, getCaptionStyles } from '../types';
 import { FREE_MUSIC_TRACKS } from '../data';
 import { ThumbnailGenerator } from './ThumbnailGenerator';
 import { playViralSFX } from '../utils/sfx';
@@ -111,10 +111,41 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
         }
         if (currentZoomRef.current !== zScale) setCurrentZoom(zScale);
 
-        const hl = activeHighlightsRef.current.find((h: any) => h.id === activeClipIdRef.current);
-        if (hl && t >= hl.end && (hl.end - hl.start) > 0.05) {
-          v.currentTime = hl.start;
-          setTime(hl.start);
+        const highlights = activeHighlightsRef.current;
+        const currentClip = activeClipIdRef.current;
+        
+        // If no specific clip selected, skip cut zones and play through highlights
+        if (!currentClip && highlights.length > 0) {
+          const sorted = [...highlights].sort((a: any, b: any) => a.start - b.start);
+          let inCut = false;
+          let nextStart = t;
+          
+          for (const h of sorted) {
+            if (t >= h.start && t <= h.end) {
+              inCut = false;
+              break;
+            }
+            if (t > h.end) {
+              nextStart = h.end;
+            }
+            if (t < h.start) {
+              inCut = true;
+              nextStart = h.start;
+              break;
+            }
+          }
+          
+          if (inCut && nextStart > t) {
+            v.currentTime = nextStart;
+            setTime(nextStart);
+          }
+        } else {
+          // Loop within current clip
+          const hl = highlights.find((h: any) => h.id === currentClip);
+          if (hl && t >= hl.end && (hl.end - hl.start) > 0.05) {
+            v.currentTime = hl.start;
+            setTime(hl.start);
+          }
         }
       }
       raf = requestAnimationFrame(loop);
@@ -322,23 +353,39 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
               padding: '0 16px', textAlign: 'center',
               pointerEvents: 'none', zIndex: 50
             }}>
-              <div style={{
-                background: 'rgba(0,0,0,0.88)', padding: '10px 16px',
-                borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)',
-                display: 'inline-block'
-              }}>
-                <p style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', margin: 0, justifyContent: 'center' }}>
-                  {fixDunikTypo(activeSub.text).toUpperCase().split(' ').map((w: string, i: number) => (
-                    <span key={i} style={{
-                      color: i % 2 === 0 ? '#FBFF00' : '#FF00FF',
-                      fontWeight: 900, fontSize: '15px',
-                      textShadow: '2px 2px 0px black',
-                      fontFamily: '"Oswald", "Impact", sans-serif',
-                      letterSpacing: '-0.02em'
-                    }}>{w}</span>
-                  ))}
-                </p>
-              </div>
+              {(() => {
+                const style = getCaptionStyles(project.captionStyle || 'hormozi', activeSub.text.length, 360);
+                return (
+                  <div style={{
+                    background: style.boxBg || 'rgba(0,0,0,0.88)',
+                    padding: `${style.boxPaddingY ?? 10}px ${style.boxPaddingX ?? 16}px`,
+                    borderRadius: `${style.boxRadius ?? 10}px`,
+                    border: style.boxBorder ? `${style.boxBorderWidth ?? 1}px solid ${style.boxBorder}` : '1px solid rgba(255,255,255,0.06)',
+                    display: 'inline-block'
+                  }}>
+                    <p style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', margin: 0, justifyContent: 'center' }}>
+                      {fixDunikTypo(activeSub.text).toUpperCase().split(' ').map((w: string, i: number) => {
+                        const isHighlight = activeSub.highlightWords?.some(
+                          (kw: string) => w.toLowerCase().includes(kw.toLowerCase())
+                        ) || i === 0;
+                        return (
+                          <span key={i} style={{
+                            color: isHighlight ? (style.highlightColor || '#FBFF00') : (style.textColor || '#FFFFFF'),
+                            fontWeight: 900,
+                            fontSize: '15px',
+                            textShadow: style.strokeWidth && style.strokeColor
+                              ? `0 0 ${style.strokeWidth * 10}px ${style.strokeColor}`
+                              : '2px 2px 0px black',
+                            fontFamily: style.fontFamily,
+                            letterSpacing: style.textTransform === 'uppercase' ? '-0.02em' : '0',
+                            textTransform: style.textTransform
+                          }}>{w}</span>
+                        );
+                      })}
+                    </p>
+                  </div>
+                );
+              })()}
             </div>
           )}
 
@@ -486,6 +533,35 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
                 }} />
               );
             })}
+
+            {/* Cut markers - show removed segments */}
+            {(() => {
+              const sorted = [...activeHighlights].sort((a, b) => a.start - b.start);
+              const cuts: Array<{ start: number; end: number }> = [];
+              let cursor = clipStart;
+              for (const h of sorted) {
+                if (h.start > cursor + 0.1) {
+                  cuts.push({ start: cursor, end: h.start });
+                }
+                cursor = Math.max(cursor, h.end);
+              }
+              if (cursor < clipEnd - 0.1) {
+                cuts.push({ start: cursor, end: clipEnd });
+              }
+              return cuts.map((c, i) => {
+                const startPct = ((c.start - clipStart) / clipDuration) * 100;
+                const widthPct = ((c.end - c.start) / clipDuration) * 100;
+                return (
+                  <div key={`cut-${i}`} style={{
+                    position: 'absolute', left: `${startPct}%`, top: 0, bottom: 0,
+                    width: `${widthPct}%`,
+                    background: 'rgba(239, 68, 68, 0.15)',
+                    borderLeft: '1px dashed rgba(239, 68, 68, 0.4)',
+                    borderRight: '1px dashed rgba(239, 68, 68, 0.4)'
+                  }} />
+                );
+              });
+            })()}
 
             {/* Playhead */}
             <div style={{

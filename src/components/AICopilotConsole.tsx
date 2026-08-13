@@ -12,15 +12,15 @@ const QUICK_ACTIONS: { label: string; type: ActionType; icon: React.ReactNode; c
   { label: 'Clean Gaps', type: 'gaprepair', icon: <Sparkles size={18} />, color: '#ec4899', desc: 'Remove dead air' },
 ];
 
-// Defensive merge: never lose videoUrl, id, highlights, or createdAt
+// Defensive merge: never lose videoUrl, id, createdAt, or originalDuration
 function safeMerge(prev: VideoProject, updates: any): VideoProject {
   return {
     ...prev,
     ...updates,
     videoUrl: prev.videoUrl,
     id: prev.id,
-    highlights: prev.highlights,
     createdAt: prev.createdAt,
+    originalDuration: prev.originalDuration || updates.originalDuration,
   };
 }
 

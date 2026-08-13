@@ -109,8 +109,8 @@ export default function App() {
           setAiSuccess(true);
           setTimeout(() => { setAiSuccess(false); setAnalysisMode(null); }, 3000);
           
-          // Auto-detect viral moments and apply as highlights (Kilo 64e962b)
-          if (result.project.videoUrl) {
+          // Auto-detect viral moments and apply as highlights (only if AI didn't provide them — Kilo)
+          if (result.project.videoUrl && (!result.project.highlights || result.project.highlights.length === 0)) {
             try {
               const moments = await detectViralMoments(result.project.videoUrl, result.project.duration || 30);
               if (moments.length > 0) {
@@ -160,13 +160,36 @@ export default function App() {
 
   const handleUploadCustomFile = async (file: File, name: string, niche: any, description: string) => {
     const videoUrl = URL.createObjectURL(file);
+    
+    // Get actual video duration
+    let actualDuration = 30;
+    try {
+      actualDuration = await new Promise<number>((resolve) => {
+        const v = document.createElement('video');
+        v.preload = 'metadata';
+        v.src = videoUrl;
+        v.onloadedmetadata = () => {
+          actualDuration = v.duration || 30;
+          URL.revokeObjectURL(v.src);
+          v.remove();
+          resolve(actualDuration);
+        };
+        v.onerror = () => {
+          v.remove();
+          resolve(30);
+        };
+      });
+    } catch (e) {
+      actualDuration = 30;
+    }
+    
     const proj: VideoProject = {
       id: `c-${Date.now()}`,
       videoUrl,
       name,
       type: 'custom',
-      duration: 30,
-      originalDuration: 30,
+      duration: actualDuration,
+      originalDuration: actualDuration,
       userDescription: description || '',
       niche,
       title: name,
@@ -176,7 +199,7 @@ export default function App() {
       viralityScore: 0,
       viralityCriteria: { hook: 70, pacing: 70, emotion: 70, visualContrast: 70 },
       viralityFeedback: [],
-      highlights: [{ id: '1', title: 'Full Clip', start: 0, end: 30, duration: 30, viralityScore: 75, description: 'Full video', whyEngaging: 'Complete review', speed: 1.0 }],
+      highlights: [{ id: '1', title: 'Full Clip', start: 0, end: actualDuration, duration: actualDuration, viralityScore: 75, description: 'Full video', whyEngaging: 'Complete review', speed: 1.0 }],
       subtitles: [],
       captionStyle: 'hormozi',
       selectedMusicTrackId: 'hype-1',
@@ -208,6 +231,35 @@ export default function App() {
           setAnalysisMode(result.mode || 'text');
           setAiSuccess(true);
           setTimeout(() => { setAiSuccess(false); setAnalysisMode(null); }, 3000);
+          
+          // Auto-detect viral moments and apply as highlights (only if AI didn't provide them — Kilo)
+          if (result.project.videoUrl && (!result.project.highlights || result.project.highlights.length === 0)) {
+            try {
+              const moments = await detectViralMoments(result.project.videoUrl, result.project.duration || 30);
+              if (moments.length > 0) {
+                setActiveProject(prev => {
+                  if (!prev) return prev;
+                  const viralHighlights = moments.slice(0, 5).map((m, i) => ({
+                    id: `viral-${i}`,
+                    title: `Viral Moment ${i + 1}`,
+                    start: m.start,
+                    end: m.end,
+                    duration: m.end - m.start,
+                    viralityScore: m.score,
+                    description: m.reason,
+                    whyEngaging: m.reason,
+                    speed: 1.0
+                  }));
+                  return {
+                    ...prev,
+                    highlights: [...prev.highlights, ...viralHighlights]
+                  } as VideoProject;
+                });
+              }
+            } catch (e) {
+              console.warn('Viral moment detection failed:', e);
+            }
+          }
         } else {
           console.warn('AI offline — manual mode active:', result?.error);
           setActiveProject(prev => {
@@ -227,6 +279,26 @@ export default function App() {
     } else {
       setTimeout(runAI, 100);
     }
+  };
+
+  const getBlobDuration = async (blob: Blob): Promise<number> => {
+    return new Promise((resolve) => {
+      const url = URL.createObjectURL(blob);
+      const v = document.createElement('video');
+      v.preload = 'metadata';
+      v.src = url;
+      v.onloadedmetadata = () => {
+        const dur = v.duration || 0;
+        URL.revokeObjectURL(url);
+        v.remove();
+        resolve(dur);
+      };
+      v.onerror = () => {
+        URL.revokeObjectURL(url);
+        v.remove();
+        resolve(0);
+      };
+    });
   };
 
   const triggerExport = async () => {
@@ -268,9 +340,37 @@ export default function App() {
         result = { blob: canvasResult.blob, filename: `${activeProject.name}_viral.${canvasResult.extension}` };
       }
 
-      // Size-Gate: if too small, silently re-render once
-      if (result.blob && result.blob.size > 500_000) {
+      // Size-Gate + Duration-Gate: verify blob is valid and duration matches expected
+      const expectedDuration = activeProject.highlights?.reduce(
+        (s, h) => s + (h.duration || (h.end - h.start)), 0
+      ) || activeProject.duration || 30;
+      
+      const actualDuration = await getBlobDuration(result.blob);
+      const durationOk = Math.abs(actualDuration - expectedDuration) < 2.0; // Allow 2s tolerance
+      const sizeOk = result.blob.size > 500_000;
+      
+      if (sizeOk && durationOk) {
         setDownloadReadyInfo(result);
+      } else if (sizeOk && !durationOk) {
+        // Duration mismatch - re-render once with canvas fallback
+        setProcessingStage("Fixing duration...");
+        setRenderProgress(0);
+        const retryBlob = await renderVideoInBrowser(
+          activeProject,
+          (p) => {
+            setRenderProgress(p);
+            setProcessingStage(`Fixing: ${p}%`);
+          },
+          activeClipId
+        ).then(r => r.blob);
+        
+        const retryDuration = await getBlobDuration(retryBlob);
+        if (retryBlob.size > 500_000 && Math.abs(retryDuration - expectedDuration) < 2.0) {
+          setFfmpegFallback(true);
+          setDownloadReadyInfo({ blob: retryBlob, filename: result.filename });
+        } else {
+          alert('Export failed. Duration mismatch after retry.');
+        }
       } else if (result.blob && result.blob.size <= 500_000) {
         setProcessingStage("Re-rendering...");
         setRenderProgress(0);
