@@ -153,11 +153,12 @@ async function captureFrames(file: File): Promise<string[]> {
 
         const duration = v.duration;
         // Groq vision models currently cap input at 3 images per request,
-        // so capture only 3 well-spaced frames.
+        // so capture only 3 frames, biased toward the hook/first half
+        // where product-review moments live (Kilo 1a24083).
         const timestamps = [
           Math.min(1.5, duration * 0.1),
-          duration * 0.5,
-          Math.max(duration - 1.5, duration * 0.85)
+          duration * 0.25,
+          duration * 0.40
         ];
 
         for (const t of timestamps) {
@@ -167,6 +168,7 @@ async function captureFrames(file: File): Promise<string[]> {
           ctx?.drawImage(v, 0, 0, 320, 180);
           const data = canvas.toDataURL('image/jpeg', 0.18);
           if (data.includes(',')) snapshots.push(data.split(',')[1]);
+          if (snapshots.length >= 3) break; // qwen3.6 vision max = 3 images
         }
 
         URL.revokeObjectURL(url); v.remove();
