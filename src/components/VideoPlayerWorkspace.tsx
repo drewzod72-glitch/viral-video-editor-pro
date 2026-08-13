@@ -3,6 +3,7 @@ import { VideoProject } from '../types';
 import { FREE_MUSIC_TRACKS } from '../data';
 import { ThumbnailGenerator } from './ThumbnailGenerator';
 import { playViralSFX } from '../utils/sfx';
+import { LUT_PRESETS, TRANSITION_PRESETS } from '../utils/ffmpegWasmRenderer';
 
 const fixDunikTypo = (str: string) => str?.replace(/dunik/gi, 'Dunk') || '';
 
@@ -627,6 +628,93 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
           }}>
             {Math.round(volume * 100)}%
           </span>
+        </div>
+      </div>
+
+      {/* Color Grading & Effects */}
+      <div style={{
+        background: 'linear-gradient(180deg, rgba(24,24,27,0.95) 0%, rgba(9,9,11,0.98) 100%)',
+        padding: '20px', borderRadius: '24px',
+        border: '1px solid rgba(30,41,59,0.6)',
+        backdropFilter: 'blur(16px)'
+      }}>
+        <div style={{
+          color: '#64748b', fontSize: '9px', fontWeight: 800,
+          textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '14px'
+        }}>
+          Professional Color & Effects
+        </div>
+
+        {/* LUT Color Grading */}
+        <div style={{ marginBottom: '16px' }}>
+          <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            Color Grade (LUT)
+          </div>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+            {Object.entries(LUT_PRESETS).map(([key, lut]) => (
+              <button
+                key={key}
+                onClick={() => updateSettings({ colorGrade: key as any })}
+                style={{
+                  padding: '6px 12px', borderRadius: '8px',
+                  border: project.colorGrade === key ? '1px solid rgba(139,92,246,0.5)' : '1px solid #27272a',
+                  background: project.colorGrade === key ? 'rgba(139,92,246,0.08)' : '#020617',
+                  color: project.colorGrade === key ? '#c4b5fd' : '#a1a1aa',
+                  fontSize: '9px', fontWeight: 700, cursor: 'pointer',
+                  fontFamily: '"Inter", sans-serif', textTransform: 'uppercase',
+                  letterSpacing: '0.3px', transition: 'all 0.2s'
+                }}
+              >
+                {lut.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Transitions */}
+        <div style={{ marginBottom: '16px' }}>
+          <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            Transition Style
+          </div>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+            {Object.entries(TRANSITION_PRESETS).map(([key, trans]) => (
+              <button
+                key={key}
+                onClick={() => updateSettings({ transitionStyle: key as any })}
+                style={{
+                  padding: '6px 12px', borderRadius: '8px',
+                  border: project.transitionStyle === key ? '1px solid rgba(6,182,212,0.5)' : '1px solid #27272a',
+                  background: project.transitionStyle === key ? 'rgba(6,182,212,0.08)' : '#020617',
+                  color: project.transitionStyle === key ? '#22d3ee' : '#a1a1aa',
+                  fontSize: '9px', fontWeight: 700, cursor: 'pointer',
+                  fontFamily: '"Inter", sans-serif', textTransform: 'uppercase',
+                  letterSpacing: '0.3px', transition: 'all 0.2s'
+                }}
+              >
+                {trans.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Effect Toggles */}
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <label style={{ fontSize: '10px', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+            <input type="checkbox" checked={project.enableZooms} onChange={(e) => updateSettings({ enableZooms: e.target.checked })} style={{ accentColor: '#8b5cf6' }} />
+            Zooms
+          </label>
+          <label style={{ fontSize: '10px', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+            <input type="checkbox" checked={project.shakeOnPunch} onChange={(e) => updateSettings({ shakeOnPunch: e.target.checked })} style={{ accentColor: '#8b5cf6' }} />
+            Shake
+          </label>
+          <label style={{ fontSize: '10px', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+            <input type="checkbox" checked={project.enableSubtitles} onChange={(e) => updateSettings({ enableSubtitles: e.target.checked })} style={{ accentColor: '#8b5cf6' }} />
+            Subtitles
+          </label>
+          <label style={{ fontSize: '10px', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+            <input type="checkbox" checked={project.enableColorGrade} onChange={(e) => updateSettings({ enableColorGrade: e.target.checked })} style={{ accentColor: '#8b5cf6' }} />
+            Color Grade
+          </label>
         </div>
       </div>
 

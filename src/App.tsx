@@ -10,6 +10,7 @@ import { runAnalyzeVideo, getApiStatusLog, clearApiStatusLog } from './utils/gro
 import { saveFileToDevice } from './utils/download';
 import { renderVideoInBrowser } from './utils/ffmpegClient';
 import { computeViralityScore } from './utils/viralityScore';
+import { renderVideoWithFFmpegWasm, LUT_PRESETS, TRANSITION_PRESETS } from './utils/ffmpegWasmRenderer';
 
 
 
@@ -27,6 +28,8 @@ export default function App() {
   const [analysisMode, setAnalysisMode] = useState<'vision' | 'text' | null>(null);
   const [apiStatusLog, setApiStatusLog] = useState<any[]>([]);
   const [showApiStatus, setShowApiStatus] = useState(false);
+  const [renderMode, setRenderMode] = useState<'canvas' | 'ffmpeg'>('ffmpeg');
+  const [renderProgress, setRenderProgress] = useState(0);
 
   const startApp = () => {
     try {
@@ -199,28 +202,63 @@ export default function App() {
   const triggerExport = async () => {
     if (!activeProject) return;
     setIsProcessing(true);
-    setProcessingStage("Baking final MP4...");
+    setProcessingStage("Initializing render engine...");
+    setRenderProgress(0);
     try {
-      const result = await renderVideoInBrowser(
-        activeProject,
-        (p) => setProcessingStage(`Baking: ${p}%`),
-        activeClipId
-      );
-      const { blob, extension } = result;
-      
-      // Size-Gate: if too small, silently re-render once
-      if (blob && blob.size > 500_000) {
-        setDownloadReadyInfo({ blob, filename: `${activeProject.name}_viral.${extension}` });
-      } else if (blob && blob.size <= 500_000) {
-        setProcessingStage("Re-rendering...");
-        const retryResult = await renderVideoInBrowser(
+      let result: { blob: Blob; filename: string };
+
+      if (renderMode === 'ffmpeg') {
+        // Professional FFmpeg.wasm render
+        const blob = await renderVideoWithFFmpegWasm({
+          project: activeProject,
+          onProgress: (p, stage) => {
+            setRenderProgress(p);
+            setProcessingStage(stage || `Rendering: ${p}%`);
+          },
+          activeClipId,
+          mode: 'ffmpeg'
+        });
+        result = { blob, filename: `${activeProject.name}_pro.mp4` };
+      } else {
+        // Canvas fallback
+        const canvasResult = await renderVideoInBrowser(
           activeProject,
-          (p) => setProcessingStage(`Retry: ${p}%`),
+          (p) => {
+            setRenderProgress(p);
+            setProcessingStage(`Baking: ${p}%`);
+          },
           activeClipId
         );
-        const { blob: retryBlob, extension: retryExt } = retryResult;
+        result = { blob: canvasResult.blob, filename: `${activeProject.name}_viral.${canvasResult.extension}` };
+      }
+
+      // Size-Gate: if too small, silently re-render once
+      if (result.blob && result.blob.size > 500_000) {
+        setDownloadReadyInfo(result);
+      } else if (result.blob && result.blob.size <= 500_000) {
+        setProcessingStage("Re-rendering...");
+        setRenderProgress(0);
+        const retryBlob = renderMode === 'ffmpeg'
+          ? await renderVideoWithFFmpegWasm({
+              project: activeProject,
+              onProgress: (p, stage) => {
+                setRenderProgress(p);
+                setProcessingStage(stage || `Retry: ${p}%`);
+              },
+              activeClipId,
+              mode: 'ffmpeg'
+            })
+          : await renderVideoInBrowser(
+              activeProject,
+              (p) => {
+                setRenderProgress(p);
+                setProcessingStage(`Retry: ${p}%`);
+              },
+              activeClipId
+            ).then(r => r.blob);
+
         if (retryBlob && retryBlob.size > 500_000) {
-          setDownloadReadyInfo({ blob: retryBlob, filename: `${activeProject.name}_viral.${retryExt}` });
+          setDownloadReadyInfo({ blob: retryBlob, filename: result.filename });
         } else {
           alert('Export failed. Rendered file is empty or too small after retry.');
         }
@@ -231,6 +269,7 @@ export default function App() {
       alert('Export failed. ' + (err?.message || 'Device hardware busy.'));
     } finally {
       setIsProcessing(false);
+      setRenderProgress(0);
     }
   };
 
@@ -406,6 +445,31 @@ export default function App() {
 
       {/* Bake Button */}
       <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid rgba(30,41,59,0.5)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {/* Render Mode Selector */}
+        <div style={{ display: 'flex', gap: '4px', background: 'rgba(2,6,23,0.6)', padding: '4px', borderRadius: '10px' }}>
+          {[
+            { key: 'ffmpeg' as const, label: 'Pro FFmpeg', icon: '⚡' },
+            { key: 'canvas' as const, label: 'Fast Canvas', icon: '🎨' },
+          ].map(mode => (
+            <button
+              key={mode.key}
+              onClick={() => setRenderMode(mode.key)}
+              style={{
+                flex: 1, padding: '8px', borderRadius: '8px', border: 'none',
+                background: renderMode === mode.key ? 'rgba(139,92,246,0.25)' : 'transparent',
+                color: renderMode === mode.key ? '#e9d5ff' : '#71717a',
+                fontWeight: 700, fontSize: '10px', cursor: 'pointer',
+                fontFamily: '"Inter", sans-serif', textTransform: 'uppercase',
+                letterSpacing: '0.5px', transition: 'all 0.2s',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px'
+              }}
+            >
+              <span>{mode.icon}</span>
+              <span>{mode.label}</span>
+            </button>
+          ))}
+        </div>
+
         <button
           onClick={triggerExport}
           disabled={isProcessing}
@@ -419,7 +483,7 @@ export default function App() {
             transition: 'all 0.2s'
           }}
         >
-          {isProcessing ? `⏳ ${processingStage || 'Baking...'}` : '🔥 BAKE FINAL'}
+          {isProcessing ? `⏳ ${processingStage || 'Baking...'}` : renderMode === 'ffmpeg' ? '⚡ BAKE PRO' : '🎨 BAKE FINAL'}
         </button>
 
         {activeProject && (
@@ -507,17 +571,33 @@ export default function App() {
         <div style={{
           position: 'fixed', top: '70px', right: '16px', zIndex: 200,
           background: 'rgba(139,92,246,0.95)', color: 'white',
-          padding: '12px 18px', borderRadius: '12px', fontWeight: 700,
+          padding: '16px 20px', borderRadius: '16px', fontWeight: 700,
           fontSize: '11px', boxShadow: '0 10px 40px rgba(0,0,0,0.5)',
-          display: 'flex', alignItems: 'center', gap: '8px',
-          backdropFilter: 'blur(12px)', maxWidth: 'calc(100vw - 32px)'
+          backdropFilter: 'blur(12px)', maxWidth: 'calc(100vw - 32px)',
+          minWidth: '240px'
         }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+            <div style={{
+              width: '14px', height: '14px',
+              border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white',
+              borderRadius: '50%', animation: 'spin 0.8s linear infinite', flexShrink: 0
+            }} />
+            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{processingStage}</span>
+          </div>
+          {/* Progress bar */}
           <div style={{
-            width: '12px', height: '12px',
-            border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white',
-            borderRadius: '50%', animation: 'spin 0.8s linear infinite', flexShrink: 0
-          }} />
-          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{processingStage}</span>
+            height: '4px', background: 'rgba(255,255,255,0.2)',
+            borderRadius: '2px', overflow: 'hidden'
+          }}>
+            <div style={{
+              height: '100%', width: `${renderProgress}%`,
+              background: 'linear-gradient(90deg, #06b6d4, #8b5cf6)',
+              borderRadius: '2px', transition: 'width 0.3s ease'
+            }} />
+          </div>
+          <div style={{ fontSize: '9px', opacity: 0.7, marginTop: '6px', fontFamily: '"JetBrains Mono", monospace' }}>
+            {renderProgress}%
+          </div>
         </div>
       )}
 

@@ -59,7 +59,7 @@ export interface VideoProject {
   subtitles: SubtitleItem[];
   captionStyle: CaptionStyle;
   selectedMusicTrackId: string;
-  colorGrade: 'none' | 'cinematic' | 'warm_vintage' | 'vibrant_pop' | 'moody_cyber';
+  colorGrade: 'none' | 'cinematic' | 'warm_vintage' | 'vibrant_pop' | 'moody_cyber' | 'film_noir' | 'neon_nights' | 'golden_hour';
   zoomEffects: Array<{ timestamp: number; scale: number; duration: number }>;
   captionRotation?: number;
   captionPosition?: 'top' | 'center' | 'bottom';
@@ -67,7 +67,7 @@ export interface VideoProject {
   endingCTA?: string;
   thumbnailRecommendation?: string;
   engineMode?: 'live-gemini' | 'simulated-engine' | 'edge-rules';
-  transitionStyle?: 'none' | 'crossfade' | 'glitch' | 'flash' | 'zoom' | 'fade_black' | 'slide_left';
+  transitionStyle?: 'none' | 'crossfade' | 'glitch' | 'flash' | 'zoom' | 'fade_black' | 'slide_left' | 'wipe_left' | 'wipe_right' | 'slide_right' | 'circle_open' | 'circle_close' | 'dissolve' | 'glow' | 'pixelize';
   
   // UNIFIED PERSISTENT SETTINGS
   enableSubtitles: boolean;
