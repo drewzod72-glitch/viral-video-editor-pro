@@ -35,10 +35,19 @@ Two deliberate substitutions worth knowing if you touch this again:
 
 1. **Niche Pacing Analysis & Archetypes** — cooking, unboxing, sales/e-commerce, pets, fitness/motivation, general. AI-generated hooks, detail callouts, ending CTAs.
 2. **Cinematic Caption Overlay Engine** — MrBeast, Hormozi, Minimalist, Comic, Impact styles (see fonts section above).
-3. **Multi-Track Audio Mixer** — 10 royalty-free tracks, client/server volume control, automated ducking during speech.
+3. **Music Mixer** — 9 verified royalty-free tracks (`public/audio/track-1.mp3` … `track-9.mp3`), catalogued as 9 Hype + 1 Lofi + 1 Cinematic entries in `src/data.ts`. The former 30-track catalog was trimmed in v1.3.0: 13 of those files were actually HTML error pages saved with .mp3 names (silent tracks) and the rest never existed. Add new tracks as real MP3s + a `FREE_MUSIC_TRACKS` entry.
 4. **FFmpeg HD Render Pipeline** (`server.ts`, Render-hosted) — subtitle burn-in, LUT-style color grading, background audio mixing, smart-cut/transition splicing.
-5. **Virality Scorecard & Booster Studio** — Gemini-driven analysis and creator-archetype restyling, entirely client-side now (BYOK).
+5. **Virality Scorecard & Booster Studio** — the score is computed from real project data (`src/utils/viralityScore.ts`), never hardcoded. Booster runs client-side (BYOK).
 6. **Interactive Captions & Highlight Splicer** — drag/split/edit word-level subtitles; AI-assisted smart cut detection.
+
+## 🧠 AI models (Groq — BYOK)
+
+The client (`src/utils/groqClient.ts`) calls Groq with the user's own key. As of v1.3.0 the model list is `qwen/qwen3.6-27b`, `openai/gpt-oss-20b`, `meta-llama/llama-4-scout-17b-16e-instruct` — Groq shuts down `llama-3.1-8b-instant` and `llama-3.3-70b-versatile` on 2026-08-16, so do NOT reintroduce them. When every model fails, the app reports failure honestly ("manual mode") — no fabricated subtitles, no fake 99 score.
+
+## 🔒 Backend security posture
+
+- The two proxy endpoints (`/api/music-proxy`, `/api/download-proxy`) are SSRF-hardened: https-only, hostname allowlist (`PROXY_ALLOWED_HOSTS` env var extends it), and a DNS-level private/loopback/metadata IP block (`validateProxyUrl` in `server.ts`). Do not remove that guard.
+- The backend intentionally has no auth: it is a stateless render API. If it grows beyond that, add auth before rate limiting becomes your only defense.
 
 ---
 
@@ -48,7 +57,7 @@ Two deliberate substitutions worth knowing if you touch this again:
 `netlify.toml` sets the build command to `vite build` only (skips the irrelevant server-bundling step) and adds a SPA routing fallback. No further config needed for a standard deploy.
 
 ### Backend (Render)
-`render.yaml` is a ready-to-use Blueprint: `npm install && npm run build:server`, `npm start`, free tier, health check on `/`. Note Render's free tier spins down after ~15 minutes idle — the first request after a quiet period will be slow (cold start + FFmpeg on shared CPU), which is expected, not a bug.
+`render.yaml` is a ready-to-use Blueprint: `npm install && npm run build:server`, `npm start`, free tier, health check on `/`. `build:server` compiles `server.ts` to CommonJS in `dist-server/` and writes a `{"type":"commonjs"}` marker there so Node loads it correctly under the repo's `"type": "module"` (this was broken for several versions — a CJS file was being loaded as ESM and crashed on boot). If the backend ever has no built frontend at `dist/` (the normal case on Render), it serves a JSON health check at `/` instead of crashing on ENOENT. Note Render's free tier spins down after ~15 minutes idle — the first request after a quiet period will be slow (cold start + FFmpeg on shared CPU), which is expected, not a bug.
 
 ### Connecting them
 Set `VITE_API_BASE_URL` on the Netlify deploy to the Render service's URL. CORS on the backend already reflects any request origin, so no additional CORS config is needed for this split.
@@ -56,7 +65,7 @@ Set `VITE_API_BASE_URL` on the Netlify deploy to the Render service's URL. CORS 
 ---
 
 ## 📐 Development & Maintenance Rules
-- **Linter Check**: always run `npm run lint` (`tsc --noEmit`) before proposing or committing changes.
+- **Compile check**: always run `npm run build` and `npm run build:server` before proposing or committing changes — both must exit 0.
 - **Port binding**: `server.ts` must keep binding to `process.env.PORT || 3000` — never hardcode a port again; Render (and most hosts) assign their own and health-check that exact port.
 - **Dependency Guard**: don't introduce client-side packages incompatible with standard browser runtimes, Capacitor WebViews, or the current build tooling.
 - **Known accepted limitation**: preset video templates (not custom uploads) get text-only Gemini analysis, not multimodal video analysis — fetching their third-party hosted URLs cross-origin into the browser for byte-level access is CORS-fragile in a way server-side downloading wasn't. Custom uploads get full multimodal analysis since the browser already holds the File object directly. This is a deliberate tradeoff of the BYOK/client-side architecture, not an oversight — don't "fix" it by re-adding a server-side AI proxy without reconsidering the tradeoff first.

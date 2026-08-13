@@ -29,10 +29,13 @@ function addLogEntry(model: string, ok: boolean, detail: string) {
 // ─── Config ──────────────────────────────────────────────────────────────────
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
+// NOTE: llama-3.1-8b-instant and llama-3.3-70b-versatile are being SHUT DOWN
+// by Groq on 2026-08-16. These are the officially recommended replacements
+// (see console.groq.com/docs/deprecations).
 const TEXT_MODELS = [
-  'llama-3.3-70b-versatile',
-  'llama-3.1-8b-instant',
-  'llama-3.1-70b-versatile',
+  'qwen/qwen3.6-27b',
+  'openai/gpt-oss-20b',
+  'meta-llama/llama-4-scout-17b-16e-instruct',
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -100,31 +103,6 @@ function extractAndRepair(text: string): any {
   }
 
   return parsed;
-}
-
-function generateMockSubtitles(niche: string, duration = 30): Array<{ id: string; text: string; start: number; end: number }> {
-  const hooks: Record<string, string[]> = {
-    cooking: ['SIZZLING STEAK', 'BUTTER BASTING', 'PERFECT CRUST', 'MEDIUM RARE', 'SERVE IT UP'],
-    unboxing: ['NEW ARRIVAL', 'TEAR THE PAPER', 'QUALITY CHECK', 'SOLE DETAIL', 'STEAL DEAL'],
-    sales: ['STOP SCROLLING', 'ULTIMATE BAG', 'ITALIAN LEATHER', 'HIDDEN POCKET', 'CLICK LINK'],
-    education: ['FUTURE IS NOW', 'AI EDITING', 'ZERO CODE', 'RENDER IN SECONDS', 'GAME CHANGER'],
-    fitness: ['NO EXCUSES', 'WAKE UP', 'GRIND HARD', 'PUSH LIMITS', 'DOMINATE'],
-    pets: ['HAPPY PUPPY', 'GOOD BOY', 'HEAD TILT', 'STRESS RELIEF', 'LIKE & FOLLOW'],
-    tech: ['BUTTERY SWITCHES', 'THOCKY SOUND', 'PBT KEYCAPS', 'MECH PURPLE', 'BUILD COMPLETE'],
-    default: ['WATCH THIS', 'VIRAL MOMENT', 'GAME CHANGER', 'MUST TRY', 'SHARE NOW'],
-  };
-  const words = hooks[niche] || hooks['default'];
-  const subs: Array<{ id: string; text: string; start: number; end: number }> = [];
-  const interval = duration / words.length;
-  words.forEach((text, i) => {
-    subs.push({
-      id: `mock-${i}`,
-      text,
-      start: parseFloat((i * interval).toFixed(2)),
-      end: parseFloat((i * interval + interval).toFixed(2)),
-    });
-  });
-  return subs;
 }
 
 // ─── Prompts ────────────────────────────────────────────────────────────────
@@ -262,18 +240,10 @@ export async function runAnalyzeVideo(params: any): Promise<any> {
   console.error('[Groq] All models failed:', errors);
   console.error('[Groq] Last raw response:', lastRaw);
 
-  const fallbackProject = {
-    title: params.name || 'Viral Video',
-    description: params.userDescription || 'Auto-generated viral edit',
-    captionStyle: 'hormozi',
-    needsSubtitles: true,
-    enableSubtitles: true,
-    subtitles: generateMockSubtitles(params.niche || 'default', params.originalDuration || 30),
-    highlights: [{ id: 'h1', title: 'Full Clip', start: 0, end: params.originalDuration || 30, viralityScore: 75, description: 'Full video analysis', whyEngaging: 'Complete content review', speed: 1.0 }],
-    archetype: params.niche || 'default'
-  };
-
-  return { success: true, project: fallbackProject };
+  // Honest failure (per AGENTS.md: never fabricate a fake "AI" result).
+  // The caller surfaces "manual mode" so the user keeps editing without
+  // believing canned captions came from the AI pipeline.
+  return { success: false, error: 'ALL_MODELS_FAILED', details: errors.join(' | ') };
 }
 
 export async function runCopilotOptimize(params: any): Promise<any> {

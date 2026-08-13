@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { runAnalyzeVideo } from '../utils/groqClient';
+import { computeViralityScore } from '../utils/viralityScore';
 
 const fixDunikTypo = (str: string) => str?.replace(/dunik/gi, 'Dunk') || '';
 
@@ -63,8 +64,14 @@ export default function ViralityScorecard({ project, onUpdateProject }: any) {
         userDescription: `Ultra-Boost for ${preset.label}. ${preset.desc}`,
         defaultTranscribe: project.subtitles.map((s: any) => s.text).join(' '),
       });
-      onUpdateProject({ ...project, ...result.project, viralityScore: 99 });
-      setActiveTab('diagnostics');
+      if (result?.success && result.project) {
+        const merged = { ...project, ...result.project } as any;
+        const scored = computeViralityScore(merged);
+        onUpdateProject({ ...merged, viralityScore: scored.score, viralityFeedback: scored.feedback });
+        setActiveTab('diagnostics');
+      } else {
+        console.warn('Booster offline — no changes applied:', result?.error);
+      }
     } catch (e) {
       console.warn('Booster offline');
     } finally {

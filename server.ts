@@ -1,6 +1,5 @@
 import express from 'express';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import fs from 'fs';
 import dotenv from 'dotenv';
 import { createServer as createViteServer } from 'vite';
@@ -12,26 +11,79 @@ import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
 import multer from 'multer';
 import { Readable } from 'stream';
 import crypto from 'crypto';
+import dns from 'dns';
 import { resolveCaptionMetrics, normalizeCaptionStyle, FONT_FILE_FOR_STYLE, CaptionStyleName } from './src/utils/captionStyleConfig';
 
-// Fix for __dirname in ES modules vs CommonJS
-let __dirname = '';
-try {
-  if (typeof process !== 'undefined' && typeof __filename !== 'undefined') {
-    __dirname = path.dirname(__filename);
-  } else {
-    const __filename = fileURLToPath(import.meta.url);
-    __dirname = path.dirname(__filename);
-  }
-} catch (e) {
-  // Fallback for some environments
-}
+// __dirname is provided by Node's CommonJS wrapper (see build:server).
+// No shim needed — the ESM variant was removed along with the ESM build.
 
 // Load environment variables
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// ── Proxy endpoint safety (SSRF protection) ──────────────────────────────
+// The proxy endpoints exist only to stream stock media / font assets past
+// browser CORS walls. They must NEVER be able to fetch arbitrary URLs:
+//   1. https only (no http://)
+//   2. hostname allowlist — extend via PROXY_ALLOWED_HOSTS (comma-separated)
+//   3. the resolved IP is checked against private/loopback/link-local/
+//      metadata ranges, blocking SSRF via DNS tricks
+const DEFAULT_PROXY_ALLOWED_HOSTS = [
+  'pexels.com', 'videos.pexels.com', 'images.pexels.com',
+  'pixabay.com', 'cdn.pixabay.com',
+  'raw.githubusercontent.com', 'github.com',
+  'cdn.jsdelivr.net', 'fonts.googleapis.com', 'fonts.gstatic.com',
+  'test-videos.co.uk', 'w3schools.com',
+];
+const PROXY_ALLOWED_HOSTS: Set<string> = (() => {
+  const extra = (process.env.PROXY_ALLOWED_HOSTS || '')
+    .split(',')
+    .map((h) => h.trim().toLowerCase())
+    .filter(Boolean);
+  return new Set([...DEFAULT_PROXY_ALLOWED_HOSTS, ...extra]);
+})();
+
+function isPrivateIp(ip: string): boolean {
+  if (ip === '::1' || ip === '::' || ip === '0.0.0.0') return true;
+  if (ip === '169.254.169.254') return true; // cloud metadata endpoint
+  if (ip.startsWith('127.') || ip.startsWith('169.254.') || ip.startsWith('10.') || ip.startsWith('192.168.')) return true;
+  if (ip.startsWith('172.')) {
+    const second = parseInt(ip.split('.')[1], 10);
+    if (second >= 16 && second <= 31) return true;
+  }
+  if (ip.startsWith('100.')) {
+    const second = parseInt(ip.split('.')[1], 10);
+    if (second >= 64 && second <= 127) return true; // CGNAT
+  }
+  const lower = ip.toLowerCase();
+  if (lower.startsWith('fc') || lower.startsWith('fd') || lower.startsWith('fe80')) return true; // IPv6 ULA/link-local
+  return false;
+}
+
+async function validateProxyUrl(rawUrl: string): Promise<URL> {
+  let parsed: URL;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    throw new Error('Invalid target URL');
+  }
+  if (parsed.protocol !== 'https:') throw new Error('Only https URLs are allowed through the proxy');
+  const hostname = parsed.hostname.toLowerCase();
+  const allowed = Array.from(PROXY_ALLOWED_HOSTS).some(
+    (h) => hostname === h || hostname.endsWith('.' + h)
+  );
+  if (!allowed) throw new Error(`Host is not allowlisted: ${hostname}`);
+  try {
+    const { address } = await dns.promises.lookup(hostname);
+    if (isPrivateIp(address)) throw new Error('Target resolved to a private/unsafe address');
+  } catch (e: any) {
+    if (e?.message?.startsWith('Target resolved')) throw e;
+    // DNS failure: let the downstream request fail naturally
+  }
+  return parsed;
+}
 
 // PROXY ENDPOINT FOR MUSIC (Fixes Safari CORS / Silent Export)
 app.get('/api/music-proxy', async (req, res) => {
@@ -40,11 +92,12 @@ app.get('/api/music-proxy', async (req, res) => {
 
   try {
     const musicUrl = decodeURIComponent(url as string);
-    console.log(`[Music Proxy] Fetching: ${musicUrl}`);
+    const safeTarget = await validateProxyUrl(musicUrl);
+    console.log(`[Music Proxy] Fetching: ${safeTarget.toString()}`);
     
     const response = await axios({
       method: 'get',
-      url: musicUrl,
+      url: safeTarget.toString(),
       responseType: 'stream',
       headers: {
         'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'
@@ -56,7 +109,8 @@ app.get('/api/music-proxy', async (req, res) => {
     response.data.pipe(res);
   } catch (err: any) {
     console.error(`[Music Proxy Error] ${err.message}`);
-    res.status(500).send('Failed to proxy music');
+    const blocked = err?.message?.startsWith('Only https') || err?.message?.startsWith('Host is') || err?.message?.startsWith('Invalid') || err?.message?.startsWith('Target resolved');
+    res.status(blocked ? 403 : 500).send(blocked ? err.message : 'Failed to proxy music');
   }
 });
 
@@ -620,6 +674,11 @@ interface FFmpegSubtitleConfig {
   boxborderw: number;
   yPos: string;
 }
+
+// Export frame width for caption metric scaling. Must match the 1080x1920
+// (or 2160x3840 Pro) frame the FFmpeg pipeline renders into — captions are
+// scaled against this so the exported video matches the editor preview.
+const RENDER_FRAME_WIDTH = 1080;
 
 function getFFmpegCaptionConfig(style: string, textLen: number, hasHighlight: boolean): FFmpegSubtitleConfig {
   // NOTE: All sizing/color/position numbers now come from
@@ -1768,6 +1827,16 @@ app.get('/api/download-proxy', async (req, res) => {
   }
   try {
     const targetUrl = decodeURIComponent(url as string);
+
+    // SSRF guard: allowlisted hosts + private-IP blocking before any fetch.
+    let safeTarget: URL;
+    try {
+      safeTarget = await validateProxyUrl(targetUrl);
+    } catch (valErr: any) {
+      console.warn(`[Proxy] Blocked unsafe target ${targetUrl}: ${valErr.message}`);
+      return res.status(403).json({ error: valErr.message });
+    }
+
     const clientRange = req.headers.range;
     const isDownloadRequest = download === 'true';
 
@@ -1816,7 +1885,7 @@ app.get('/api/download-proxy', async (req, res) => {
         console.log(`[Proxy] Connection Attempt ${i + 1}/${headerSets.length} to fetch targetUrl: ${targetUrl}`);
         const attempt = await axios({
           method: 'get',
-          url: targetUrl,
+          url: safeTarget.toString(),
           responseType: 'stream',
           headers: headers,
           timeout: 25000, // 25 seconds connection timeout
@@ -1853,7 +1922,7 @@ app.get('/api/download-proxy', async (req, res) => {
           fallbackHeaders['Range'] = clientRange;
         }
 
-        const fetchAttempt = await fetch(targetUrl, {
+        const fetchAttempt = await fetch(safeTarget.toString(), {
           headers: fallbackHeaders
         });
 
@@ -1876,8 +1945,8 @@ app.get('/api/download-proxy', async (req, res) => {
     }
 
     if (!response && !isFetchFallback) {
-      console.warn(`[Proxy Fallback] Connection to target URL failed or direct proxy block. Redirecting browser directly to source URL: ${targetUrl}`);
-      return res.redirect(targetUrl);
+      console.warn(`[Proxy Fallback] Connection to target URL failed or direct proxy block. Redirecting browser directly to source URL: ${safeTarget.toString()}`);
+      return res.redirect(safeTarget.toString());
     }
 
     // Unify parameters from Axios or Native fetch
@@ -1942,8 +2011,9 @@ app.get('/api/download-proxy', async (req, res) => {
   } catch (err: any) {
     console.error('Error proxying download, attempting redirect as fail-safe:', err.message);
     try {
-      const targetUrl = decodeURIComponent(req.query.url as string);
-      return res.redirect(targetUrl);
+      const redirectUrl = decodeURIComponent(req.query.url as string);
+      const safeRedirect = await validateProxyUrl(redirectUrl);
+      return res.redirect(safeRedirect.toString());
     } catch (e: any) {
       res.status(500).send(`Error downloading video attachment file: ${err.message}`);
     }

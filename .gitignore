@@ -1,5 +1,6 @@
 node_modules/
 dist/
+dist-server/
 .npm/
 uploads/
 *.log
@@ -8,3 +9,5 @@ uploads/
 .env
 .DS_Store
 final_recovery/
+.ssh/
+.gitconfig

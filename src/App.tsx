@@ -9,6 +9,7 @@ import ApiKeySettingsModal from './components/ApiKeySettingsModal';
 import { runAnalyzeVideo, getApiStatusLog, clearApiStatusLog } from './utils/groqClient';
 import { saveFileToDevice } from './utils/download';
 import { renderVideoInBrowser } from './utils/ffmpegClient';
+import { computeViralityScore } from './utils/viralityScore';
 
 
 
@@ -91,10 +92,20 @@ export default function App() {
       try {
         const result = await runAnalyzeVideo({ ...template });
         console.log('[App] AI analysis result:', result);
-        if (result?.project) {
-          setActiveProject(prev => ({ ...prev, ...result.project, viralityScore: 99 } as any));
+        if (result?.success && result.project) {
+          setActiveProject(prev => {
+            const merged = { ...prev, ...result.project } as any;
+            const scored = computeViralityScore(merged);
+            return { ...merged, viralityScore: scored.score, viralityFeedback: scored.feedback };
+          });
           setAiSuccess(true);
           setTimeout(() => setAiSuccess(false), 2500);
+        } else {
+          console.warn('AI offline — manual mode active:', result?.error);
+          setActiveProject(prev => {
+            const scored = computeViralityScore(prev as any);
+            return { ...prev, viralityScore: scored.score, viralityFeedback: scored.feedback };
+          });
         }
       } catch (e) {
         console.warn("AI Service busy. Manual Mode Active.", e);
@@ -150,10 +161,20 @@ export default function App() {
       try {
         const result = await runAnalyzeVideo({ name, niche, userDescription: description, videoFile: file, videoUrl });
         console.log('[App] AI analysis result (upload):', result);
-        if (result?.project) {
-          setActiveProject(prev => ({ ...prev, ...result.project, viralityScore: 99 } as any));
+        if (result?.success && result.project) {
+          setActiveProject(prev => {
+            const merged = { ...prev, ...result.project } as any;
+            const scored = computeViralityScore(merged);
+            return { ...merged, viralityScore: scored.score, viralityFeedback: scored.feedback };
+          });
           setAiSuccess(true);
           setTimeout(() => setAiSuccess(false), 2500);
+        } else {
+          console.warn('AI offline — manual mode active:', result?.error);
+          setActiveProject(prev => {
+            const scored = computeViralityScore(prev as any);
+            return { ...prev, viralityScore: scored.score, viralityFeedback: scored.feedback };
+          });
         }
       } catch (e) {
         console.warn("AI Service busy. Manual Mode Active.", e);
