@@ -4,7 +4,7 @@ import { VideoProject, MusicTrack } from './types';
 // (v1.3.0 cleanup: 13 "tracks" in the old 30-track catalog were actually
 // HTML error pages saved with .mp3 names; the real library is track-1..9.
 // track-1 is also the lofi track and track-8 the cinematic one.)
-const BASE_AUDIO = '/audio';
+const BASE_AUDIO = `${import.meta.env.BASE_URL}audio`;
 
 export const FREE_MUSIC_TRACKS: MusicTrack[] = [
   // ── HYPE (9) ──────────────────────────────────────────────────────────
