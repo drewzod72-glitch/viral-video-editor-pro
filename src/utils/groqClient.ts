@@ -234,26 +234,40 @@ RULES:
 - Subtitles must be 2-4 words, uppercase, punchy.
 - Do not include markdown or explanations.`;
 
-const COPILOT_PROMPT = (actionType: string, command: string) => `You are a short-form video editor AI.
+const COPILOT_PROMPT = (actionType: string, command: string, existingPlan: any) => `You are a short-form video editor AI refining an EXISTING edit plan.
 
-Action: ${actionType}
+Current edit plan:
+- Subtitles: ${existingPlan?.subtitles?.length || 0} captions
+- Color grade: ${existingPlan?.colorGrade || 'none'}
+- Transition: ${existingPlan?.transitionStyle || 'none'}
+- Zoom effects: ${existingPlan?.zoomEffects?.length || 0}
+- Music: ${existingPlan?.selectedMusicTrackId || 'none'}
+- Caption style: ${existingPlan?.captionStyle || 'hormozi'}
+
+User action: ${actionType}
 Command: ${command}
 
-Return ONLY JSON:
+CRITICAL RULES:
+1. PRESERVE the existing edit plan unless the user explicitly requests a change.
+2. If the user says "make it more X", only change the specific property they mentioned.
+3. Keep subtitle IDs stable. Never regenerate all subtitles from scratch.
+4. Return ONLY JSON with the CHANGED properties. Do not return the full plan.
+5. If no change is needed, return: {"changed": false, "advice": "No changes needed."}
+
+Example response for "boost hooks":
 {
-  "subtitles": [
-    {"id":"1","text":"HOOK TEXT","start":0,"end":2.5}
-  ],
-  "title": "Updated title",
-  "description": "Updated description",
-  "advice": "Director's note explaining what changed and why.",
-  "needsSubtitles": true
+  "changed": true,
+  "advice": "Strengthened hook captions while preserving your existing edit plan.",
+  "subtitles": [{"id":"1","text":"NEW HOOK","start":0,"end":2.5}],
+  "colorGrade": "vibrant_pop"
 }
 
-Rules:
-- Keep subtitle IDs stable when possible.
-- Advice must explicitly state what changed.
-- If no change is needed, return the original subtitles unchanged.`;
+Example response for "add transitions":
+{
+  "changed": true,
+  "advice": "Added crossfade transitions between cuts.",
+  "transitionStyle": "crossfade"
+}`;
 
 // ─── Low-level Groq caller with retry + status logging ──────────────────────
 async function callGroq(model: string, messages: any[], retries = 2, mode: 'vision' | 'text' = 'text', baseMaxTokens = 4096): Promise<string> {
@@ -433,7 +447,7 @@ export async function runCopilotOptimize(params: any): Promise<any> {
   const errors: string[] = [];
   let lastRaw = '';
 
-  const prompt = COPILOT_PROMPT(params.actionType || 'chat', params.command || '');
+  const prompt = COPILOT_PROMPT(params.actionType || 'chat', params.command || '', params.existingPlan);
 
   for (const model of TEXT_MODELS) {
     try {
@@ -442,10 +456,21 @@ export async function runCopilotOptimize(params: any): Promise<any> {
       ], 1);
       lastRaw = raw;
       const parsed = extractAndRepair(raw);
-      if (parsed && Array.isArray(parsed.subtitles)) {
-        return { success: true, ...parsed };
+      
+      // If copilot says no changes needed, return empty success
+      if (parsed && parsed.changed === false) {
+        return {
+          success: true,
+          changed: false,
+          advice: parsed.advice || 'No changes needed.',
+          ...parsed
+        };
       }
-      errors.push(`${model}: parsed but invalid subtitles`);
+      
+      if (parsed && (Array.isArray(parsed.subtitles) || parsed.transitionStyle || parsed.colorGrade || parsed.zoomEffects)) {
+        return { success: true, changed: true, ...parsed };
+      }
+      errors.push(`${model}: parsed but invalid response`);
     } catch (e: any) {
       errors.push(`${model}: ${e?.message || 'network error'}`);
     }
@@ -456,6 +481,7 @@ export async function runCopilotOptimize(params: any): Promise<any> {
 
   return {
     success: true,
+    changed: false,
     subtitles: params.subtitles || [],
     title: params.title || '',
     description: params.description || '',

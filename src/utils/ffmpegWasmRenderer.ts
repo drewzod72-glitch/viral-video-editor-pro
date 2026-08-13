@@ -79,85 +79,109 @@ export async function renderVideoWithFFmpegWasm(options: FFmpegWasmRendererOptio
     return (await renderVideoInBrowser(project, onProgress, activeClipId)).blob;
   }
 
-  try {
-    const { FFmpeg } = await import('@ffmpeg/ffmpeg');
-    const { fetchFile, toBlobURL } = await import('@ffmpeg/util');
+  // FFmpeg.wasm mode with retry and transparent fallback
+  const maxAttempts = 2;
+  let lastError: any = null;
 
-    const ffmpeg = new FFmpeg();
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      onProgress(0, attempt > 1 ? 'Retrying FFmpeg engine...' : 'Loading FFmpeg engine...');
+      
+      const { FFmpeg } = await import('@ffmpeg/ffmpeg');
+      const { fetchFile, toBlobURL } = await import('@ffmpeg/util');
 
-    onProgress(0, 'Loading FFmpeg engine...');
-    const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
-    await ffmpeg.load({
-      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-    });
+      const ffmpeg = new FFmpeg();
 
-    onProgress(5, 'FFmpeg engine loaded');
+      // Load FFmpeg.wasm core with retry
+      const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
+      await ffmpeg.load({
+        coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+      });
 
-    // Write input video
-    const videoData = await fetchFile(project.videoUrl);
-    await ffmpeg.writeFile('input.mp4', videoData);
+      onProgress(5, 'FFmpeg engine loaded');
 
-    // Write music file if selected
-    let musicFile = '';
-    if (project.selectedMusicTrackId && project.selectedMusicTrackId !== 'none') {
-      const track = FREE_MUSIC_TRACKS.find(t => t.id === project.selectedMusicTrackId);
-      if (track) {
-        try {
-          const musicData = await fetchFile(track.url);
-          await ffmpeg.writeFile('music.mp3', musicData);
-          musicFile = 'music.mp3';
-        } catch (e) {
-          console.warn('[FFmpeg] Music load failed:', e);
+      // Write input video
+      const videoData = await fetchFile(project.videoUrl);
+      await ffmpeg.writeFile('input.mp4', videoData);
+
+      // Write music file if selected
+      let musicFile = '';
+      if (project.selectedMusicTrackId && project.selectedMusicTrackId !== 'none') {
+        const track = FREE_MUSIC_TRACKS.find(t => t.id === project.selectedMusicTrackId);
+        if (track) {
+          try {
+            const musicData = await fetchFile(track.url);
+            await ffmpeg.writeFile('music.mp3', musicData);
+            musicFile = 'music.mp3';
+          } catch (e) {
+            console.warn('[FFmpeg] Music load failed:', e);
+          }
         }
       }
-    }
 
-    // Generate subtitle SRT if needed
-    let subtitleFile = '';
-    if (project.enableSubtitles && project.subtitles?.length) {
-      subtitleFile = await generateSRT(project.subtitles);
-      if (subtitleFile) {
-        await ffmpeg.writeFile('subs.srt', subtitleFile);
+      // Generate subtitle SRT if needed
+      let subtitleFile = '';
+      if (project.enableSubtitles && project.subtitles?.length) {
+        subtitleFile = await generateSRT(project.subtitles);
+        if (subtitleFile) {
+          await ffmpeg.writeFile('subs.srt', subtitleFile);
+        }
       }
+
+      // Build filter complex
+      const filterComplex = buildFilterComplex(project, subtitleFile);
+
+      // Build FFmpeg command
+      const args = buildFFmpegCommand(project, filterComplex, musicFile);
+
+      // Execute with progress
+      ffmpeg.on('progress', ({ progress }) => {
+        const pct = Math.round(5 + progress * 90);
+        onProgress(pct, 'Rendering...');
+      });
+
+      await ffmpeg.exec(args);
+
+      onProgress(95, 'Finalizing...');
+      const outputData = await ffmpeg.readFile('output.mp4');
+      const blob = new Blob([outputData as BlobPart], { type: 'video/mp4' });
+
+      // Cleanup
+      try {
+        await ffmpeg.deleteFile('input.mp4');
+        if (musicFile) await ffmpeg.deleteFile(musicFile);
+        if (subtitleFile) await ffmpeg.deleteFile('subs.srt');
+        await ffmpeg.deleteFile('output.mp4');
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+
+      onProgress(100, 'Complete');
+      return blob;
+
+    } catch (error: any) {
+      lastError = error;
+      console.error(`[FFmpeg.wasm] Attempt ${attempt} failed:`, error);
+      
+      if (attempt < maxAttempts) {
+        onProgress(0, `FFmpeg attempt ${attempt} failed, retrying...`);
+        await new Promise(r => setTimeout(r, 2000)); // Wait before retry
+        continue;
+      }
+      
+      // All attempts failed - fall back to canvas with clear message (Kilo)
+      onProgress(0, 'FFmpeg unavailable, switching to Fast Canvas...');
+      console.warn('[FFmpeg.wasm] All attempts failed, falling back to canvas renderer:', error);
+      
+      const { renderVideoInBrowser } = await import('./ffmpegClient');
+      return (await renderVideoInBrowser(project, onProgress, activeClipId)).blob;
     }
-
-    // Build filter complex
-    const filterComplex = buildFilterComplex(project, subtitleFile);
-
-    // Build FFmpeg command
-    const args = buildFFmpegCommand(project, filterComplex, musicFile);
-
-    // Execute with progress
-    ffmpeg.on('progress', ({ progress }) => {
-      const pct = Math.round(5 + progress * 90);
-      onProgress(pct, 'Rendering...');
-    });
-
-    await ffmpeg.exec(args);
-
-    onProgress(95, 'Finalizing...');
-    const outputData = await ffmpeg.readFile('output.mp4');
-    const blob = new Blob([outputData as BlobPart], { type: 'video/mp4' });
-
-    // Cleanup
-    try {
-      await ffmpeg.deleteFile('input.mp4');
-      if (musicFile) await ffmpeg.deleteFile(musicFile);
-      if (subtitleFile) await ffmpeg.deleteFile('subs.srt');
-      await ffmpeg.deleteFile('output.mp4');
-    } catch (e) {
-      // Ignore cleanup errors
-    }
-
-    onProgress(100, 'Complete');
-    return blob;
-  } catch (error: any) {
-    console.error('[FFmpeg.wasm] Render failed:', error);
-    onProgress(0, 'FFmpeg failed, falling back to canvas...');
-    const { renderVideoInBrowser } = await import('./ffmpegClient');
-    return (await renderVideoInBrowser(project, onProgress, activeClipId)).blob;
   }
+
+  // Should never reach here, but just in case
+  const { renderVideoInBrowser } = await import('./ffmpegClient');
+  return (await renderVideoInBrowser(project, onProgress, activeClipId)).blob;
 }
 
 // ─── SRT Generator ──────────────────────────────────────────────────────────

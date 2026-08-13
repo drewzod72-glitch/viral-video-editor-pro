@@ -74,7 +74,16 @@ export const AICopilotConsole: React.FC<any> = ({
         niche: project.niche,
         command: cmd || '',
         actionType,
+        existingPlan: project, // Pass full edit plan for coherence
       });
+      
+      // If copilot says no changes needed, just show advice
+      if (data.changed === false) {
+        setAiResponse(data.advice || 'No changes needed.');
+        appendLog(`→ ${data.advice}`);
+        setIsLoading(false);
+        return;
+      }
       
       // CRITICAL: Inject subtitles FIRST so UI never misses the update
       if (data.subtitles && data.subtitles.length > 0) {

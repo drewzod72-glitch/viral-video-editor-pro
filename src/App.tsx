@@ -10,7 +10,7 @@ import { runAnalyzeVideo, getApiStatusLog, clearApiStatusLog } from './utils/gro
 import { saveFileToDevice } from './utils/download';
 import { renderVideoInBrowser } from './utils/ffmpegClient';
 import { computeViralityScore } from './utils/viralityScore';
-import { renderVideoWithFFmpegWasm, LUT_PRESETS, TRANSITION_PRESETS } from './utils/ffmpegWasmRenderer';
+import { renderVideoWithFFmpegWasm, LUT_PRESETS, TRANSITION_PRESETS, detectViralMoments } from './utils/ffmpegWasmRenderer';
 
 
 
@@ -30,6 +30,7 @@ export default function App() {
   const [showApiStatus, setShowApiStatus] = useState(false);
   const [renderMode, setRenderMode] = useState<'canvas' | 'ffmpeg'>('ffmpeg');
   const [renderProgress, setRenderProgress] = useState(0);
+  const [ffmpegFallback, setFfmpegFallback] = useState(false);
 
   const startApp = () => {
     try {
@@ -107,6 +108,35 @@ export default function App() {
           setAnalysisMode(result.mode || 'text');
           setAiSuccess(true);
           setTimeout(() => { setAiSuccess(false); setAnalysisMode(null); }, 3000);
+          
+          // Auto-detect viral moments and apply as highlights (Kilo 64e962b)
+          if (result.project.videoUrl) {
+            try {
+              const moments = await detectViralMoments(result.project.videoUrl, result.project.duration || 30);
+              if (moments.length > 0) {
+                setActiveProject(prev => {
+                  if (!prev) return prev;
+                  const viralHighlights = moments.slice(0, 5).map((m, i) => ({
+                    id: `viral-${i}`,
+                    title: `Viral Moment ${i + 1}`,
+                    start: m.start,
+                    end: m.end,
+                    duration: m.end - m.start,
+                    viralityScore: m.score,
+                    description: m.reason,
+                    whyEngaging: m.reason,
+                    speed: 1.0
+                  }));
+                  return {
+                    ...prev,
+                    highlights: [...prev.highlights, ...viralHighlights]
+                  } as VideoProject;
+                });
+              }
+            } catch (e) {
+              console.warn('Viral moment detection failed:', e);
+            }
+          }
         } else {
           console.warn('AI offline — manual mode active:', result?.error);
           setActiveProject(prev => {
@@ -202,6 +232,7 @@ export default function App() {
   const triggerExport = async () => {
     if (!activeProject) return;
     setIsProcessing(true);
+    setFfmpegFallback(false);
     setProcessingStage("Initializing render engine...");
     setRenderProgress(0);
     try {
@@ -214,6 +245,11 @@ export default function App() {
           onProgress: (p, stage) => {
             setRenderProgress(p);
             setProcessingStage(stage || `Rendering: ${p}%`);
+            // Wire Kilo's fallback indicator: the renderer signals canvas
+            // fallback via this stage message when FFmpeg.wasm fails.
+            if (stage && stage.includes('switching to Fast Canvas')) {
+              setFfmpegFallback(true);
+            }
           },
           activeClipId,
           mode: 'ffmpeg'
@@ -784,8 +820,16 @@ export default function App() {
           }}>
             <div style={{ fontSize: '64px', marginBottom: '16px' }}>🏆</div>
             <h3 style={{ fontWeight: 900, fontSize: '22px', marginBottom: '8px', letterSpacing: '-1px', fontFamily: '"Inter", sans-serif' }}>VIDEO READY</h3>
-            <p style={{ color: '#64748b', fontSize: '13px', marginBottom: '32px', fontFamily: '"Inter", sans-serif' }}>
+            <p style={{ color: '#64748b', fontSize: '13px', marginBottom: '8px', fontFamily: '"Inter", sans-serif' }}>
               Your edit is ready for social media.
+            </p>
+            {ffmpegFallback && (
+              <p style={{ color: '#f59e0b', fontSize: '11px', marginBottom: '16px', fontFamily: '"Inter", sans-serif' }}>
+                ⚠ Rendered with Fast Canvas (FFmpeg unavailable). Quality may vary.
+              </p>
+            )}
+            <p style={{ color: '#64748b', fontSize: '11px', marginBottom: '32px', fontFamily: '"Inter", sans-serif' }}>
+              {downloadReadyInfo.filename} • {(downloadReadyInfo.blob.size / 1024 / 1024).toFixed(1)} MB
             </p>
             <button
               onClick={async () => {

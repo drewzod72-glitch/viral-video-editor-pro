@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { runAnalyzeVideo } from '../utils/groqClient';
-import { computeViralityScore } from '../utils/viralityScore';
+import { detectViralMoments } from '../utils/ffmpegWasmRenderer';
 
 const fixDunikTypo = (str: string) => str?.replace(/dunik/gi, 'Dunk') || '';
 
@@ -58,20 +57,89 @@ export default function ViralityScorecard({ project, onUpdateProject }: any) {
     setIsBoosting(true);
     setBoostTarget(preset.id);
     try {
-      const result = await runAnalyzeVideo({
-        name: project.name,
-        niche: project.niche,
-        userDescription: `Ultra-Boost for ${preset.label}. ${preset.desc}`,
-        defaultTranscribe: project.subtitles.map((s: any) => s.text).join(' '),
-      });
-      if (result?.success && result.project) {
-        const merged = { ...project, ...result.project } as any;
-        const scored = computeViralityScore(merged);
-        onUpdateProject({ ...merged, viralityScore: scored.score, viralityFeedback: scored.feedback });
-        setActiveTab('diagnostics');
-      } else {
-        console.warn('Booster offline — no changes applied:', result?.error);
+
+      // Apply preset-specific overrides to existing plan instead of regenerating
+      const presetOverrides: any = {
+        mrbeast: {
+          captionStyle: 'mrbeast',
+          colorGrade: 'vibrant_pop',
+          transitionStyle: 'flash',
+          enableZooms: true,
+          shakeOnPunch: true,
+          sfxPopEnabled: true,
+          sfxWhooshEnabled: true,
+          musicVolume: 0.5,
+          archetype: 'hype',
+          advice: `Booster applied: ${preset.label} — high-octane hooks, fast cuts, bold claims.`
+        },
+        hormozi: {
+          captionStyle: 'hormozi',
+          colorGrade: 'warm_vintage',
+          transitionStyle: 'crossfade',
+          enableZooms: true,
+          shakeOnPunch: false,
+          sfxPopEnabled: true,
+          sfxWhooshEnabled: false,
+          musicVolume: 0.3,
+          archetype: 'sales',
+          advice: `Booster applied: ${preset.label} — direct response, pain-agitation, value bombs.`
+        },
+        asmr: {
+          captionStyle: 'minimalist',
+          colorGrade: 'cinematic',
+          transitionStyle: 'dissolve',
+          enableZooms: true,
+          shakeOnPunch: false,
+          sfxPopEnabled: false,
+          sfxWhooshEnabled: false,
+          musicVolume: 0.2,
+          archetype: 'lifestyle',
+          advice: `Booster applied: ${preset.label} — satisfying textures, whisper pacing, premium feel.`
+        },
+        fitness: {
+          captionStyle: 'impact',
+          colorGrade: 'neon_nights',
+          transitionStyle: 'glitch',
+          enableZooms: true,
+          shakeOnPunch: true,
+          sfxPopEnabled: true,
+          sfxWhooshEnabled: true,
+          musicVolume: 0.6,
+          archetype: 'fitness',
+          advice: `Booster applied: ${preset.label} — aggressive motivation, beat drops, callouts.`
+        },
+      };
+
+      const overrides = presetOverrides[preset.id] || {};
+      
+      // Merge preset overrides with existing project (preserves existing subtitles, highlights, etc.)
+      const updatedProject = { ...project, ...overrides };
+      
+      // Auto-detect viral moments if not already present
+      if (!project.highlights || project.highlights.length === 0) {
+        try {
+          const moments = await detectViralMoments(project.videoUrl, project.duration || 30);
+          if (moments.length > 0) {
+            updatedProject.highlights = moments.slice(0, 5).map((m, i) => ({
+              id: `viral-${i}`,
+              title: `Viral Moment ${i + 1}`,
+              start: m.start,
+              end: m.end,
+              duration: m.end - m.start,
+              viralityScore: m.score,
+              description: m.reason,
+              whyEngaging: m.reason,
+              speed: 1.0
+            }));
+          }
+        } catch (e) {
+          console.warn('Viral moment detection failed:', e);
+        }
       }
+
+      onUpdateProject(updatedProject);
+      setActiveTab('diagnostics');
+
     } catch (e) {
       console.warn('Booster offline');
     } finally {
