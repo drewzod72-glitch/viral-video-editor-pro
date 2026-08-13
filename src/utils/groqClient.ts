@@ -257,12 +257,17 @@ async function callGroq(model: string, messages: any[], retries = 2, mode: 'visi
   const key = getApiKey();
   let jsonMode = true;
   for (let attempt = 0; attempt <= retries; attempt++) {
+    // Reduce max_tokens on retry to mitigate TPM/context limit issues (Kilo).
+    // Base is 4096 — 1024 truncated subtitle JSON on larger models (qwen),
+    // which caused json_validate_failed rejections.
+    const maxTokens = attempt === 0 ? 4096 : 2048;
+
     try {
       const body: Record<string, any> = {
         model,
         messages,
         temperature: 0.5,
-        max_tokens: 4096, // 1024 truncated subtitle JSON on larger models (qwen) → json_validate_failed
+        max_tokens: maxTokens,
       };
       if (jsonMode) body.response_format = { type: 'json_object' };
 
@@ -278,6 +283,17 @@ async function callGroq(model: string, messages: any[], retries = 2, mode: 'visi
       const text = await res.text();
       if (!res.ok) {
         const snippet = text.slice(0, 200);
+
+        // Handle 413 Request Too Large / TPM limit errors: retry with a
+        // smaller max_tokens (Kilo).
+        if (res.status === 413) {
+          addLogEntry(model, mode, false, `413: ${snippet}`);
+          if (attempt < retries) {
+            await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+            continue; // retry with reduced max_tokens
+          }
+          throw new Error(`Groq 413: ${snippet}`);
+        }
 
         // Some models (e.g. qwen3.6-27b) can fail strict JSON mode even with a
         // valid prompt. Retry the SAME model once in free-form mode — the
