@@ -130,11 +130,10 @@ async function captureFrames(file: File): Promise<string[]> {
         const ctx = canvas.getContext('2d');
 
         const duration = v.duration;
-        // Two hook-biased frames: enough context for product-review/hook
-        // detection while staying under the 8K TPM budget (Kilo 1a24083).
+        // Single hook-biased frame to stay under free-tier TPM budget.
+        // One 256x144 JPEG + prompt ≈ 3,500-4,500 tokens, safely under 8K.
         const timestamps = [
-          Math.min(1.5, duration * 0.1),
-          duration * 0.45
+          Math.min(1.5, duration * 0.1)
         ];
 
         for (const t of timestamps) {
@@ -156,25 +155,7 @@ async function captureFrames(file: File): Promise<string[]> {
   });
 }
 
-const VISION_PROMPT = (duration: number) => `You are a viral short-form video director analyzing a ${duration.toFixed(1)}s video.
-
-TASK: Create a PROFESSIONAL EDIT with CUTS and FULL COVERAGE subtitles.
-
-1. SUBTITLES (MANDATORY):
-   - Generate subtitles for the ENTIRE ${duration.toFixed(1)}s duration
-   - Minimum subtitle count: ${Math.ceil(duration / 2.5)}
-   - Each subtitle: 2-4 words, UPPERCASE, punchy
-   - Coverage: every second must have a subtitle OR be explicitly marked as silent B-roll
-   - Start times: 0, 2.5, 5.0, 7.5, 10.0... covering full duration
-
-2. SMART CUTS (MANDATORY):
-   - Identify 3-5 MOMENTS to KEEP (viral highlights)
-   - Identify 2-3 MOMENTS to CUT (dead air, boring parts)
-   - Each cut: {"start": X, "end": Y, "reason": "dead air/silence"}
-   - Each keep: {"start": X, "end": Y, "viralityScore": 85-100, "reason": "hook/emotion/CTA"}
-
-3. PRODUCT REVIEW moments: sole close-ups, stitching details, logo reveals, texture macros.
-4. CTA: identify the call to action.
+const VISION_PROMPT = (duration: number) => `Analyze this ${duration.toFixed(1)}s video. Create a PROFESSIONAL EDIT plan with CUTS and FULL COVERAGE subtitles.
 
 Return ONLY JSON:
 {
@@ -182,30 +163,22 @@ Return ONLY JSON:
   "description": "Short social copy with emojis",
   "captionStyle": "hormozi",
   "needsSubtitles": true,
-  "subtitles": [
-    {"id":"1","text":"HOOK TEXT","start":0,"end":2.5},
-    {"id":"2","text":"NEXT CAPTION","start":2.5,"end":5.0}
-  ],
-  "cuts": [
-    {"id":"c1","start":12.0,"end":15.0,"reason":"Dead air, no speech"}
-  ],
-  "highlights": [
-    {"id":"h1","title":"Product Review: Sole","start":4.5,"end":8.2,"viralityScore":92,"description":"Macro sole close-up","whyEngaging":"Texture detail drives shares","speed":1.0}
-  ],
+  "subtitles": [{"id":"1","text":"HOOK","start":0,"end":2.5}],
+  "cuts": [{"id":"c1","start":12,"end":15,"reason":"Dead air"}],
+  "highlights": [{"id":"h1","title":"Key Moment","start":0,"end":5,"viralityScore":92,"description":"Strong hook","whyEngaging":"Stops scrollers","speed":1.0}],
   "archetype": "hype"
 }
 
-MANDATORY RULES:
-- "subtitles" array MUST have at least ${Math.ceil(duration / 2.5)} items covering 0 to ${duration.toFixed(1)}s
-- "cuts" array MUST have at least 2 items removing boring segments
-- "highlights" array MUST have at least 3 items keeping viral moments
-- Total kept duration (highlights) must be 60-80% of original for pacing
+RULES:
+- subtitles: at least ${Math.ceil(duration / 2.5)} items covering 0 to ${duration.toFixed(1)}s
+- cuts: at least 2 segments to REMOVE
+- highlights: at least 3 segments to KEEP
 - No markdown, no explanations.`;
 
 const TEXT_ANALYSIS_PROMPT = (niche: string, description: string, duration: number) => `You are a viral short-form video director.
 
 Niche: ${niche}
-Description: ${description || 'No description provided.'}
+Description: ${description || 'No description.'}
 Duration: ${duration.toFixed(1)}s
 
 Generate a PROFESSIONAL EDIT plan with CUTS and FULL COVERAGE subtitles.
@@ -216,16 +189,9 @@ Return ONLY JSON:
   "description": "Short social copy with emojis",
   "captionStyle": "hormozi",
   "needsSubtitles": true,
-  "subtitles": [
-    {"id":"1","text":"HOOK TEXT","start":0,"end":2.5},
-    {"id":"2","text":"NEXT CAPTION","start":2.5,"end":5.0}
-  ],
-  "cuts": [
-    {"id":"c1","start":12.0,"end":15.0,"reason":"Dead air"}
-  ],
-  "highlights": [
-    {"id":"h1","title":"Key Moment","start":0,"end":5.0,"viralityScore":92,"description":"Strong hook","whyEngaging":"Stops scrollers","speed":1.0}
-  ],
+  "subtitles": [{"id":"1","text":"HOOK","start":0,"end":2.5}],
+  "cuts": [{"id":"c1","start":12,"end":15,"reason":"Dead air"}],
+  "highlights": [{"id":"h1","title":"Key Moment","start":0,"end":5,"viralityScore":92,"description":"Strong hook","whyEngaging":"Stops scrollers","speed":1.0}],
   "archetype": "${niche}"
 }
 
@@ -234,7 +200,7 @@ RULES:
 - Subtitles: at least ${Math.ceil(duration / 2.5)} items covering FULL ${duration.toFixed(1)}s duration
 - Cuts: at least 2 segments to REMOVE (dead air, boring parts)
 - Highlights: at least 3 segments to KEEP (viral moments)
-- Kept duration = 60-80% of original for professional pacing
+- Kept duration = 60-80% of original for pacing
 - Subtitles: 2-4 words, UPPERCASE, punchy
 - No markdown, no explanations.`;
 
@@ -305,6 +271,16 @@ async function callGroq(model: string, messages: any[], retries = 2, mode: 'visi
       if (!res.ok) {
         const snippet = text.slice(0, 200);
 
+        // Handle 429 Rate Limit: wait for TPM window to drain (60s), then retry
+        if (res.status === 429) {
+          addLogEntry(model, mode, false, `429: ${snippet}`);
+          if (attempt < retries) {
+            await new Promise(r => setTimeout(r, 60000));
+            continue;
+          }
+          throw new Error(`Groq 429: ${snippet}`);
+        }
+
         // Handle 413 Request Too Large / TPM limit errors: wait for the
         // rolling TPM window (60s) to drain, then retry with smaller
         // max_tokens (Kilo).
@@ -373,7 +349,7 @@ export async function runAnalyzeVideo(params: any): Promise<any> {
                 }))
               ];
 
-            const raw = await callGroq(model, [{ role: 'user', content }], 2, 'vision', 2048);
+            const raw = await callGroq(model, [{ role: 'user', content }], 2, 'vision', 1024);
             lastRaw = raw;
             const parsed = extractAndRepair(raw);
 
