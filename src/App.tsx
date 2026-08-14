@@ -449,16 +449,16 @@ export default function App() {
           width: '88px', height: '88px', borderRadius: '28px',
           background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '40px', marginBottom: '28px', position: 'relative', zIndex: 1,
+          fontSize: '40px', marginBottom: '32px', position: 'relative', zIndex: 1,
           boxShadow: '0 24px 80px rgba(139,92,246,0.4)',
           animation: 'float 6s ease-in-out infinite'
         }}>⚡</div>
 
         <h1 style={{
           color: 'white',
-          fontSize: 'clamp(36px, 8vw, 64px)',
+          fontSize: 'clamp(42px, 9vw, 72px)',
           fontWeight: 900,
-          margin: '0 0 14px 0',
+          margin: '0 0 16px 0',
           letterSpacing: '-3px',
           fontFamily: '"Inter", sans-serif',
           textTransform: 'uppercase',
@@ -475,8 +475,8 @@ export default function App() {
         </h1>
 
         <p style={{
-          color: '#94a3b8', fontSize: 'clamp(13px, 2.5vw, 15px)',
-          maxWidth: '420px', marginBottom: '44px', fontWeight: 500, lineHeight: 1.7,
+          color: '#cbd5e1', fontSize: 'clamp(14px, 2.5vw, 16px)',
+          maxWidth: '460px', marginBottom: '48px', fontWeight: 500, lineHeight: 1.7,
           position: 'relative', zIndex: 1
         }}>
           Professional video studio. Frame-accurate browser engine.
@@ -488,18 +488,17 @@ export default function App() {
           style={{
             background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
             color: 'white', border: 'none', borderRadius: '16px',
-            padding: '20px 64px', fontWeight: 900, fontSize: '14px',
+            padding: '20px 64px', fontWeight: 800, fontSize: '14px',
             fontFamily: '"Inter", sans-serif', textTransform: 'uppercase',
             cursor: 'pointer',
             boxShadow: '0 20px 60px rgba(139,92,246,0.4), inset 0 1px 0 rgba(255,255,255,0.2)',
             letterSpacing: '1.5px',
             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-            position: 'relative', zIndex: 1,
-            animation: 'pulse-glow 3s ease-in-out infinite'
+            position: 'relative', zIndex: 1
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
-            e.currentTarget.style.boxShadow = '0 24px 80px rgba(139,92,246,0.5), inset 0 1px 0 rgba(255,255,255,0.2)';
+            e.currentTarget.style.transform = 'translateY(-3px) scale(1.03)';
+            e.currentTarget.style.boxShadow = '0 28px 80px rgba(139,92,246,0.5), inset 0 1px 0 rgba(255,255,255,0.25)';
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.transform = 'translateY(0) scale(1)';
@@ -574,11 +573,31 @@ export default function App() {
             color: activeTab === tab.key ? '#c4b5fd' : '#a1a1aa',
             fontWeight: 700, fontSize: '12px', cursor: 'pointer',
             textAlign: 'left', fontFamily: '"Inter", sans-serif',
-            display: 'flex', alignItems: 'center', gap: '10px', transition: 'all 0.2s'
+            display: 'flex', alignItems: 'center', gap: '10px', transition: 'all 0.2s',
+            position: 'relative', overflow: 'hidden'
+          }}
+          onMouseEnter={(e) => {
+            if (activeTab !== tab.key) {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+              e.currentTarget.style.color = '#e4e4e7';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (activeTab !== tab.key) {
+              e.currentTarget.style.background = 'transparent';
+              e.currentTarget.style.color = '#a1a1aa';
+            }
           }}
         >
-          <span style={{ fontSize: '15px' }}>{tab.icon}</span>
-          <span>{tab.label}</span>
+          {activeTab === tab.key && (
+            <div style={{
+              position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)',
+              width: '3px', height: '20px', background: 'linear-gradient(180deg, #8b5cf6, #06b6d4)',
+              borderRadius: '0 2px 2px 0'
+            }} />
+          )}
+          <span style={{ fontSize: '15px', position: 'relative', zIndex: 1 }}>{tab.icon}</span>
+          <span style={{ position: 'relative', zIndex: 1 }}>{tab.label}</span>
         </button>
       ))}
 

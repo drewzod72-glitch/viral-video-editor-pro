@@ -80,9 +80,19 @@ export default function NicheSelector({ onSelectTemplate, onUploadCustomFile, is
               key={tpl.id}
               onClick={() => onSelectTemplate(tpl)}
               disabled={isProcessing}
-              style={{ background: 'linear-gradient(180deg, rgba(24,24,27,0.9) 0%, rgba(9,9,11,0.95) 100%)', border: '1px solid rgba(30,41,59,0.6)', borderRadius: '20px', padding: '20px', textAlign: 'left', cursor: isProcessing ? 'not-allowed' : 'pointer', width: '100%', transition: 'all 0.25s', backdropFilter: 'blur(12px)', opacity: isProcessing ? 0.5 : 1 }}
-              onMouseEnter={(e) => { if (!isProcessing) e.currentTarget.style.borderColor = 'rgba(139,92,246,0.5)'; }}
-              onMouseLeave={(e) => e.currentTarget.style.borderColor = 'rgba(30,41,59,0.6)'}
+              style={{ background: 'linear-gradient(180deg, rgba(24,24,27,0.9) 0%, rgba(9,9,11,0.95) 100%)', border: '1px solid rgba(30,41,59,0.6)', borderRadius: '20px', padding: '20px', textAlign: 'left', cursor: isProcessing ? 'not-allowed' : 'pointer', width: '100%', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', backdropFilter: 'blur(12px)', opacity: isProcessing ? 0.5 : 1, transform: 'translateY(0)' }}
+              onMouseEnter={(e) => {
+                if (!isProcessing) {
+                  e.currentTarget.style.borderColor = 'rgba(139,92,246,0.5)';
+                  e.currentTarget.style.transform = 'translateY(-4px)';
+                  e.currentTarget.style.boxShadow = '0 20px 60px rgba(139,92,246,0.15)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'rgba(30,41,59,0.6)';
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
             >
               {/* Social Simulator Mockup */}
               <div style={{ width: '100%', aspectRatio: '9/16', maxHeight: '180px', background: '#000', borderRadius: '14px', marginBottom: '14px', overflow: 'hidden', position: 'relative', border: '1px solid rgba(30,41,59,0.8)' }}>
@@ -114,9 +124,9 @@ export default function NicheSelector({ onSelectTemplate, onUploadCustomFile, is
           {/* Upload Zone */}
           <div
             onClick={() => fileInputRef.current?.click()}
-            style={{ border: '2px dashed #27272a', borderRadius: '24px', padding: '56px 24px', textAlign: 'center', cursor: 'pointer', background: 'linear-gradient(180deg, rgba(24,24,27,0.6) 0%, rgba(9,9,11,0.8) 100%)', transition: 'all 0.25s', backdropFilter: 'blur(12px)' }}
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#8b5cf6'; e.currentTarget.style.background = 'linear-gradient(180deg, rgba(139,92,246,0.08) 0%, rgba(9,9,11,0.9) 100%)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#27272a'; e.currentTarget.style.background = 'linear-gradient(180deg, rgba(24,24,27,0.6) 0%, rgba(9,9,11,0.8) 100%)'; }}
+            style={{ border: '2px dashed #27272a', borderRadius: '24px', padding: '56px 24px', textAlign: 'center', cursor: 'pointer', background: 'linear-gradient(180deg, rgba(24,24,27,0.6) 0%, rgba(9,9,11,0.8) 100%)', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', backdropFilter: 'blur(12px)' }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#8b5cf6'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.background = 'linear-gradient(180deg, rgba(139,92,246,0.08) 0%, rgba(9,9,11,0.9) 100%)'; e.currentTarget.style.boxShadow = '0 20px 60px rgba(139,92,246,0.1)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#27272a'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.background = 'linear-gradient(180deg, rgba(24,24,27,0.6) 0%, rgba(9,9,11,0.8) 100%)'; e.currentTarget.style.boxShadow = 'none'; }}
           >
             <input ref={fileInputRef} type="file" accept="video/*" onChange={handleFileChange} style={{ display: 'none' }} />
             <div style={{ fontSize: '52px', marginBottom: '14px', filter: 'drop-shadow(0 0 20px rgba(139,92,246,0.3))' }}>📹</div>
