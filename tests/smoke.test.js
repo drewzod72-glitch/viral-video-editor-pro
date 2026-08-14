@@ -89,21 +89,34 @@ async function runTests() {
     }
   }
 
-  // Test 3: SSRF guard blocks private IPs via proxy
+  // Test 4: download-render returns 404 when no render exists
+  try {
+    const res = await request(`http://127.0.0.1:${PORT}/api/download-render?id=nonexistent`);
+    if (res.status === 404) {
+      console.log('✓ download-render returns 404 for missing id');
+    } else {
+      throw new Error(`Expected 404, got ${res.status}: ${res.body}`);
+    }
+  } catch (e) {
+    console.error('✗ download-render test failed:', e.message);
+    failed++;
+  }
+
+  // Test 5: download-proxy SSRF guard blocks private IPs
   try {
     const target = encodeURIComponent('http://127.0.0.1/test');
-    const res = await request(`http://127.0.0.1:${PORT}/api/music-proxy?url=${target}`);
+    const res = await request(`http://127.0.0.1:${PORT}/api/download-proxy?url=${target}`);
     if (res.status === 403) {
-      console.log('✓ SSRF guard blocks private IP');
+      console.log('✓ download-proxy SSRF guard blocks private IP');
     } else {
       throw new Error(`Expected 403, got ${res.status}: ${res.body}`);
     }
   } catch (e) {
-    console.error('✗ SSRF guard test failed:', e.message);
+    console.error('✗ download-proxy SSRF guard test failed:', e.message);
     failed++;
   }
 
-  // Test 4: Caption config parity (preview = export)
+  // Test 6: Caption config parity (preview = export)
   try {
     const { resolveCaptionMetrics, normalizeCaptionStyle } = await import(
       path.join(ROOT, 'src', 'utils', 'captionStyleConfig.ts')
