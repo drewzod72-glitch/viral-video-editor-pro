@@ -34,4 +34,16 @@
 
 ## Done
 
-(none yet)
+Fixed and deployed `viral-video-editor-pro` to a clean, deployable state:
+
+- **Removed silent fake fallbacks**: Deleted `generateMockSubtitles`, `generateSmartCuts`, `generateSmartHighlights` from `src/utils/groqClient.ts`. `runAnalyzeVideo` and `runCopilotOptimize` now return `success: false` with an honest error when all Groq models fail, instead of fabricating subtitles, highlights, titles, descriptions, and fake virality scores (88–99).
+- **Removed dead server-side AI routes**: Deleted `/api/analyze-video`, `/api/copilot-optimize`, `/api/detect-cuts`, `getGeminiClient()`, and the `GoogleGenAI`/`Type` imports from `server.ts`. The client already uses `groqClient.ts` (BYOK via Groq) — these routes were unreachable dead code.
+- **Cleaned up GEMINI_API_KEY references**: Removed from `server.ts`, `.env.example`, and `package.json` (`@google/genai` dependency removed since it's no longer used anywhere).
+- **Verified fonts and audio**: All 5 caption fonts are real bundled TTFs; all 9 `public/audio/track-*.mp3` files are real MP3s; `src/data.ts` catalog matches disk.
+- **Verified SSRF guard**: Both `/api/music-proxy` and `/api/download-proxy` still use `validateProxyUrl` with https-only, hostname allowlist, and private-IP blocking.
+- **Added smoke tests** (`tests/smoke.test.js`): Server boots and returns JSON health check; removed AI routes return 404; SSRF guard rejects private IPs; caption config parity verified between preview (`getCaptionStyles`) and FFmpeg (`getFFmpegCaptionConfig`).
+- **Builds pass**: `npm run build` and `npm run build:server` both exit 0 from a clean install.
+
+## Blocked — needs human
+
+(none)
