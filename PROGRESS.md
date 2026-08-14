@@ -43,6 +43,8 @@ Fixed and deployed `viral-video-editor-pro` to a clean, deployable state:
 - **Verified SSRF guard**: Both `/api/music-proxy` and `/api/download-proxy` still use `validateProxyUrl` with https-only, hostname allowlist, and private-IP blocking.
 - **Added smoke tests** (`tests/smoke.test.js`): Server boots and returns JSON health check; removed AI routes return 404; SSRF guard rejects private IPs; caption config parity verified between preview (`getCaptionStyles`) and FFmpeg (`getFFmpegCaptionConfig`).
 - **Builds pass**: `npm run build` and `npm run build:server` both exit 0 from a clean install.
+- **Fixed video playback**: Made play toggle async and only update UI state when playback actually succeeds; added `onPlay`/`onPause`/`onError`/`onLoadedMetadata` handlers to keep the player UI in sync with real video state.
+- **Reduced Groq free-tier rate limits**: Cut vision frames from 2 → 1, shortened prompts, reduced vision `max_tokens` from 2048 → 1024, and added 60s backoff on HTTP 429 so the app no longer burns the 8K TPM budget by immediately retrying the next model.
 
 ## Blocked — needs human
 
