@@ -675,6 +675,20 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
                 letterSpacing: '0.5px', transition: 'all 0.2s',
                 display: 'flex', alignItems: 'center', gap: '4px'
               }}
+              onMouseEnter={(e) => {
+                if (musicMood !== cat.key) {
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)';
+                  e.currentTarget.style.color = '#e4e4e7';
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (musicMood !== cat.key) {
+                  e.currentTarget.style.borderColor = '#27272a';
+                  e.currentTarget.style.color = '#a1a1aa';
+                  e.currentTarget.style.background = '#020617';
+                }
+              }}
             >
               <span>{cat.emoji}</span>
               <span>{cat.label}</span>
@@ -692,8 +706,23 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
               color: 'white', fontWeight: 700, textAlign: 'left', fontSize: '11px',
               cursor: 'pointer', fontFamily: '"Inter", sans-serif',
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              transition: 'all 0.2s'
-            }}>
+              transition: 'all 0.2s', transform: 'translateY(0)'
+            }}
+            onMouseEnter={(e) => {
+              if (project.selectedMusicTrackId !== t.id) {
+                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (project.selectedMusicTrackId !== t.id) {
+                e.currentTarget.style.borderColor = '#27272a';
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.background = '#020617';
+              }
+            }}
+            >
               <div>
                 <div>{t.name}</div>
                 <div style={{ fontSize: '9px', color: '#64748b', fontWeight: 500, marginTop: '1px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{t.genre}</div>
@@ -759,6 +788,20 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
                   fontFamily: '"Inter", sans-serif', textTransform: 'uppercase',
                   letterSpacing: '0.3px', transition: 'all 0.2s'
                 }}
+                onMouseEnter={(e) => {
+                  if (project.colorGrade !== key) {
+                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
+                    e.currentTarget.style.color = '#e4e4e7';
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (project.colorGrade !== key) {
+                    e.currentTarget.style.borderColor = '#27272a';
+                    e.currentTarget.style.color = '#a1a1aa';
+                    e.currentTarget.style.background = '#020617';
+                  }
+                }}
               >
                 {lut.name}
               </button>
@@ -784,6 +827,20 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
                   fontSize: '9px', fontWeight: 700, cursor: 'pointer',
                   fontFamily: '"Inter", sans-serif', textTransform: 'uppercase',
                   letterSpacing: '0.3px', transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  if (project.transitionStyle !== key) {
+                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
+                    e.currentTarget.style.color = '#e4e4e7';
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (project.transitionStyle !== key) {
+                    e.currentTarget.style.borderColor = '#27272a';
+                    e.currentTarget.style.color = '#a1a1aa';
+                    e.currentTarget.style.background = '#020617';
+                  }
                 }}
               >
                 {trans.name}
