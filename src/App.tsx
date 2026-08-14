@@ -817,22 +817,34 @@ export default function App() {
                 {[
                   { key: 'studio', label: '🎬 Studio' },
                   { key: 'viral', label: '📊 Virality' },
-                  { key: 'copilot', label: '🧠 Co-Pilot' },
-                ].map(tab => (
-                  <button
-                    key={tab.key}
-                    onClick={() => setActiveTab(tab.key as 'studio' | 'viral' | 'copilot')}
-                    style={{
-                      padding: '10px 20px', borderRadius: '10px', border: 'none',
-                      background: activeTab === tab.key ? 'rgba(139,92,246,0.25)' : 'transparent',
-                      color: activeTab === tab.key ? '#e9d5ff' : '#71717a',
-                      fontWeight: 700, fontSize: '12px', fontFamily: '"Inter", sans-serif',
-                      cursor: 'pointer', transition: 'all 0.2s'
-                    }}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
+                   { key: 'copilot', label: '🧠 Co-Pilot' },
+                 ].map(tab => (
+                   <button
+                     key={tab.key}
+                     onClick={() => setActiveTab(tab.key as 'studio' | 'viral' | 'copilot')}
+                     style={{
+                       padding: '10px 20px', borderRadius: '10px', border: 'none',
+                       background: activeTab === tab.key ? 'rgba(139,92,246,0.25)' : 'transparent',
+                       color: activeTab === tab.key ? '#e9d5ff' : '#71717a',
+                       fontWeight: 700, fontSize: '12px', fontFamily: '"Inter", sans-serif',
+                       cursor: 'pointer', transition: 'all 0.2s', position: 'relative'
+                     }}
+                     onMouseEnter={(e) => {
+                       if (activeTab !== tab.key) {
+                         e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+                         e.currentTarget.style.color = '#a1a1aa';
+                       }
+                     }}
+                     onMouseLeave={(e) => {
+                       if (activeTab !== tab.key) {
+                         e.currentTarget.style.background = 'transparent';
+                         e.currentTarget.style.color = '#71717a';
+                       }
+                     }}
+                   >
+                     {tab.label}
+                   </button>
+                 ))}
               </div>
 
               {activeTab === 'studio' && (
