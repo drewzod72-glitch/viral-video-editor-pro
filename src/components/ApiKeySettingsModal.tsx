@@ -56,7 +56,7 @@ export default function ApiKeySettingsModal({ isOpen, onClose, onKeySaved }: Api
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', padding: '16px' }} className="safe-area-all">
-      <div style={{ width: '100%', maxWidth: '440px', background: '#09090b', borderRadius: '24px', border: '1px solid rgba(30,41,59,0.5)', boxShadow: '0 25px 80px rgba(0,0,0,0.6)', overflow: 'hidden' }}>
+      <div className="card" style={{ width: '100%', maxWidth: '440px', overflow: 'hidden', animation: 'scaleIn 0.2s ease-out' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid rgba(30,41,59,0.4)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ padding: '8px', background: 'rgba(139,92,246,0.1)', borderRadius: '10px', border: '1px solid rgba(139,92,246,0.2)' }}>
@@ -64,13 +64,16 @@ export default function ApiKeySettingsModal({ isOpen, onClose, onKeySaved }: Api
             </div>
             <h2 style={{ fontWeight: 700, fontSize: '13px', color: 'white', fontFamily: '"Inter", sans-serif' }}>Your AI API Key (Groq)</h2>
           </div>
-          <button onClick={onClose} style={{ padding: '6px', borderRadius: '8px', color: '#475569', background: 'transparent', border: 'none', cursor: 'pointer' }}>
+          <button onClick={onClose} style={{ padding: '6px', borderRadius: '8px', color: '#64748b', background: 'transparent', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
+            onMouseEnter={(e) => e.currentTarget.style.color = '#e2e8f0'}
+            onMouseLeave={(e) => e.currentTarget.style.color = '#64748b'}
+          >
             <X style={{ width: '16px', height: '16px' }} />
           </button>
         </div>
 
         <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <p style={{ fontSize: '12px', color: '#64748b', lineHeight: '1.6', fontFamily: '"Inter", sans-serif' }}>
+          <p style={{ fontSize: '12px', color: '#94a3b8', lineHeight: '1.6', fontFamily: '"Inter", sans-serif' }}>
             AI features run directly from your device to Groq's high-speed API using your own key.
           </p>
 
@@ -80,14 +83,17 @@ export default function ApiKeySettingsModal({ isOpen, onClose, onKeySaved }: Api
                 <ShieldCheck style={{ width: '14px', height: '14px' }} />
                 Key saved: {savedKeyPreview}
               </div>
-              <button onClick={handleClear} style={{ fontSize: '10px', fontWeight: 600, color: '#475569', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: '"Inter", sans-serif', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <button onClick={handleClear} style={{ fontSize: '10px', fontWeight: 600, color: '#475569', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: '"Inter", sans-serif', display: 'flex', alignItems: 'center', gap: '4px', transition: 'all 0.2s' }}
+                onMouseEnter={(e) => e.currentTarget.style.color = '#ef4444'}
+                onMouseLeave={(e) => e.currentTarget.style.color = '#475569'}
+              >
                 <Trash2 style={{ width: '12px', height: '12px' }} /> Remove
               </button>
             </div>
           )}
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={{ fontSize: '10px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '1px' }}>
+            <label style={{ fontSize: '10px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px' }}>
               {savedKeyPreview ? 'Replace key' : 'Paste your Groq API key'}
             </label>
             <div style={{ position: 'relative' }}>
@@ -98,20 +104,43 @@ export default function ApiKeySettingsModal({ isOpen, onClose, onKeySaved }: Api
                 value={inputValue}
                 onChange={(e) => { setInputValue(e.target.value); setValidationError(null); }}
                 placeholder="gsk_..."
-                style={{ width: '100%', background: '#020617', border: '1px solid rgba(30,41,59,0.5)', borderRadius: '12px', padding: '12px 40px 12px 14px', color: 'white', fontSize: '12px', outline: 'none', fontFamily: 'monospace' }}
+                style={{ width: '100%', background: '#020617', border: '1px solid rgba(30,41,59,0.5)', borderRadius: '12px', padding: '12px 40px 12px 14px', color: 'white', fontSize: '12px', outline: 'none', fontFamily: 'monospace', transition: 'all 0.2s' }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = 'rgba(139,92,246,0.5)';
+                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(139,92,246,0.1)';
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = 'rgba(30,41,59,0.5)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
               />
-              <button type="button" onClick={() => setShowKey(!showKey)} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: '#475569', background: 'transparent', border: 'none', cursor: 'pointer' }}>
+              <button type="button" onClick={() => setShowKey(!showKey)} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: '#475569', background: 'transparent', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
+                onMouseEnter={(e) => e.currentTarget.style.color = '#e2e8f0'}
+                onMouseLeave={(e) => e.currentTarget.style.color = '#475569'}
+              >
                 {showKey ? <EyeOff style={{ width: '14px', height: '14px' }} /> : <Eye style={{ width: '14px', height: '14px' }} />}
               </button>
             </div>
             {validationError && <p style={{ fontSize: '10px', color: '#ec4899' }}>{validationError}</p>}
           </div>
 
-          <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" style={{ fontSize: '11px', color: '#06b6d4', fontWeight: 500, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" style={{ fontSize: '11px', color: '#06b6d4', fontWeight: 500, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s' }}
+            onMouseEnter={(e) => e.currentTarget.style.color = '#22d3ee'}
+            onMouseLeave={(e) => e.currentTarget.style.color = '#06b6d4'}
+          >
             Get a free high-speed API key from Groq Console <ExternalLink style={{ width: '12px', height: '12px' }} />
           </a>
 
-          <button onClick={handleSave} style={{ width: '100%', padding: '14px', background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)', color: 'white', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', borderRadius: '12px', border: 'none', cursor: 'pointer', fontFamily: '"Inter", sans-serif', transition: 'all 0.2s' }}>
+          <button onClick={handleSave} style={{ width: '100%', padding: '14px', background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)', color: 'white', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', borderRadius: '12px', border: 'none', cursor: 'pointer', fontFamily: '"Inter", sans-serif', transition: 'all 0.2s', boxShadow: '0 8px 24px rgba(139,92,246,0.3)' }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-1px)';
+              e.currentTarget.style.boxShadow = '0 12px 32px rgba(139,92,246,0.4)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 8px 24px rgba(139,92,246,0.3)';
+            }}
+          >
             {showSavedToast ? '✅ Saved!' : 'Save Key'}
           </button>
         </div>

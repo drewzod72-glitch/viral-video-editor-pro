@@ -8,21 +8,28 @@ function ScoreRing({ score, size = 88, strokeWidth = 6 }: { score: number; size?
   const circumference = 2 * Math.PI * radius;
   const progress = (score / 100) * circumference;
   const color = score >= 80 ? '#10b981' : score >= 50 ? '#f59e0b' : '#ef4444';
+  const gradientId = `scoreGrad-${score}`;
 
   return (
     <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
       <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+        <defs>
+          <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor={color} stopOpacity="0.8" />
+            <stop offset="100%" stopColor={color} stopOpacity="1" />
+          </linearGradient>
+        </defs>
         <circle
           cx={size / 2} cy={size / 2} r={radius}
           fill="none" stroke="rgba(30,41,59,0.5)" strokeWidth={strokeWidth}
         />
         <circle
           cx={size / 2} cy={size / 2} r={radius}
-          fill="none" stroke={color} strokeWidth={strokeWidth}
+          fill="none" stroke={`url(#${gradientId})`} strokeWidth={strokeWidth}
           strokeDasharray={circumference}
           strokeDashoffset={circumference - progress}
           strokeLinecap="round"
-          style={{ transition: 'stroke-dashoffset 1s ease-out' }}
+          style={{ transition: 'stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1)' }}
         />
       </svg>
       <div style={{
@@ -151,13 +158,7 @@ export default function ViralityScorecard({ project, onUpdateProject }: any) {
   const score = project?.viralityScore ?? 0;
 
   return (
-    <div style={{
-      background: 'linear-gradient(180deg, rgba(24,24,27,0.95) 0%, rgba(9,9,11,0.98) 100%)',
-      borderRadius: '24px',
-      border: '1px solid rgba(30,41,59,0.6)',
-      backdropFilter: 'blur(16px)',
-      overflow: 'hidden'
-    }}>
+    <div className="card" style={{ overflow: 'hidden' }}>
       {/* Tab bar */}
       <div style={{ display: 'flex', background: 'rgba(2,6,23,0.6)', padding: '4px', margin: '16px 16px 0 16px', borderRadius: '12px' }}>
         {(['diagnostics', 'booster'] as const).map((tab) => (
@@ -170,7 +171,19 @@ export default function ViralityScorecard({ project, onUpdateProject }: any) {
               color: activeTab === tab ? '#e9d5ff' : '#71717a',
               fontWeight: 800, fontSize: '10px', fontFamily: '"Inter", sans-serif',
               cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '1px',
-              transition: 'all 0.2s'
+              transition: 'all 0.2s', position: 'relative'
+            }}
+            onMouseEnter={(e) => {
+              if (activeTab !== tab) {
+                e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+                e.currentTarget.style.color = '#a1a1aa';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (activeTab !== tab) {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.color = '#71717a';
+              }
             }}
           >
             {tab === 'diagnostics' ? '📊 Scorecard' : '🚀 Booster'}
@@ -185,7 +198,7 @@ export default function ViralityScorecard({ project, onUpdateProject }: any) {
             <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
               <ScoreRing score={score} />
               <div style={{ flex: 1, minWidth: '160px' }}>
-                <div style={{ fontWeight: 900, fontSize: '18px', fontFamily: '"Inter", sans-serif', letterSpacing: '-0.3px', marginBottom: '4px' }}>
+                <div style={{ fontWeight: 900, fontSize: '18px', fontFamily: '"Inter", sans-serif', letterSpacing: '-0.3px', marginBottom: '6px' }}>
                   VIRAL DIAGNOSTICS
                 </div>
                 <div style={{
@@ -205,22 +218,33 @@ export default function ViralityScorecard({ project, onUpdateProject }: any) {
             <div style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(2, 1fr)',
-              gap: '8px'
+              gap: '10px'
             }}>
               {[
-                { label: 'Hook Strength', value: project?.viralityCriteria?.hook ?? 70, color: '#8b5cf6' },
-                { label: 'Pacing', value: project?.viralityCriteria?.pacing ?? 70, color: '#06b6d4' },
-                { label: 'Emotion', value: project?.viralityCriteria?.emotion ?? 70, color: '#ec4899' },
-                { label: 'Visual Contrast', value: project?.viralityCriteria?.visualContrast ?? 70, color: '#10b981' },
+                { label: 'Hook Strength', value: project?.viralityCriteria?.hook ?? 70, color: '#8b5cf6', icon: '🎯' },
+                { label: 'Pacing', value: project?.viralityCriteria?.pacing ?? 70, color: '#06b6d4', icon: '⏱' },
+                { label: 'Emotion', value: project?.viralityCriteria?.emotion ?? 70, color: '#ec4899', icon: '❤' },
+                { label: 'Visual Contrast', value: project?.viralityCriteria?.visualContrast ?? 70, color: '#10b981', icon: '👁' },
               ].map((metric) => (
                 <div key={metric.label} style={{
                   background: 'rgba(2,6,23,0.6)',
                   padding: '14px',
                   borderRadius: '14px',
-                  border: '1px solid rgba(30,41,59,0.5)'
-                }}>
-                  <div style={{ fontSize: '9px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px' }}>
-                    {metric.label}
+                  border: '1px solid rgba(30,41,59,0.5)',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'rgba(30,41,59,0.5)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
+                >
+                  <div style={{ fontSize: '9px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span>{metric.icon}</span>
+                    <span>{metric.label}</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <div style={{
@@ -289,7 +313,20 @@ export default function ViralityScorecard({ project, onUpdateProject }: any) {
                     alignItems: 'center',
                     gap: '12px',
                     transition: 'all 0.2s',
-                    opacity: isBoosting && boostTarget !== preset.id ? 0.4 : 1
+                    opacity: isBoosting && boostTarget !== preset.id ? 0.4 : 1,
+                    transform: 'translateY(0)'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isBoosting || boostTarget === preset.id) {
+                      e.currentTarget.style.borderColor = 'rgba(139,92,246,0.4)';
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.background = 'rgba(139,92,246,0.05)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = boostTarget === preset.id ? 'rgba(139,92,246,0.5)' : 'rgba(30,41,59,0.5)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.background = 'rgba(2,6,23,0.4)';
                   }}
                 >
                   <span style={{ fontSize: '24px', flexShrink: 0 }}>{preset.icon}</span>

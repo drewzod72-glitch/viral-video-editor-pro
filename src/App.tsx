@@ -430,35 +430,42 @@ export default function App() {
         {/* Background grid */}
         <div style={{
           position: 'absolute', inset: 0,
-          backgroundImage: 'linear-gradient(rgba(139,92,246,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(139,92,246,0.03) 1px, transparent 1px)',
+          backgroundImage: 'linear-gradient(rgba(139,92,246,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(139,92,246,0.04) 1px, transparent 1px)',
           backgroundSize: '60px 60px',
-          maskImage: 'radial-gradient(ellipse at center, black 20%, transparent 70%)',
-          WebkitMaskImage: 'radial-gradient(ellipse at center, black 20%, transparent 70%)'
+          maskImage: 'radial-gradient(ellipse at center, black 30%, transparent 70%)',
+          WebkitMaskImage: 'radial-gradient(ellipse at center, black 30%, transparent 70%)'
         }} />
 
         {/* Glow orbs */}
         <div style={{
-          position: 'absolute', top: '20%', left: '50%', transform: 'translateX(-50%)',
-          width: '400px', height: '400px',
-          background: 'radial-gradient(circle, rgba(139,92,246,0.15) 0%, transparent 70%)',
+          position: 'absolute', top: '15%', left: '50%', transform: 'translateX(-50%)',
+          width: '500px', height: '500px',
+          background: 'radial-gradient(circle, rgba(139,92,246,0.2) 0%, transparent 70%)',
+          borderRadius: '50%', filter: 'blur(80px)',
+          pointerEvents: 'none'
+        }} />
+        <div style={{
+          position: 'absolute', bottom: '10%', right: '10%',
+          width: '300px', height: '300px',
+          background: 'radial-gradient(circle, rgba(6,182,212,0.12) 0%, transparent 70%)',
           borderRadius: '50%', filter: 'blur(60px)',
           pointerEvents: 'none'
         }} />
 
         <div style={{
-          width: '88px', height: '88px', borderRadius: '28px',
+          width: '96px', height: '96px', borderRadius: '32px',
           background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '40px', marginBottom: '32px', position: 'relative', zIndex: 1,
+          fontSize: '44px', marginBottom: '36px', position: 'relative', zIndex: 1,
           boxShadow: '0 24px 80px rgba(139,92,246,0.4)',
           animation: 'float 6s ease-in-out infinite'
         }}>⚡</div>
 
         <h1 style={{
           color: 'white',
-          fontSize: 'clamp(42px, 9vw, 72px)',
+          fontSize: 'clamp(48px, 10vw, 80px)',
           fontWeight: 900,
-          margin: '0 0 16px 0',
+          margin: '0 0 20px 0',
           letterSpacing: '-3px',
           fontFamily: '"Inter", sans-serif',
           textTransform: 'uppercase',
@@ -475,8 +482,8 @@ export default function App() {
         </h1>
 
         <p style={{
-          color: '#cbd5e1', fontSize: 'clamp(14px, 2.5vw, 16px)',
-          maxWidth: '460px', marginBottom: '48px', fontWeight: 500, lineHeight: 1.7,
+          color: '#cbd5e1', fontSize: 'clamp(15px, 2.5vw, 17px)',
+          maxWidth: '480px', marginBottom: '52px', fontWeight: 500, lineHeight: 1.7,
           position: 'relative', zIndex: 1
         }}>
           Professional video studio. Frame-accurate browser engine.
@@ -487,8 +494,8 @@ export default function App() {
           onClick={startApp}
           style={{
             background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
-            color: 'white', border: 'none', borderRadius: '16px',
-            padding: '20px 64px', fontWeight: 800, fontSize: '14px',
+            color: 'white', border: 'none', borderRadius: '18px',
+            padding: '22px 72px', fontWeight: 800, fontSize: '14px',
             fontFamily: '"Inter", sans-serif', textTransform: 'uppercase',
             cursor: 'pointer',
             boxShadow: '0 20px 60px rgba(139,92,246,0.4), inset 0 1px 0 rgba(255,255,255,0.2)',
@@ -509,7 +516,7 @@ export default function App() {
         </button>
 
         <div style={{
-          marginTop: '48px', display: 'flex', gap: '12px', flexWrap: 'wrap',
+          marginTop: '56px', display: 'flex', gap: '10px', flexWrap: 'wrap',
           justifyContent: 'center', position: 'relative', zIndex: 1
         }}>
           {[
@@ -519,14 +526,26 @@ export default function App() {
             { label: 'Native Ready', icon: '📱' },
           ].map((f) => (
             <div key={f.label} style={{
-              display: 'flex', alignItems: 'center', gap: '6px',
-              fontSize: '10px', color: '#64748b', fontWeight: 700,
+              display: 'flex', alignItems: 'center', gap: '8px',
+              fontSize: '10px', color: '#94a3b8', fontWeight: 700,
               textTransform: 'uppercase', letterSpacing: '0.8px',
               background: 'rgba(30,41,59,0.3)',
-              padding: '8px 14px', borderRadius: '10px',
+              padding: '10px 16px', borderRadius: '12px',
               border: '1px solid rgba(30,41,59,0.4)',
-              backdropFilter: 'blur(8px)'
-            }}>
+              backdropFilter: 'blur(8px)',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(30,41,59,0.5)';
+              e.currentTarget.style.borderColor = 'rgba(139,92,246,0.3)';
+              e.currentTarget.style.color = '#e2e8f0';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(30,41,59,0.3)';
+              e.currentTarget.style.borderColor = 'rgba(30,41,59,0.4)';
+              e.currentTarget.style.color = '#94a3b8';
+            }}
+            >
               <span>{f.icon}</span>
               <span>{f.label}</span>
             </div>
@@ -535,8 +554,8 @@ export default function App() {
 
         <style>{`
           @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-8px); }
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
           }
           @keyframes pulse-glow {
             0%, 100% { box-shadow: 0 20px 60px rgba(139,92,246,0.4), inset 0 1px 0 rgba(255,255,255,0.2); }
@@ -551,7 +570,13 @@ export default function App() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', height: '100%' }}>
       {/* Logo */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '4px 4px 16px 4px', borderBottom: '1px solid rgba(30,41,59,0.5)', marginBottom: '8px' }}>
-        <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: '14px', flexShrink: 0 }}>F</div>
+        <div style={{
+          width: '32px', height: '32px', borderRadius: '10px',
+          background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontWeight: 900, fontSize: '14px', flexShrink: 0,
+          boxShadow: '0 0 20px rgba(139,92,246,0.3)'
+        }}>F</div>
         <div>
           <div style={{ fontWeight: 900, fontSize: '13px', letterSpacing: '-0.3px', fontFamily: '"Inter", sans-serif', lineHeight: 1.2 }}>FORGE</div>
           <div style={{ fontSize: '9px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px' }}>Universal Engine</div>
@@ -645,9 +670,12 @@ export default function App() {
         </button>
 
         {activeProject && (
-          <div style={{ padding: '12px', background: 'rgba(30,41,59,0.2)', borderRadius: '10px', border: '1px solid rgba(30,41,59,0.4)' }}>
-            <div style={{ fontSize: '9px', color: '#64748b', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px' }}>Project</div>
-            <div style={{ fontSize: '10px', color: '#a1a1aa', lineHeight: 1.7 }}>
+          <div style={{
+            padding: '14px', background: 'rgba(30,41,59,0.2)', borderRadius: '12px',
+            border: '1px solid rgba(30,41,59,0.4)'
+          }}>
+            <div style={{ fontSize: '9px', color: '#64748b', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>Project</div>
+            <div style={{ fontSize: '10px', color: '#a1a1aa', lineHeight: 1.8 }}>
               <div>Style: <span style={{ color: '#c4b5fd', fontWeight: 700 }}>{activeProject.captionStyle}</span></div>
               <div>Grade: <span style={{ color: '#c4b5fd', fontWeight: 700 }}>{activeProject.colorGrade}</span></div>
               <div>Music: <span style={{ color: '#c4b5fd', fontWeight: 700 }}>{FREE_MUSIC_TRACKS.find(t => t.id === activeProject.selectedMusicTrackId)?.name || 'None'}</span></div>
@@ -667,25 +695,44 @@ export default function App() {
     }}>
       {/* ── HEADER ── */}
       <header style={{
-        padding: '14px 20px', borderBottom: '1px solid rgba(30,41,59,0.6)',
+        padding: '12px 20px', borderBottom: '1px solid rgba(30,41,59,0.5)',
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        background: 'rgba(9,9,11,0.9)', backdropFilter: 'blur(24px)',
+        background: 'rgba(9,9,11,0.85)', backdropFilter: 'blur(24px)',
         position: 'sticky', top: 0, zIndex: 100
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             style={{
               background: '#18181b', color: '#a1a1aa', border: '1px solid #27272a',
               padding: '8px 12px', borderRadius: '10px', fontSize: '12px',
               fontWeight: 700, cursor: 'pointer', fontFamily: '"Inter", sans-serif',
-              display: 'flex', alignItems: 'center', gap: '6px'
+              display: 'flex', alignItems: 'center', gap: '6px',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = 'rgba(139,92,246,0.4)';
+              e.currentTarget.style.color = '#e2e8f0';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = '#27272a';
+              e.currentTarget.style.color = '#a1a1aa';
             }}
           >
             {sidebarOpen ? '✕' : '☰'}
           </button>
-          <div style={{ fontWeight: 900, fontSize: '15px', letterSpacing: '-0.5px', fontFamily: '"Inter", sans-serif' }}>
-            FORGE
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{
+              width: '32px', height: '32px', borderRadius: '10px',
+              background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontWeight: 900, fontSize: '14px', flexShrink: 0,
+              boxShadow: '0 0 20px rgba(139,92,246,0.3)'
+            }}>F</div>
+            <div>
+              <div style={{ fontWeight: 900, fontSize: '15px', letterSpacing: '-0.5px', fontFamily: '"Inter", sans-serif', lineHeight: 1.2 }}>FORGE</div>
+              <div style={{ fontSize: '9px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', display: 'none' }} className="header-subtitle">Universal Engine</div>
+            </div>
           </div>
           {activeProject && (
             <span style={{
@@ -706,7 +753,16 @@ export default function App() {
               color: apiStatusLog.some(l => !l.ok) ? '#ef4444' : '#a1a1aa',
               border: '1px solid #27272a',
               padding: '8px 14px', borderRadius: '10px', fontSize: '11px',
-              fontWeight: 700, cursor: 'pointer', fontFamily: '"Inter", sans-serif'
+              fontWeight: 700, cursor: 'pointer', fontFamily: '"Inter", sans-serif',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
+              e.currentTarget.style.color = '#e2e8f0';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = '#27272a';
+              e.currentTarget.style.color = apiStatusLog.some(l => !l.ok) ? '#ef4444' : '#a1a1aa';
             }}
           >
             {apiStatusLog.some(l => !l.ok) ? '⚠ API ERRORS' : '📡 API'}
@@ -716,7 +772,16 @@ export default function App() {
             style={{
               background: '#18181b', color: '#a1a1aa', border: '1px solid #27272a',
               padding: '8px 14px', borderRadius: '10px', fontSize: '11px',
-              fontWeight: 700, cursor: 'pointer', fontFamily: '"Inter", sans-serif'
+              fontWeight: 700, cursor: 'pointer', fontFamily: '"Inter", sans-serif',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = 'rgba(139,92,246,0.4)';
+              e.currentTarget.style.color = '#e2e8f0';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = '#27272a';
+              e.currentTarget.style.color = '#a1a1aa';
             }}
           >
             ⚙ API Key
@@ -732,7 +797,7 @@ export default function App() {
           padding: '16px 20px', borderRadius: '16px', fontWeight: 700,
           fontSize: '11px', boxShadow: '0 10px 40px rgba(0,0,0,0.5)',
           backdropFilter: 'blur(12px)', maxWidth: 'calc(100vw - 32px)',
-          minWidth: '240px'
+          minWidth: '240px', animation: 'slideDown 0.3s ease-out'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
             <div style={{
@@ -893,17 +958,20 @@ export default function App() {
 
       {/* ── API STATUS PANEL ── */}
       {showApiStatus && (
-        <div style={{
+        <div className="card" style={{
           position: 'fixed', top: '70px', right: '16px', zIndex: 200,
-          background: '#09090b', padding: '16px', borderRadius: '16px',
-          border: '1px solid rgba(30,41,59,0.6)', width: '320px', maxWidth: 'calc(100vw - 32px)',
-          boxShadow: '0 25px 80px rgba(0,0,0,0.6)', fontFamily: '"Inter", sans-serif'
+          padding: '16px', borderRadius: '16px', width: '320px', maxWidth: 'calc(100vw - 32px)',
+          boxShadow: '0 25px 80px rgba(0,0,0,0.6)', fontFamily: '"Inter", sans-serif',
+          animation: 'slideDown 0.3s ease-out'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
             <div style={{ fontWeight: 800, fontSize: '12px', color: 'white', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               API Status Log
             </div>
-            <button onClick={() => setShowApiStatus(false)} style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '16px' }}>×</button>
+            <button onClick={() => setShowApiStatus(false)} style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '16px', transition: 'all 0.2s' }}
+              onMouseEnter={(e) => e.currentTarget.style.color = '#e2e8f0'}
+              onMouseLeave={(e) => e.currentTarget.style.color = '#64748b'}
+            >×</button>
           </div>
           <div style={{ maxHeight: '240px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
             {apiStatusLog.length === 0 && (
@@ -931,7 +999,15 @@ export default function App() {
               marginTop: '12px', width: '100%', padding: '8px', borderRadius: '8px',
               background: 'rgba(30,41,59,0.3)', border: '1px solid rgba(30,41,59,0.5)',
               color: '#a1a1aa', fontSize: '10px', fontWeight: 700, cursor: 'pointer',
-              fontFamily: '"Inter", sans-serif'
+              fontFamily: '"Inter", sans-serif', transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(30,41,59,0.5)';
+              e.currentTarget.style.color = '#e2e8f0';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(30,41,59,0.3)';
+              e.currentTarget.style.color = '#a1a1aa';
             }}
           >
             Clear Log
@@ -946,13 +1022,13 @@ export default function App() {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           padding: '20px', backdropFilter: 'blur(20px)'
         }}>
-          <div style={{
-            background: '#09090b', padding: '48px 36px', borderRadius: '28px',
-            border: '1px solid rgba(30,41,59,0.6)', textAlign: 'center',
+          <div className="card" style={{
+            padding: '48px 36px', borderRadius: '28px',
+            textAlign: 'center',
             width: '100%', maxWidth: '440px',
-            boxShadow: '0 25px 80px rgba(0,0,0,0.6)'
+            animation: 'scaleIn 0.3s ease-out'
           }}>
-            <div style={{ fontSize: '64px', marginBottom: '16px' }}>🏆</div>
+            <div style={{ fontSize: '64px', marginBottom: '16px', animation: 'float 3s ease-in-out infinite' }}>🏆</div>
             <h3 style={{ fontWeight: 900, fontSize: '22px', marginBottom: '8px', letterSpacing: '-1px', fontFamily: '"Inter", sans-serif' }}>VIDEO READY</h3>
             <p style={{ color: '#64748b', fontSize: '13px', marginBottom: '8px', fontFamily: '"Inter", sans-serif' }}>
               Your edit is ready for social media.
@@ -981,7 +1057,16 @@ export default function App() {
                 color: 'white', padding: '18px', borderRadius: '16px',
                 fontWeight: 900, fontFamily: '"Inter", sans-serif', fontSize: '14px',
                 border: 'none', cursor: 'pointer',
-                boxShadow: '0 8px 30px rgba(16,185,129,0.3)', marginBottom: '12px'
+                boxShadow: '0 8px 30px rgba(16,185,129,0.3)', marginBottom: '12px',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 12px 40px rgba(16,185,129,0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 8px 30px rgba(16,185,129,0.3)';
               }}
             >
               SAVE TO GALLERY
@@ -990,7 +1075,9 @@ export default function App() {
               onClick={() => {
                 setDownloadReadyInfo(null);
               }}
-              style={{ background: 'transparent', color: '#64748b', border: 'none', fontWeight: 700, cursor: 'pointer', fontSize: '12px', fontFamily: '"Inter", sans-serif' }}
+              style={{ background: 'transparent', color: '#64748b', border: 'none', fontWeight: 700, cursor: 'pointer', fontSize: '12px', fontFamily: '"Inter", sans-serif', transition: 'all 0.2s' }}
+              onMouseEnter={(e) => e.currentTarget.style.color = '#e2e8f0'}
+              onMouseLeave={(e) => e.currentTarget.style.color = '#64748b'}
             >
               CLOSE
             </button>
@@ -1006,9 +1093,11 @@ export default function App() {
         @media (max-width: 640px) {
           .project-badge { display: none !important; }
           .mobile-project-badge { display: block !important; }
+          .header-subtitle { display: none !important; }
         }
         @media (min-width: 641px) {
           .mobile-project-badge { display: none !important; }
+          .header-subtitle { display: block !important; }
         }
       `}</style>
     </div>

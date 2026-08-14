@@ -62,12 +62,36 @@ export default function NicheSelector({ onSelectTemplate, onUploadCustomFile, is
         <button
           onClick={() => setActiveTab('presets')}
           style={{ padding: '10px 28px', borderRadius: '12px', border: 'none', cursor: 'pointer', fontWeight: 800, fontSize: '12px', fontFamily: '"Inter", sans-serif', textTransform: 'uppercase', letterSpacing: '0.8px', background: activeTab === 'presets' ? 'rgba(139,92,246,0.25)' : 'transparent', color: activeTab === 'presets' ? '#e9d5ff' : '#64748b', transition: 'all 0.2s' }}
+          onMouseEnter={(e) => {
+            if (activeTab !== 'presets') {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+              e.currentTarget.style.color = '#a1a1aa';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (activeTab !== 'presets') {
+              e.currentTarget.style.background = 'transparent';
+              e.currentTarget.style.color = '#64748b';
+            }
+          }}
         >
           Presets
         </button>
         <button
           onClick={() => setActiveTab('custom')}
           style={{ padding: '10px 28px', borderRadius: '12px', border: 'none', cursor: 'pointer', fontWeight: 800, fontSize: '12px', fontFamily: '"Inter", sans-serif', textTransform: 'uppercase', letterSpacing: '0.8px', background: activeTab === 'custom' ? 'rgba(139,92,246,0.25)' : 'transparent', color: activeTab === 'custom' ? '#e9d5ff' : '#64748b', transition: 'all 0.2s' }}
+          onMouseEnter={(e) => {
+            if (activeTab !== 'custom') {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+              e.currentTarget.style.color = '#a1a1aa';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (activeTab !== 'custom') {
+              e.currentTarget.style.background = 'transparent';
+              e.currentTarget.style.color = '#64748b';
+            }
+          }}
         >
           Custom Upload
         </button>
@@ -129,7 +153,7 @@ export default function NicheSelector({ onSelectTemplate, onUploadCustomFile, is
             onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#27272a'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.background = 'linear-gradient(180deg, rgba(24,24,27,0.6) 0%, rgba(9,9,11,0.8) 100%)'; e.currentTarget.style.boxShadow = 'none'; }}
           >
             <input ref={fileInputRef} type="file" accept="video/*" onChange={handleFileChange} style={{ display: 'none' }} />
-            <div style={{ fontSize: '52px', marginBottom: '14px', filter: 'drop-shadow(0 0 20px rgba(139,92,246,0.3))' }}>📹</div>
+            <div style={{ fontSize: '52px', marginBottom: '14px', filter: 'drop-shadow(0 0 20px rgba(139,92,246,0.3))', transition: 'all 0.3s ease' }}>📹</div>
             <div style={{ color: '#f1f5f9', fontWeight: 800, fontSize: '14px', fontFamily: '"Inter", sans-serif', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               {customFileName || 'TAP TO UPLOAD VIDEO'}
             </div>
@@ -158,6 +182,18 @@ export default function NicheSelector({ onSelectTemplate, onUploadCustomFile, is
                   key={n}
                   onClick={() => setSelectedNiche(n as any)}
                   style={{ background: selectedNiche === n ? 'rgba(139,92,246,0.2)' : 'rgba(9,9,11,0.4)', border: selectedNiche === n ? '1px solid rgba(139,92,246,0.5)' : '1px solid rgba(30,41,59,0.5)', color: 'white', padding: '10px 6px', borderRadius: '12px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', cursor: 'pointer', fontFamily: '"Inter", sans-serif', letterSpacing: '0.3px', transition: 'all 0.2s', backdropFilter: 'blur(8px)' }}
+                  onMouseEnter={(e) => {
+                    if (selectedNiche !== n) {
+                      e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
+                      e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (selectedNiche !== n) {
+                      e.currentTarget.style.borderColor = 'rgba(30,41,59,0.5)';
+                      e.currentTarget.style.background = 'rgba(9,9,11,0.4)';
+                    }
+                  }}
                 >
                   {NICHE_ICONS[n] ? `${NICHE_ICONS[n]} ${n.slice(0, 4)}` : n.slice(0, 6)}
                 </button>
@@ -170,6 +206,16 @@ export default function NicheSelector({ onSelectTemplate, onUploadCustomFile, is
             onClick={handleCustomSubmit}
             disabled={isProcessing}
             style={{ background: isProcessing ? '#18181b' : 'linear-gradient(135deg, #8b5cf6, #7c3aed)', color: isProcessing ? '#64748b' : 'white', border: 'none', borderRadius: '18px', padding: '20px', fontWeight: 900, textTransform: 'uppercase', cursor: isProcessing ? 'not-allowed' : 'pointer', fontSize: '15px', fontFamily: '"Inter", sans-serif', letterSpacing: '1px', boxShadow: isProcessing ? 'none' : '0 12px 40px rgba(139,92,246,0.35)', transition: 'all 0.2s', marginTop: '8px' }}
+            onMouseEnter={(e) => {
+              if (!isProcessing) {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 16px 48px rgba(139,92,246,0.45)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = isProcessing ? 'none' : '0 12px 40px rgba(139,92,246,0.35)';
+            }}
           >
             {isProcessing ? '⚙ Engineering...' : '🔥 FORGE FINAL VIDEO'}
           </button>
