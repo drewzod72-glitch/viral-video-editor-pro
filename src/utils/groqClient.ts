@@ -113,123 +113,6 @@ function extractAndRepair(text: string): any {
 }
 
 
-function generateMockSubtitles(niche: string, duration = 30): Array<{ id: string; text: string; start: number; end: number }> {
-  const hooks: Record<string, string[]> = {
-    cooking: ['SIZZLING STEAK', 'BUTTER BASTING', 'PERFECT CRUST', 'MEDIUM RARE', 'SERVE IT UP', 'REST THE MEAT', 'SLICE AGAINST GRAIN', 'PLATE IT', 'ADD HERBS', 'FINAL TOUCH'],
-    unboxing: ['NEW ARRIVAL', 'TEAR THE PAPER', 'QUALITY CHECK', 'SOLE DETAIL', 'STEAL DEAL', 'UNBOXING NOW', 'FIRST IMPRESSION', 'WORTH IT', 'BUILD QUALITY', 'VERDICT'],
-    sales: ['STOP SCROLLING', 'ULTIMATE BAG', 'ITALIAN LEATHER', 'HIDDEN POCKET', 'CLICK LINK', 'BEST VALUE', 'LIMITED STOCK', 'ADD TO CART', 'SAVE NOW', 'DON\'T MISS'],
-    education: ['FUTURE IS NOW', 'AI EDITING', 'ZERO CODE', 'RENDER IN SECONDS', 'GAME CHANGER', 'LEARN FAST', 'SKILL UP', 'TRY THIS', 'NEXT LEVEL', 'GO WILD'],
-    fitness: ['NO EXCUSES', 'WAKE UP', 'GRIND HARD', 'PUSH LIMITS', 'DOMINATE', 'STAY STRONG', 'KEEP GOING', 'ONE MORE', 'FINISH HIM', 'BE LEGEND'],
-    pets: ['HAPPY PUPPY', 'GOOD BOY', 'HEAD TILT', 'STRESS RELIEF', 'LIKE & FOLLOW', 'CUTE ALERT', 'PLAY TIME', 'TASTY TREAT', 'NAP TIME', 'BEST FRIEND'],
-    tech: ['BUTTERY SWITCHES', 'THOCKY SOUND', 'PBT KEYCAPS', 'MECH PURPLE', 'BUILD COMPLETE', 'TYPE FAST', 'GAME READY', 'SETUP TOUR', 'RGB SYNC', 'UPGRADE NOW'],
-    default: ['WATCH THIS', 'VIRAL MOMENT', 'GAME CHANGER', 'MUST TRY', 'SHARE NOW', 'FOLLOW ME', 'LINK IN BIO', 'TAG A FRIEND', 'SAVE THIS', 'COMMENT BELOW'],
-  };
-  
-  const words = hooks[niche] || hooks['default'];
-  const subs: Array<{ id: string; text: string; start: number; end: number }> = [];
-  const interval = 2.5; // One caption every 2.5 seconds for full coverage
-  
-  for (let t = 0; t < duration; t += interval) {
-    const wordIndex = Math.floor(t / interval) % words.length;
-    subs.push({
-      id: `mock-${Math.floor(t / interval)}`,
-      text: words[wordIndex],
-      start: parseFloat(t.toFixed(2)),
-      end: parseFloat(Math.min(t + interval, duration).toFixed(2)),
-    });
-  }
-  
-  return subs;
-}
-
-function generateSmartCuts(duration: number): Array<{ id: string; start: number; end: number; reason: string }> {
-  // Generate 2-4 smart cuts to remove dead air and keep only viral moments
-  const cuts: Array<{ id: string; start: number; end: number; reason: string }> = [];
-  const segmentDuration = 5.0; // 5-second segments
-  
-  // Keep first 5s (hook) and last 5s (CTA), cut middle dead air
-  if (duration > 15) {
-    cuts.push({
-      id: 'cut-1',
-      start: 5.0,
-      end: Math.min(5.0 + segmentDuration, duration - 5),
-      reason: 'Dead air - no speech or action'
-    });
-  }
-  
-  if (duration > 20) {
-    cuts.push({
-      id: 'cut-2', 
-      start: Math.min(10.0, duration - 5),
-      end: Math.min(15.0, duration - 5),
-      reason: 'Slow pacing - trimming for retention'
-    });
-  }
-  
-  return cuts;
-}
-
-function generateSmartHighlights(duration: number, cuts: Array<{ start: number; end: number }>): Array<any> {
-  // Generate highlights from segments NOT cut
-  const highlights: Array<any> = [];
-  let currentTime = 0;
-  let highlightId = 1;
-  
-  // Sort cuts by start time
-  const sortedCuts = [...cuts].sort((a, b) => a.start - b.start);
-  
-  for (const cut of sortedCuts) {
-    if (currentTime < cut.start) {
-      highlights.push({
-        id: `h${highlightId}`,
-        title: `Viral Moment ${highlightId}`,
-        start: currentTime,
-        end: cut.start,
-        duration: cut.start - currentTime,
-        viralityScore: 75 + Math.floor(Math.random() * 25),
-        description: 'Strong hook or engaging content',
-        whyEngaging: 'Stops scrollers and builds curiosity',
-        speed: 1.0
-      });
-      highlightId++;
-    }
-    currentTime = cut.end;
-  }
-  
-  // Add final segment after last cut
-  if (currentTime < duration) {
-    highlights.push({
-      id: `h${highlightId}`,
-      title: `Viral Moment ${highlightId}`,
-      start: currentTime,
-      end: duration,
-      duration: duration - currentTime,
-      viralityScore: 75 + Math.floor(Math.random() * 25),
-      description: 'CTA or closing moment',
-      whyEngaging: 'Drives action and completion',
-      speed: 1.0
-    });
-  }
-  
-  // Ensure we have at least 3 highlights
-  if (highlights.length < 3 && duration > 10) {
-    const third = duration / 3;
-    highlights.push({
-      id: `h${highlightId}`,
-      title: `Viral Moment ${highlightId}`,
-      start: third * 2,
-      end: Math.min(third * 2 + third, duration),
-      duration: Math.min(third, duration - third * 2),
-      viralityScore: 80,
-      description: 'Engaging middle segment',
-      whyEngaging: 'Maintains viewer interest',
-      speed: 1.0
-    });
-  }
-  
-  return highlights;
-}
-
 async function captureFrames(file: File): Promise<string[]> {
   return new Promise((resolve) => {
     const v = document.createElement('video');
@@ -549,24 +432,11 @@ export async function runAnalyzeVideo(params: any): Promise<any> {
   console.error('[Groq] All models failed:', errors);
   console.error('[Groq] Last raw response:', lastRaw);
 
-  // ── LOCAL FALLBACK: Generate professional edit with smart cuts ────────
-  const cuts = generateSmartCuts(params.originalDuration || 30);
-  const highlights = generateSmartHighlights(params.originalDuration || 30, cuts);
-  const subtitles = generateMockSubtitles(params.niche || 'default', params.originalDuration || 30);
-
-  const fallbackProject = {
-    title: params.name || 'Viral Video',
-    description: params.userDescription || 'Auto-generated viral edit',
-    captionStyle: 'hormozi',
-    needsSubtitles: true,
-    enableSubtitles: true,
-    subtitles,
-    cuts,
-    highlights,
-    archetype: params.niche || 'default'
+  return {
+    success: false,
+    error: 'All AI models failed. Please check your Groq API key and try again.',
+    details: errors,
   };
-
-  return { success: true, mode: 'local', project: fallbackProject };
 }
 
 export async function runCopilotOptimize(params: any): Promise<any> {
@@ -606,14 +476,9 @@ export async function runCopilotOptimize(params: any): Promise<any> {
   console.error('[Groq] Last raw response:', lastRaw);
 
   return {
-    success: true,
-    changed: false,
-    subtitles: params.subtitles || [],
-    title: params.title || '',
-    description: params.description || '',
-    advice: 'Copilot unavailable. Manual editing active.',
-    needsSubtitles: params.needsSubtitles ?? true,
-    enableSubtitles: params.enableSubtitles ?? true
+    success: false,
+    error: 'Copilot AI unavailable. Please check your Groq API key and try again.',
+    details: errors,
   };
 }
 

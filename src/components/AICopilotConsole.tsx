@@ -77,6 +77,13 @@ export const AICopilotConsole: React.FC<any> = ({
         existingPlan: project, // Pass full edit plan for coherence
       });
       
+      if (!data.success) {
+        setAiResponse(`Error: ${data.error || 'Copilot AI unavailable.'}`);
+        appendLog(`✗ ${data.error || 'Copilot AI unavailable.'}`);
+        setIsLoading(false);
+        return;
+      }
+      
       // If copilot says no changes needed, just show advice
       if (data.changed === false) {
         setAiResponse(data.advice || 'No changes needed.');
@@ -137,6 +144,13 @@ export const AICopilotConsole: React.FC<any> = ({
         command: `CLONE STYLE: ${userPrompt}`,
         actionType: 'chat',
       });
+      if (!data.success) {
+        setAiResponse(`Error: ${data.error || 'Style clone failed.'}`);
+        appendLog(`✗ ${data.error || 'Style clone failed.'}`);
+        setIsLoading(false);
+        setUserPrompt('');
+        return;
+      }
       // Defensive merge to preserve videoUrl, id, highlights, createdAt
       onUpdateProject((prev: VideoProject) => safeMerge(prev, { ...data, viralityScore: 100 }));
       if (data.subtitles) {
