@@ -224,11 +224,16 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
     setIsDragging(false);
   }, []);
 
-  const toggle = useCallback(() => {
+  const toggle = useCallback(async () => {
     if (!vRef.current) return;
     if (vRef.current.paused) {
-      vRef.current.play().catch(() => {});
-      setPlaying(true);
+      try {
+        await vRef.current.play();
+        setPlaying(true);
+      } catch (e) {
+        console.warn('[VideoPlayer] Play failed:', e);
+        setPlaying(false);
+      }
     } else {
       vRef.current.pause();
       setPlaying(false);
@@ -324,6 +329,20 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
             src={project.videoUrl}
             playsInline
             muted
+            onLoadedMetadata={() => {
+              if (vRef.current) setDuration(vRef.current.duration || 0);
+            }}
+            onCanPlay={() => {
+              if (vRef.current && vRef.current.paused) {
+                setPlaying(false);
+              }
+            }}
+            onPlay={() => setPlaying(true)}
+            onPause={() => setPlaying(false)}
+            onError={() => {
+              console.warn('[VideoPlayer] Video failed to load:', project.videoUrl);
+              setPlaying(false);
+            }}
             style={{
               width: '100%', height: '100%', objectFit: 'cover',
               transform: `scale(${currentZoom})`,
