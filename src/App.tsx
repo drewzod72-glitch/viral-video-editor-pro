@@ -35,7 +35,10 @@ export default function App() {
   const startApp = () => {
     try {
       const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
-      if (AudioCtx) new AudioCtx().resume();
+      if (AudioCtx) {
+        const ctx = new AudioCtx();
+        if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+      }
     } catch (e) {}
     setHasStarted(true);
   };

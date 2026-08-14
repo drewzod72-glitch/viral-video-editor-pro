@@ -227,7 +227,7 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
   const toggle = useCallback(() => {
     if (!vRef.current) return;
     if (vRef.current.paused) {
-      vRef.current.play();
+      vRef.current.play().catch(() => {});
       setPlaying(true);
     } else {
       vRef.current.pause();
