@@ -51,7 +51,7 @@ export async function renderVideoInBrowser(
   onProgress: (progress: number) => void,
   activeClipId: string | null = null,
   segments?: Array<{ start: number; end: number; speed?: number }>
-): Promise<{ blob: Blob; extension: string }> {
+): Promise<{ blob: Blob; extension: string; valid: boolean }> {
   return new Promise(async (resolve, reject) => {
     let cancelled = false;
     const abort = (err: unknown) => {
@@ -540,11 +540,11 @@ export async function renderVideoInBrowser(
       }
 
       // ── FINALIZE ─────────────────────────────────────────────────────
-        const finishRender = async () => {
+        const finishRender = async (): Promise<{ blob: Blob; extension: string; valid: boolean }> => {
           video.pause();
           recorder.stop();
 
-          await new Promise<void>((res) => {
+          const result = await new Promise<{ blob: Blob; extension: string; valid: boolean }>((res) => {
             recorder.onstop = () => {
               const finalBlob = new Blob(chunks, { type: mimeType });
 
@@ -587,6 +587,7 @@ export async function renderVideoInBrowser(
           });
 
           onProgress(100);
+          return result;
         };
 
         const result = await finishRender();
