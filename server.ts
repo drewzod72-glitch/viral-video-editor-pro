@@ -13,6 +13,13 @@ import crypto from 'crypto';
 import dns from 'dns';
 import { resolveCaptionMetrics, normalizeCaptionStyle, FONT_FILE_FOR_STYLE, CaptionStyleName } from './src/utils/captionStyleConfig';
 
+interface Segment {
+  start: number;
+  end: number;
+  speed?: number;
+  reason?: string;
+}
+
 // __dirname is provided by Node's CommonJS wrapper (see build:server).
 // No shim needed — the ESM variant was removed along with the ESM build.
 
@@ -752,6 +759,22 @@ app.post('/api/render-project', upload.single('videoFile'), async (req, res) => 
   const endLimitIn = req.body.endLimit !== undefined ? Number(req.body.endLimit) : null;
   const activeClipId = req.body.activeClipId || null;
 
+  // Multi-cut segments: explicit keep-list from AI or user.
+  // Shape: [{ start, end, speed?, reason? }, ...]
+  // Falls back to highlights when not provided, preserving existing smart-cuts behavior.
+  const segmentsRaw = req.body.segments;
+  let segments: Segment[] = [];
+  if (Array.isArray(segmentsRaw) && segmentsRaw.length > 0) {
+    segments = segmentsRaw
+      .map((s: any) => ({
+        start: Number(s.start),
+        end: Number(s.end),
+        speed: s.speed ? Number(s.speed) : 1.0,
+        reason: s.reason || '',
+      }))
+      .filter((s: Segment) => s.end > s.start && s.start >= 0);
+  }
+
   const subtitlesRaw = req.body.subtitles;
   let subtitles = [];
   if (subtitlesRaw) {
@@ -970,6 +993,11 @@ app.post('/api/render-project', upload.single('videoFile'), async (req, res) => 
                                    fixedName.toLowerCase().includes('pitch') ||
                                    fixedName.toLowerCase().includes('sales');
 
+  // Content-aware SFX selection: if the client provides content-based SFX
+  // decisions from vision/transcript analysis, use those instead of the
+  // legacy filename-keyword heuristic.
+  const contentSfx = (req.body.contentSfx && typeof req.body.contentSfx === 'object') ? req.body.contentSfx : null;
+
   if (sfxWhooshEnabled && sfxWhooshUrl) {
     try {
       console.log(`[Video Compiler Server] Smart Sound Decision -> Buffering Whoosh: ${sfxWhooshUrl}`);
@@ -1005,50 +1033,83 @@ app.post('/api/render-project', upload.single('videoFile'), async (req, res) => 
       const hasAudio = /Stream #\d+:\d+.*Audio/i.test(metadata);
       console.log(`[Video Compiler Server] Audio verification stream: hasAudio=${hasAudio}`);
 
+      // Silence detection: find near-silent stretches to auto-cut
+      const silenceThreshold = req.body.silenceThreshold || '-30dB';
+      const silenceMinDuration = req.body.silenceMinDuration || '0.5';
+      let detectedSilences: Array<{ start: number; end: number }> = [];
+      if (req.body.enableSilenceDetection !== 'false') {
+        try {
+          const silenceCmd = `"${ffmpegPath}" -i "${inputTempPath}" -af silencedetect=noise=${silenceThreshold}:d=${silenceMinDuration} -f null -`;
+          const silenceOut = await new Promise<string>((resolve) => {
+            exec(silenceCmd, (_, stdout, stderr) => resolve((stdout || '') + (stderr || '')));
+          });
+          const silenceMatches = [...silenceOut.matchAll(/silence_start:\s*([\d.]+)/g)];
+          const silenceEnds = [...silenceOut.matchAll(/silence_end:\s*([\d.]+)/g)];
+          for (let i = 0; i < silenceMatches.length && i < silenceEnds.length; i++) {
+            const s = parseFloat(silenceMatches[i][1]);
+            const e = parseFloat(silenceEnds[i][1]);
+            if (e - s >= parseFloat(silenceMinDuration)) {
+              detectedSilences.push({ start: s, end: e });
+            }
+          }
+          console.log(`[Video Compiler Server] Detected ${detectedSilences.length} silent segments`);
+        } catch (silenceErr: any) {
+          console.warn('[Video Compiler Server] Silence detection failed:', silenceErr.message);
+        }
+      }
+
       let activeSubtitles = subtitles;
       let activeZoomEffects = zoomEffects;
-      const isSmartCuts = activeClipId === 'smart-cuts' && highlights && highlights.length > 0;
+      const isSegmented = segments.length > 0 || (activeClipId === 'smart-cuts' && highlights && highlights.length > 0);
       let calculatedSmartCutsDuration = 0;
 
-      if (isSmartCuts) {
-        console.log(`[Video Compiler Server] Smart Cuts Compilation activated with ${highlights.length} clips.`);
+      // Build the canonical keep-list: explicit segments first, then legacy highlights fallback
+      const keepList: Segment[] = segments.length > 0
+        ? segments
+        : (highlights || []).map((hl: any) => ({
+            start: Number(hl.start),
+            end: Number(hl.end),
+            speed: hl.speed ? Number(hl.speed) : 1.0,
+            reason: hl.description || '',
+          }));
+
+      if (isSegmented) {
+        console.log(`[Video Compiler Server] Segmented compilation activated with ${keepList.length} clips.`);
         const remappedSubtitles: any[] = [];
         const remappedZoomEffects: any[] = [];
         let elapsed = 0;
 
-        highlights.forEach((hl: any) => {
-          const speed = Number(hl.speed) || 1.0;
-          const hlDur = (Number(hl.end) - Number(hl.start)) / speed;
+        keepList.forEach((seg: Segment) => {
+          const speed = seg.speed || 1.0;
+          const hlDur = (seg.end - seg.start) / speed;
 
-          // Subtitles mapping: Handle any overlapping subtitle interval cleanly
           subtitles.forEach((sub: any) => {
             const subStart = Number(sub.start || 0);
             const subEnd = Number(sub.end || subStart + 1.5);
-            if (subEnd > hl.start && subStart < hl.end) {
-              const clampedStart = Math.max(hl.start, subStart);
-              const clampedEnd = Math.min(hl.end, subEnd);
+            if (subEnd > seg.start && subStart < seg.end) {
+              const clampedStart = Math.max(seg.start, subStart);
+              const clampedEnd = Math.min(seg.end, subEnd);
               if (clampedEnd > clampedStart) {
                 remappedSubtitles.push({
                   ...sub,
-                  start: (clampedStart - hl.start) / speed + elapsed,
-                  end: (clampedEnd - hl.start) / speed + elapsed
+                  start: (clampedStart - seg.start) / speed + elapsed,
+                  end: (clampedEnd - seg.start) / speed + elapsed
                 });
               }
             }
           });
 
-          // Zoom effects mapping: Handle any overlapping zoom effects interval cleanly
           zoomEffects.forEach((z: any) => {
             const zTS = Number(z.timestamp || 0);
             const zDuration = Number(z.duration || 1.5);
             const zEnd = zTS + zDuration;
-            if (zEnd > hl.start && zTS < hl.end) {
-              const clampedTS = Math.max(hl.start, zTS);
-              const clampedEnd = Math.min(hl.end, zEnd);
+            if (zEnd > seg.start && zTS < seg.end) {
+              const clampedTS = Math.max(seg.start, zTS);
+              const clampedEnd = Math.min(seg.end, zEnd);
               if (clampedEnd > clampedTS) {
                 remappedZoomEffects.push({
                   ...z,
-                  timestamp: (clampedTS - hl.start) / speed + elapsed,
+                  timestamp: (clampedTS - seg.start) / speed + elapsed,
                   duration: (clampedEnd - clampedTS) / speed
                 });
               }
@@ -1061,7 +1122,7 @@ app.post('/api/render-project', upload.single('videoFile'), async (req, res) => 
         activeSubtitles = remappedSubtitles;
         activeZoomEffects = remappedZoomEffects;
         calculatedSmartCutsDuration = elapsed;
-        console.log(`[Video Compiler Server] Smart cuts remapped ${activeSubtitles.length} subtitles and ${activeZoomEffects.length} zoom effects. Total output length: ${calculatedSmartCutsDuration.toFixed(2)}s`);
+        console.log(`[Video Compiler Server] Segmented cuts remapped ${activeSubtitles.length} subtitles and ${activeZoomEffects.length} zoom effects. Total output length: ${calculatedSmartCutsDuration.toFixed(2)}s`);
       }
 
       let localStartLimit = startLimit;
@@ -1079,7 +1140,7 @@ app.post('/api/render-project', upload.single('videoFile'), async (req, res) => 
       }
 
       // Force FULL video duration based on the actual physical file duration to bypass any short preview / sample caps ONLY when we are exporting the full video
-      if (isSmartCuts) {
+      if (isSegmented) {
         localStartLimit = 0;
         endLimit = calculatedSmartCutsDuration;
       } else {
@@ -1229,7 +1290,7 @@ app.post('/api/render-project', upload.single('videoFile'), async (req, res) => 
 
       const isFullVideo = localStartLimit === 0 && (fileDuration === 0 || trimDuration >= fileDuration - 0.1);
 
-      if (!isFullVideo && !isSmartCuts) {
+      if (!isFullVideo && !isSegmented) {
         compileArgs.push('-ss', `${localStartLimit}`);
         compileArgs.push('-t', `${trimDuration}`);
       }
@@ -1269,47 +1330,50 @@ app.post('/api/render-project', upload.single('videoFile'), async (req, res) => 
       // Video filtering is integrated directly inside the filter_complex graph below
 
       // Build out lists of dynamic timestamps for Sound Effect (SFX) triggers
-      const whooshTimes: number[] = [0.5];
-      if (isSmartCuts && highlights.length > 1) {
-        let elapsed = 0;
-        for (let i = 0; i < highlights.length - 1; i++) {
-          const speed = Number(highlights[i].speed) || 1.0;
-          const hlDur = (Number(highlights[i].end) - Number(highlights[i].start)) / speed;
-          elapsed += hlDur;
-          whooshTimes.push(elapsed);
-        }
-      } else if (activeZoomEffects && activeZoomEffects.length > 0) {
-        activeZoomEffects.forEach((z: any) => {
-          const t = Number(z.timestamp) - localStartLimit;
-          if (t > 0.1 && t < trimDuration && !whooshTimes.includes(t)) {
-            whooshTimes.push(t);
-          }
-        });
-      }
+      // Content-aware mode: use client-provided timestamps from vision/transcript analysis.
+      // Fallback mode: use heuristic timestamps based on segments, zooms, and subtitles.
+      const whooshTimes: number[] = contentSfx?.whooshAt && contentSfx.whooshAt.length > 0
+        ? contentSfx.whooshAt.map((t: any) => Number(t)).filter((t: number) => t > 0 && t < trimDuration)
+        : (() => {
+            const times: number[] = [0.5];
+            if (isSegmented && keepList.length > 1) {
+              let elapsed = 0;
+              for (let i = 0; i < keepList.length - 1; i++) {
+                const speed = Number(keepList[i].speed) || 1.0;
+                const hlDur = (Number(keepList[i].end) - Number(keepList[i].start)) / speed;
+                elapsed += hlDur;
+                times.push(elapsed);
+              }
+            } else if (activeZoomEffects && activeZoomEffects.length > 0) {
+              activeZoomEffects.forEach((z: any) => {
+                const t = Number(z.timestamp) - localStartLimit;
+                if (t > 0.1 && t < trimDuration && !times.includes(t)) times.push(t);
+              });
+            }
+            return times;
+          })();
 
-      const popTimes: number[] = [];
-      if (activeSubtitles && activeSubtitles.length > 0) {
-        activeSubtitles.forEach((sub: any) => {
-          const t = Number(sub.start) - localStartLimit;
-          if (t > 0.1 && t < trimDuration) {
-            const hasEmoji = !!sub.emoji || /[\u{1F300}-\u{1F6FF}]/u.test(sub.text);
-            if (hasEmoji) {
-              popTimes.push(t);
+      const popTimes: number[] = contentSfx?.popAt && contentSfx.popAt.length > 0
+        ? contentSfx.popAt.map((t: any) => Number(t)).filter((t: number) => t > 0 && t < trimDuration)
+        : (() => {
+            const times: number[] = [];
+            if (activeSubtitles && activeSubtitles.length > 0) {
+              activeSubtitles.forEach((sub: any) => {
+                const t = Number(sub.start) - localStartLimit;
+                if (t > 0.1 && t < trimDuration) {
+                  const hasEmoji = !!sub.emoji || /[\u{1F300}-\u{1F6FF}]/u.test(sub.text);
+                  if (hasEmoji) times.push(t);
+                }
+              });
+              if (times.length === 0) {
+                activeSubtitles.forEach((sub: any, idx: number) => {
+                  const t = Number(sub.start) - localStartLimit;
+                  if (t > 0.1 && t < trimDuration && idx % 3 === 0) times.push(t);
+                });
+              }
             }
-          }
-        });
-        if (popTimes.length === 0) {
-          activeSubtitles.forEach((sub: any, idx: number) => {
-            const t = Number(sub.start) - localStartLimit;
-            if (t > 0.1 && t < trimDuration && idx % 3 === 0) {
-              popTimes.push(t);
-            }
-          });
-        }
-      }
-      if (popTimes.length === 0) {
-        popTimes.push(4.0);
-      }
+            return times.length > 0 ? times : [4.0];
+          })();
 
       let outroTime = trimDuration * 0.85;
       if (activeSubtitles && activeSubtitles.length > 0) {
@@ -1321,40 +1385,43 @@ app.post('/api/render-project', upload.single('videoFile'), async (req, res) => 
           }
         }
       }
-      const impactTimes: number[] = [0.2, outroTime];
+
+      const impactTimes: number[] = contentSfx?.impactAt && contentSfx.impactAt.length > 0
+        ? contentSfx.impactAt.map((t: any) => Number(t)).filter((t: number) => t > 0 && t < trimDuration)
+        : [0.2, outroTime];
 
       // Build out perfect mixed audio channel with clean noise suppression gating filters
       const filterComplexParts: string[] = [];
 
-      if (isSmartCuts) {
+      if (isSegmented) {
         // First we register the smart cuts concatenation filters inside filterComplexParts
         let smartCutsFilter = '';
-        highlights.forEach((hl: any, idx: number) => {
-          const speed = Number(hl.speed) || 1.0;
+        keepList.forEach((seg: any, idx: number) => {
+          const speed = Number(seg.speed) || 1.0;
           const videoPtsEx = (1.0 / speed).toFixed(4);
-          smartCutsFilter += `[0:v]trim=start=${hl.start}:end=${hl.end},setpts=(PTS-STARTPTS)*${videoPtsEx}[vhl${idx}];`;
+          smartCutsFilter += `[0:v]trim=start=${seg.start}:end=${seg.end},setpts=(PTS-STARTPTS)*${videoPtsEx}[vhl${idx}];`;
           if (hasAudio) {
             const clampedAtempo = Math.max(0.5, Math.min(2.0, speed)).toFixed(4);
-            smartCutsFilter += `[0:a]atrim=start=${hl.start}:end=${hl.end},asetpts=PTS-STARTPTS,atempo=${clampedAtempo}[ahl${idx}];`;
+            smartCutsFilter += `[0:a]atrim=start=${seg.start}:end=${seg.end},asetpts=PTS-STARTPTS,atempo=${clampedAtempo}[ahl${idx}];`;
           }
         });
         let concatedPads = '';
         if (hasAudio) {
-          concatedPads = highlights.map((_, idx) => `[vhl${idx}][ahl${idx}]`).join('');
-          smartCutsFilter += `${concatedPads}concat=n=${highlights.length}:v=1:a=1[vconc_raw][aconc_raw]`;
+          concatedPads = keepList.map((_, idx) => `[vhl${idx}][ahl${idx}]`).join('');
+          smartCutsFilter += `${concatedPads}concat=n=${keepList.length}:v=1:a=1[vconc_raw][aconc_raw]`;
         } else {
-          concatedPads = highlights.map((_, idx) => `[vhl${idx}]`).join('');
-          smartCutsFilter += `${concatedPads}concat=n=${highlights.length}:v=1:a=0[vconc_raw]`;
+          concatedPads = keepList.map((_, idx) => `[vhl${idx}]`).join('');
+          smartCutsFilter += `${concatedPads}concat=n=${keepList.length}:v=1:a=0[vconc_raw]`;
         }
         filterComplexParts.push(smartCutsFilter);
 
         // Build transitions overlay: Aligns mathematically with speed-scaled clip durations
         let transitionsFilter = '';
-        if (highlights.length > 1) {
+        if (keepList.length > 1) {
           let elapsed = 0;
-          for (let i = 0; i < highlights.length - 1; i++) {
-            const speed = Number(highlights[i].speed) || 1.0;
-            const hlDur = (Number(highlights[i].end) - Number(highlights[i].start)) / speed;
+          for (let i = 0; i < keepList.length - 1; i++) {
+            const speed = Number(keepList[i].speed) || 1.0;
+            const hlDur = (Number(keepList[i].end) - Number(keepList[i].start)) / speed;
             elapsed += hlDur;
             
             if (transitionStyle === 'flash') {
@@ -1377,7 +1444,7 @@ app.post('/api/render-project', upload.single('videoFile'), async (req, res) => 
 
       // 1. Process original audio channel with premium cleanup (High-pass, low-pass, dynamic noise suppression layout)
       let origAudioLabel = '[0:a]';
-      if (isSmartCuts) {
+      if (isSegmented) {
         if (hasAudio) {
           filterComplexParts.push(`[aconc_raw]volume=1.0,afftdn,highpass=f=80,lowpass=f=15000,aresample=async=1:sample_rate=44100,aformat=channel_layouts=stereo[cleanorig]`);
           origAudioLabel = '[cleanorig]';
@@ -1395,10 +1462,15 @@ app.post('/api/render-project', upload.single('videoFile'), async (req, res) => 
         }
       }
 
-      // 2. Process background music track
+      // 2. Process background music track with optional audio ducking under speech
       let musicLabel = '';
       if (hasMusic && musicInputIdx !== -1) {
-        filterComplexParts.push(`[${musicInputIdx}:a]volume=${Number(musicVolume) * 0.45},aresample=async=1:sample_rate=44100,aformat=channel_layouts=stereo[cleanmusic]`);
+        const duckingEnabled = req.body.enableAudioDucking !== 'false';
+        if (duckingEnabled && hasAudio) {
+          filterComplexParts.push(`[${musicInputIdx}:a]volume=${Number(musicVolume) * 0.45},sidechaincompress=threshold=0.02:ratio=20:attack=100:release=1000[cleanmusic]`);
+        } else {
+          filterComplexParts.push(`[${musicInputIdx}:a]volume=${Number(musicVolume) * 0.45},aresample=async=1:sample_rate=44100,aformat=channel_layouts=stereo[cleanmusic]`);
+        }
         musicLabel = '[cleanmusic]';
       }
 
@@ -1551,24 +1623,24 @@ app.post('/api/render-project', upload.single('videoFile'), async (req, res) => 
             }
 
             const fallbackComplexParts: string[] = [];
-            if (isSmartCuts) {
+            if (isSegmented) {
               let smartCutsFilter = '';
-              highlights.forEach((hl: any, idx: number) => {
-                const speed = Number(hl.speed) || 1.0;
+              keepList.forEach((seg: any, idx: number) => {
+                const speed = Number(seg.speed) || 1.0;
                 const videoPtsEx = (1.0 / speed).toFixed(4);
-                smartCutsFilter += `[0:v]trim=start=${hl.start}:end=${hl.end},setpts=(PTS-STARTPTS)*${videoPtsEx}[vhl${idx}];`;
+                smartCutsFilter += `[0:v]trim=start=${seg.start}:end=${seg.end},setpts=(PTS-STARTPTS)*${videoPtsEx}[vhl${idx}];`;
                 if (hasAudio) {
                   const clampedAtempo = Math.max(0.5, Math.min(2.0, speed)).toFixed(4);
-                  smartCutsFilter += `[0:a]atrim=start=${hl.start}:end=${hl.end},asetpts=PTS-STARTPTS,atempo=${clampedAtempo}[ahl${idx}];`;
+                  smartCutsFilter += `[0:a]atrim=start=${seg.start}:end=${seg.end},asetpts=PTS-STARTPTS,atempo=${clampedAtempo}[ahl${idx}];`;
                 }
               });
               let concatedPads = '';
               if (hasAudio) {
-                concatedPads = highlights.map((_, idx) => `[vhl${idx}][ahl${idx}]`).join('');
-                smartCutsFilter += `${concatedPads}concat=n=${highlights.length}:v=1:a=1[vconc_raw][aconc_raw]`;
+                concatedPads = keepList.map((_, idx) => `[vhl${idx}][ahl${idx}]`).join('');
+                smartCutsFilter += `${concatedPads}concat=n=${keepList.length}:v=1:a=1[vconc_raw][aconc_raw]`;
               } else {
-                concatedPads = highlights.map((_, idx) => `[vhl${idx}]`).join('');
-                smartCutsFilter += `${concatedPads}concat=n=${highlights.length}:v=1:a=0[vconc_raw]`;
+                concatedPads = keepList.map((_, idx) => `[vhl${idx}]`).join('');
+                smartCutsFilter += `${concatedPads}concat=n=${keepList.length}:v=1:a=0[vconc_raw]`;
               }
               fallbackComplexParts.push(smartCutsFilter);
               fallbackComplexParts.push(`[vconc_raw]${fallbackVf}[vout_processed]`);
@@ -1578,7 +1650,7 @@ app.post('/api/render-project', upload.single('videoFile'), async (req, res) => 
 
             // Simple audio fallback
             let fallbackOrigLabel = '[0:a]';
-            if (isSmartCuts) {
+            if (isSegmented) {
               if (hasAudio) {
                 fallbackComplexParts.push(`[aconc_raw]volume=1.0,aresample=async=1:sample_rate=44100,aformat=channel_layouts=stereo[cleanorig]`);
                 fallbackOrigLabel = '[cleanorig]';
@@ -1611,7 +1683,7 @@ app.post('/api/render-project', upload.single('videoFile'), async (req, res) => 
             }
 
             const fallbackArgs: string[] = ['-y'];
-            if (!isFullVideo && !isSmartCuts) {
+            if (!isFullVideo && !isSegmented) {
               fallbackArgs.push('-ss', `${localStartLimit}`);
               fallbackArgs.push('-t', `${trimDuration}`);
             }

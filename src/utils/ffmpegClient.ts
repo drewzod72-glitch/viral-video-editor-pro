@@ -49,7 +49,8 @@ function getBestMimeType(): string {
 export async function renderVideoInBrowser(
   project: VideoProject,
   onProgress: (progress: number) => void,
-  activeClipId: string | null = null
+  activeClipId: string | null = null,
+  segments?: Array<{ start: number; end: number; speed?: number }>
 ): Promise<{ blob: Blob; extension: string }> {
   return new Promise(async (resolve, reject) => {
     let cancelled = false;

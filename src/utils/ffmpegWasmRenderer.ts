@@ -18,6 +18,7 @@ interface FFmpegWasmRendererOptions {
   activeClipId?: string | null;
   mode?: RenderMode;
   chunkDuration?: number;
+  segments?: Array<{ start: number; end: number; speed?: number }>;
 }
 
 // LUT definitions for professional color grading
@@ -73,7 +74,7 @@ export const TRANSITION_PRESETS = {
 // ─── Core FFmpeg.wasm Renderer ──────────────────────────────────────────────
 
 export async function renderVideoWithFFmpegWasm(options: FFmpegWasmRendererOptions): Promise<Blob> {
-  const { project, onProgress, activeClipId, mode = 'canvas' } = options;
+  const { project, onProgress, activeClipId, mode = 'canvas', segments } = options;
 
   if (mode === 'canvas') {
     const { renderVideoInBrowser } = await import('./ffmpegClient');
