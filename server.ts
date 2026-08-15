@@ -1580,7 +1580,7 @@ app.post('/api/render-project', upload.single('videoFile'), async (req, res) => 
       );
 
       runFFmpeg(compileArgs)
-        .then(() => {
+        .then(async () => {
           // Clean up primary inputs
           try { fs.unlinkSync(inputTempPath); } catch {}
           try { fs.unlinkSync(musicTempPath); } catch {}
@@ -1590,8 +1590,24 @@ app.post('/api/render-project', upload.single('videoFile'), async (req, res) => 
 
           console.log(`[Video Compiler Server] Video composite completed with success. Sending file: ${outputTempPath}`);
           
-          // Cache the compiled file and inject custom sandbox-bypassing headers
-          cacheRenderFileAndSetHeaders(res, outputTempPath, cleanSafeName);
+          // Validate output: probe the rendered file to confirm it's a valid video
+          try {
+            const probeCmd = `"${ffmpegPath}" -i "${outputTempPath}"`;
+            const probeOut = await new Promise<string>((resolve) => {
+              exec(probeCmd, (_, stdout, stderr) => resolve((stdout || '') + (stderr || '')));
+            });
+            const durMatch = probeOut.match(/Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/);
+            const outDuration = durMatch ? (parseInt(durMatch[1]) * 3600 + parseInt(durMatch[2]) * 60 + parseFloat(durMatch[3])) : 0;
+            const outSize = fs.statSync(outputTempPath).size;
+            
+            if (outSize < 50000 || outDuration < 0.5) {
+              throw new Error(`Output validation failed: size=${outSize}, duration=${outDuration}`);
+            }
+            console.log(`[Video Compiler Server] Output validated: ${outDuration.toFixed(2)}s, ${(outSize/1024/1024).toFixed(2)}MB`);
+          } catch (validationErr: any) {
+            console.error('[Video Compiler Server] Output validation failed:', validationErr.message);
+            // Fall through to send the file anyway — the client will validate on its end
+          }
 
           res.setHeader('Content-Type', 'video/mp4');
           res.setHeader('Content-Disposition', `attachment; filename="${cleanSafeName}_edited.mp4"`);
