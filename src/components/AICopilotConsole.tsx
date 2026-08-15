@@ -180,7 +180,7 @@ export const AICopilotConsole: React.FC<any> = ({
       {/* Glass-refraction ambient layer */}
       <div style={{
         position: 'absolute', top: '-50%', left: '-50%', width: '200%', height: '200%',
-        background: 'radial-gradient(circle at 50% 0%, rgba(139,92,246,0.1) 0%, transparent 60%)',
+        background: 'radial-gradient(circle at 50% 0%, rgba(236,72,149,0.1) 0%, transparent 60%)',
         pointerEvents: 'none', zIndex: 0
       }} />
       <div style={{
@@ -204,12 +204,12 @@ export const AICopilotConsole: React.FC<any> = ({
             <>
               <div style={{
                 position: 'absolute', inset: '-10px', borderRadius: '24px',
-                border: '2px solid rgba(139,92,246,0.5)',
+                border: '2px solid rgba(236,72,149,0.5)',
                 animation: 'neural-pulse 1.2s ease-out infinite'
               }} />
               <div style={{
                 position: 'absolute', inset: '-20px', borderRadius: '32px',
-                border: '1px solid rgba(139,92,246,0.3)',
+                border: '1px solid rgba(236,72,149,0.3)',
                 animation: 'neural-pulse 1.2s ease-out 0.3s infinite'
               }} />
               <div style={{
@@ -221,13 +221,15 @@ export const AICopilotConsole: React.FC<any> = ({
           )}
           <div style={{
             width: '52px', height: '52px', borderRadius: '18px',
-            background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
+            background: 'linear-gradient(135deg, #EC4899, #06b6d4)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: '24px', flexShrink: 0,
-            boxShadow: isPulsing ? '0 0 40px rgba(139,92,246,0.7)' : '0 0 20px rgba(139,92,246,0.4)',
+            boxShadow: isPulsing ? '0 0 40px rgba(236,72,149,0.7)' : '0 0 20px rgba(236,72,149,0.4)',
             transition: 'box-shadow 0.3s ease',
             animation: isPulsing ? 'brain-vibrate 0.15s ease-in-out infinite' : 'none'
-          }}>🧠</div>
+          }}>
+            <Brain size={24} color="#FFFFFF" />
+          </div>
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ fontWeight: 900, fontSize: '16px', textTransform: 'uppercase', letterSpacing: '0.5px', fontFamily: '"Inter", sans-serif', lineHeight: 1.2 }}>
@@ -240,13 +242,13 @@ export const AICopilotConsole: React.FC<any> = ({
         {isLoading && (
           <div style={{
             display: 'flex', alignItems: 'center', gap: '8px',
-            background: 'rgba(139,92,246,0.15)',
+            background: 'rgba(236,72,149,0.15)',
             padding: '6px 12px', borderRadius: '10px',
-            border: '1px solid rgba(139,92,246,0.3)',
-            boxShadow: '0 0 16px rgba(139,92,246,0.2)'
+            border: '1px solid rgba(236,72,149,0.3)',
+            boxShadow: '0 0 16px rgba(236,72,149,0.2)'
           }}>
-            <Activity size={14} style={{ color: '#8b5cf6' }} />
-            <span style={{ fontSize: '10px', color: '#c4b5fd', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            <Activity size={14} style={{ color: '#EC4899' }} />
+            <span style={{ fontSize: '10px', color: '#f9a8d4', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               {Math.round(neuralLoad)}%
             </span>
           </div>
@@ -265,11 +267,11 @@ export const AICopilotConsole: React.FC<any> = ({
         }}>
           <div style={{
             position: 'absolute', top: 0, right: 0, width: '120px', height: '120px',
-            background: 'radial-gradient(circle, rgba(139,92,246,0.15) 0%, transparent 70%)',
+            background: 'radial-gradient(circle, rgba(236,72,149,0.15) 0%, transparent 70%)',
             borderRadius: '50%', filter: 'blur(20px)', pointerEvents: 'none'
           }} />
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-            <Brain size={16} style={{ color: '#8b5cf6' }} />
+            <Brain size={16} style={{ color: '#EC4899' }} />
             <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px' }}>
               Neural Optimization
             </span>
@@ -277,10 +279,10 @@ export const AICopilotConsole: React.FC<any> = ({
           <div style={{ height: '6px', background: '#18181b', borderRadius: '3px', overflow: 'hidden' }}>
             <div style={{
               height: '100%', width: `${neuralLoad}%`,
-              background: 'linear-gradient(90deg, #8b5cf6, #06b6d4)',
+              background: 'linear-gradient(90deg, #EC4899, #06b6d4)',
               borderRadius: '3px',
               transition: 'width 0.3s ease',
-              boxShadow: '0 0 12px rgba(139,92,246,0.4)'
+              boxShadow: '0 0 12px rgba(236,72,149,0.4)'
             }} />
           </div>
           <div style={{ fontSize: '9px', color: '#475569', marginTop: '6px', fontFamily: '"JetBrains Mono", monospace' }}>
@@ -384,7 +386,7 @@ export const AICopilotConsole: React.FC<any> = ({
             type="submit"
             disabled={isLoading || !userPrompt.trim()}
             style={{
-              background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+              background: 'linear-gradient(135deg, #EC4899, #DB2777)',
               color: 'white',
               border: 'none',
               borderRadius: '12px',
@@ -421,7 +423,7 @@ export const AICopilotConsole: React.FC<any> = ({
         }} ref={logRef}>
           <div style={{
             position: 'absolute', top: 0, right: 0, width: '80px', height: '80px',
-            background: 'radial-gradient(circle, rgba(139,92,246,0.1) 0%, transparent 70%)',
+            background: 'radial-gradient(circle, rgba(236,72,149,0.1) 0%, transparent 70%)',
             borderRadius: '50%', filter: 'blur(16px)', pointerEvents: 'none'
           }} />
           <div style={{ color: '#475569', marginBottom: '8px', borderBottom: '1px solid #18181b', paddingBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -448,10 +450,10 @@ export const AICopilotConsole: React.FC<any> = ({
             </div>
           )}
           {isLoading && (
-            <div style={{ color: '#8b5cf6', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ color: '#EC4899', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span style={{
                 width: '6px', height: '6px', borderRadius: '50%',
-                background: '#8b5cf6',
+                background: '#EC4899',
                 animation: 'pulse 1s ease-in-out infinite'
               }} />
               Processing neural pathways...

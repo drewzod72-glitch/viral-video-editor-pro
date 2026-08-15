@@ -59,8 +59,8 @@ export default function ApiKeySettingsModal({ isOpen, onClose, onKeySaved }: Api
       <div className="card" style={{ width: '100%', maxWidth: '440px', overflow: 'hidden', animation: 'scaleIn 0.2s ease-out' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid rgba(30,41,59,0.4)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ padding: '8px', background: 'rgba(139,92,246,0.1)', borderRadius: '10px', border: '1px solid rgba(139,92,246,0.2)' }}>
-              <KeyRound style={{ width: '16px', height: '16px', color: '#8b5cf6' }} />
+            <div style={{ padding: '8px', background: 'rgba(236,72,149,0.1)', borderRadius: '10px', border: '1px solid rgba(236,72,149,0.2)' }}>
+              <KeyRound style={{ width: '16px', height: '16px', color: '#EC4899' }} />
             </div>
             <h2 style={{ fontWeight: 700, fontSize: '13px', color: 'white', fontFamily: '"Inter", sans-serif' }}>Your AI API Key (Groq)</h2>
           </div>
@@ -106,8 +106,8 @@ export default function ApiKeySettingsModal({ isOpen, onClose, onKeySaved }: Api
                 placeholder="gsk_..."
                 style={{ width: '100%', background: '#020617', border: '1px solid rgba(30,41,59,0.5)', borderRadius: '12px', padding: '12px 40px 12px 14px', color: 'white', fontSize: '12px', outline: 'none', fontFamily: 'monospace', transition: 'all 0.2s' }}
                 onFocus={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(139,92,246,0.5)';
-                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(139,92,246,0.1)';
+                  e.currentTarget.style.borderColor = 'rgba(236,72,149,0.5)';
+                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(236,72,149,0.1)';
                 }}
                 onBlur={(e) => {
                   e.currentTarget.style.borderColor = 'rgba(30,41,59,0.5)';
@@ -131,14 +131,14 @@ export default function ApiKeySettingsModal({ isOpen, onClose, onKeySaved }: Api
             Get a free high-speed API key from Groq Console <ExternalLink style={{ width: '12px', height: '12px' }} />
           </a>
 
-          <button onClick={handleSave} style={{ width: '100%', padding: '14px', background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)', color: 'white', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', borderRadius: '12px', border: 'none', cursor: 'pointer', fontFamily: '"Inter", sans-serif', transition: 'all 0.2s', boxShadow: '0 8px 24px rgba(139,92,246,0.3)' }}
+          <button onClick={handleSave} style={{ width: '100%', padding: '14px', background: 'linear-gradient(135deg, #EC4899, #DB2777)', color: 'white', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', borderRadius: '12px', border: 'none', cursor: 'pointer', fontFamily: '"Inter", sans-serif', transition: 'all 0.2s', boxShadow: '0 8px 24px rgba(236,72,149,0.3)' }}
             onMouseEnter={(e) => {
               e.currentTarget.style.transform = 'translateY(-1px)';
-              e.currentTarget.style.boxShadow = '0 12px 32px rgba(139,92,246,0.4)';
+              e.currentTarget.style.boxShadow = '0 12px 32px rgba(236,72,149,0.4)';
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 8px 24px rgba(139,92,246,0.3)';
+              e.currentTarget.style.boxShadow = '0 8px 24px rgba(236,72,149,0.3)';
             }}
           >
             {showSavedToast ? '✅ Saved!' : 'Save Key'}

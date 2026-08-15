@@ -36,21 +36,21 @@ export const MONO = '"JetBrains Mono", monospace';
 export const tint = (hex: string, opacity: number): string => {
   const clean = hex.replace('#', '');
   const r = parseInt(clean.slice(0, 2), 16);
-  const g = parseInt(clean.slice(2, 2), 16);
-  const b = parseInt(clean.slice(4, 2), 16);
+  const g = parseInt(clean.slice(2, 4), 16);
+  const b = parseInt(clean.slice(4, 6), 16);
   return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 };
 
 export const toHexWithAlpha = (hex: string, alpha: number): string => {
   const clean = hex.replace('#', '');
   const r = parseInt(clean.slice(0, 2), 16);
-  const g = parseInt(clean.slice(2, 2), 16);
-  const b = parseInt(clean.slice(4, 2), 16);
+  const g = parseInt(clean.slice(2, 4), 16);
+  const b = parseInt(clean.slice(4, 6), 16);
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
 
 export const glassCard = (opts?: { padding?: string; border?: boolean; radius?: string }): CSSProperties => ({
-  background: 'linear-gradient(180deg, rgba(24,24,27,0.95) 0%, rgba(9,9,11,0.98) 100%)',
+  background: `linear-gradient(180deg, ${tint(colors.background, 0.95)} 0%, ${tint(colors.card, 0.98)} 100%)`,
   border: opts?.border === false ? 'none' : `1px solid ${colors.border}`,
   borderRadius: opts?.radius || borderRadius.xl,
   backdropFilter: 'blur(16px)',
@@ -67,7 +67,7 @@ export const btnPrimary = (opts?: { active?: boolean; disabled?: boolean; fullWi
   fontWeight: 700,
   fontFamily: INTER,
   cursor: opts?.disabled ? 'not-allowed' : 'pointer',
-  boxShadow: '0 8px 30px rgba(37, 99, 235, 0.3)',
+  boxShadow: `0 8px 30px ${tint(colors.accent, 0.3)}`,
   opacity: opts?.disabled ? 0.5 : 1,
   width: opts?.fullWidth ? '100%' : undefined,
   transition: TRANSITION.smoothSlow,
@@ -76,13 +76,13 @@ export const btnPrimary = (opts?: { active?: boolean; disabled?: boolean; fullWi
 export const btnPrimaryHover = (e: MouseEvent<HTMLButtonElement>) => {
   const btn = e.currentTarget;
   btn.style.transform = 'translateY(-2px) scale(1.03)';
-  btn.style.boxShadow = '0 12px 40px rgba(37, 99, 235, 0.4)';
+  btn.style.boxShadow = `0 12px 40px ${tint(colors.accent, 0.4)}`;
 };
 
 export const btnPrimaryLeave = (e: MouseEvent<HTMLButtonElement>) => {
   const btn = e.currentTarget;
   btn.style.transform = 'translateY(0) scale(1)';
-  btn.style.boxShadow = '0 8px 30px rgba(37, 99, 235, 0.3)';
+  btn.style.boxShadow = `0 8px 30px ${tint(colors.accent, 0.3)}`;
 };
 
 export const btnGhost = (opts?: { active?: boolean }): CSSProperties => ({
@@ -99,9 +99,9 @@ export const btnGhost = (opts?: { active?: boolean }): CSSProperties => ({
 
 export const btnGhostHover = (e: MouseEvent<HTMLButtonElement>) => {
   const btn = e.currentTarget;
-  btn.style.background = 'rgba(255,255,255,0.04)';
+  btn.style.background = tint(colors.foreground, 0.04);
   btn.style.color = colors.foreground;
-  btn.style.borderColor = 'rgba(255,255,255,0.1)';
+  btn.style.borderColor = tint(colors.foreground, 0.1);
 };
 
 export const btnGhostLeave = (e: MouseEvent<HTMLButtonElement>) => {
@@ -184,7 +184,7 @@ export const badge = (opts?: { bg?: string; color?: string; size?: 'sm' | 'md' }
   textTransform: 'uppercase',
   letterSpacing: '0.5px',
   fontFamily: INTER,
-  backgroundColor: opts?.bg || 'rgba(236, 72, 153, 0.1)',
+  backgroundColor: opts?.bg || tint(colors.primary, 0.1),
   color: opts?.color || colors.primary,
   border: `1px solid ${opts?.bg ? tint(opts.bg, 0.2) : tint(colors.primary, 0.2)}`,
 });

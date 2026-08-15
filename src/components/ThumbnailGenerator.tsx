@@ -489,14 +489,14 @@ export function ThumbnailGenerator({
                 { id: 'from-amber-500 to-rose-600', label: 'Vulcan Flare' }
               ].map((grad) => (
                 <button key={grad.id} onClick={() => setIntensityGradient(grad.id)} type="button" style={{ flex: 1, padding: '6px', borderRadius: '8px', border: intensityGradient === grad.id ? '1px solid white' : '1px solid rgba(30,41,59,0.5)', background: '#020617', color: '#e2e8f0', fontSize: '10px', cursor: 'pointer', fontFamily: '"Inter", sans-serif', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'center' }}>
-                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'linear-gradient(135deg, #8b5cf6, #ec4899)' }} />
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'linear-gradient(135deg, #EC4899, #ec4899)' }} />
                   {grad.label}
                 </button>
               ))}
             </div>
           </div>
 
-          <button onClick={exportThumbnailImage} disabled={isCapturing} style={{ width: '100%', background: 'linear-gradient(135deg, #ec4899, #8b5cf6)', color: 'white', padding: '14px', borderRadius: '12px', border: 'none', fontWeight: 700, fontSize: '12px', fontFamily: '"Inter", sans-serif', cursor: isCapturing ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxShadow: '0 8px 30px rgba(236,72,153,0.2)' }}>
+          <button onClick={exportThumbnailImage} disabled={isCapturing} style={{ width: '100%', background: 'linear-gradient(135deg, #ec4899, #EC4899)', color: 'white', padding: '14px', borderRadius: '12px', border: 'none', fontWeight: 700, fontSize: '12px', fontFamily: '"Inter", sans-serif', cursor: isCapturing ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxShadow: '0 8px 30px rgba(236,72,153,0.2)' }}>
             {isCapturing ? (
               <>
                 <RefreshCw style={{ width: '14px', height: '14px', animation: 'spin 1s linear infinite' }} />
