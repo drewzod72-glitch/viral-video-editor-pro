@@ -1,5 +1,6 @@
 import { VideoProject, getCaptionStyles } from '../types';
 import { FREE_MUSIC_TRACKS } from '../data';
+import { resolveCaptionMetrics, normalizeCaptionStyle } from '../utils/captionStyleConfig';
 
 // ─── FFmpeg.wasm Professional Renderer ──────────────────────────────────────
 // Uses @ffmpeg/ffmpeg for hardware-quality output with:
@@ -212,6 +213,14 @@ async function generateSRT(subtitles: any[]): Promise<string | null> {
 
 // ─── Filter Complex Builder ─────────────────────────────────────────────────
 
+function hexToAssColor(hex: string, alpha: number = 0): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const aa = alpha.toString(16).padStart(2, '0');
+  return `&H${aa}${b.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${r.toString(16).padStart(2, '0')}`;
+}
+
 function buildFilterComplex(project: VideoProject, subtitleFile: string | null): string {
   const filters: string[] = [];
 
@@ -242,49 +251,20 @@ function buildFilterComplex(project: VideoProject, subtitleFile: string | null):
     filters.push('zoompan=z=1:x=\'iw/2-(iw/zoom/2)+sin(t*20)*5\':y=\'ih/2-(ih/zoom/2)+cos(t*20)*5\':d=1:s=1080x1920');
   }
 
-  // 5. Subtitle burn-in
+  // 5. Subtitle burn-in — styles come from captionStyleConfig.ts (single source of truth)
   if (subtitleFile && project.enableSubtitles) {
-    const style = project.captionStyle || 'hormozi';
-    let fontSize = 24;
-    let primaryColor = '&HFFFFFF';
-    let outlineColor = '&H000000';
-    let outline = 2;
-    let marginV = 40;
+    const style = normalizeCaptionStyle(project.captionStyle || 'hormozi');
+    const metrics = resolveCaptionMetrics(style, 30, 1080);
 
-    switch (style) {
-      case 'mrbeast':
-        fontSize = 28;
-        primaryColor = '&H10B981';
-        outline = 3;
-        marginV = 60;
-        break;
-      case 'hormozi':
-        fontSize = 32;
-        primaryColor = '&HFBBF24';
-        outline = 4;
-        marginV = 80;
-        break;
-      case 'minimalist':
-        fontSize = 20;
-        primaryColor = '&HFFFFFF';
-        outline = 1;
-        marginV = 50;
-        break;
-      case 'comic':
-        fontSize = 28;
-        primaryColor = '&HF43F5E';
-        outline = 3;
-        marginV = 70;
-        break;
-      case 'impact':
-        fontSize = 24;
-        primaryColor = '&H22D3EE';
-        outline = 2;
-        marginV = 60;
-        break;
-    }
+    const fontSize = metrics.fontSize;
+    const primaryColor = hexToAssColor(metrics.textColor, 0);
+    const highlightColor = hexToAssColor(metrics.highlightColor, 0);
+    const outlineColor = hexToAssColor(metrics.strokeColor === 'transparent' ? '#000000' : metrics.strokeColor, 0);
+    const outline = Math.max(1, metrics.strokeWidth);
+    const marginV = Math.round(metrics.yPositionFraction * 1920) - Math.round(fontSize * 1.3) - 40;
+    const fontName = metrics.fontFamilyCSS.split(',')[0].replace(/["']/g, '');
 
-    filters.push(`subtitles=subs.srt:force_style='FontSize=${fontSize},PrimaryColour=${primaryColor},OutlineColour=${outlineColor},Outline=${outline},MarginV=${marginV},FontName=Arial'`);
+    filters.push(`subtitles=subs.srt:force_style='FontSize=${fontSize},PrimaryColour=${primaryColor},OutlineColour=${outlineColor},Outline=${outline},MarginV=${Math.max(10, marginV)},FontName=${fontName}'`);
   }
 
   return filters.join(',');

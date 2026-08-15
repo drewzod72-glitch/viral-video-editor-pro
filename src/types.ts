@@ -67,7 +67,6 @@ export interface VideoProject {
   createdAt: string;
   endingCTA?: string;
   thumbnailRecommendation?: string;
-  engineMode?: 'live-gemini' | 'simulated-engine' | 'edge-rules';
   transitionStyle?: 'none' | 'crossfade' | 'glitch' | 'flash' | 'zoom' | 'fade_black' | 'slide_left' | 'wipe_left' | 'wipe_right' | 'slide_right' | 'circle_open' | 'circle_close' | 'dissolve' | 'glow' | 'pixelize';
   
   // UNIFIED PERSISTENT SETTINGS

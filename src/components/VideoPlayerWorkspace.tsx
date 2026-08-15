@@ -387,10 +387,11 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
                         const isHighlight = activeSub.highlightWords?.some(
                           (kw: string) => w.toLowerCase().includes(kw.toLowerCase())
                         ) || i === 0;
+                        const isMinimalist = project.captionStyle === 'minimalist';
                         return (
                           <span key={i} style={{
                             color: isHighlight ? (style.highlightColor || '#FBFF00') : (style.textColor || '#FFFFFF'),
-                            fontWeight: 900,
+                            fontWeight: isMinimalist ? 500 : 900,
                             fontSize: '15px',
                             textShadow: style.strokeWidth && style.strokeColor
                               ? `0 0 ${style.strokeWidth * 10}px ${style.strokeColor}`
