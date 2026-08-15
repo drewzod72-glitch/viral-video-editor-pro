@@ -154,6 +154,46 @@ Fixed and deployed `viral-video-editor-pro` to a clean, deployable state:
 - **Added timeout to blob duration check**: Prevents export spinner from hanging forever if video metadata stalls.
 - **Cleaned up Gemini references**: Renamed localStorage key, removed `engineMode` type, updated comments.
 
+## Redesign Pass
+
+Applied a full UI/UX redesign using the UI/UX Pro Max skill. Generated a product-specific design system and applied it consistently across all screens.
+
+### Generated Design System
+- Saved to `design-system.md`
+- Style: Dark Mode (OLED)
+- Primary: `#EC4899` (pink), Secondary: `#DB2777`, Accent: `#2563EB` (blue)
+- Background: `#0F172A`, Card: `#192134`, Foreground: `#FFFFFF`
+- Typography: Inter (headings + body)
+- Pattern: Hero-Centric Design with one primary CTA
+- Anti-patterns avoided: no emojis as icons, no raw hex in components, no pure white backgrounds
+
+### Changes by Screen/Component
+
+| Component | Changes |
+|-----------|---------|
+| `src/utils/theme.ts` | Created centralized design tokens (colors, spacing, border-radius, typography, effects, z-index) |
+| `src/utils/styles.ts` | Updated utility functions to use theme tokens; fixed `tint`/`toHexWithAlpha` slice bugs; updated `glassCard`, `btnPrimary`, hover handlers to use new palette |
+| `src/App.tsx` | Already using theme tokens from previous commit; colors now fully aligned with design system |
+| `src/components/AICopilotConsole.tsx` | Replaced 🧠 emoji with `<Brain>` Lucide icon; updated all purple gradients/shadows to pink (`#EC4899`) |
+| `src/components/ViralityScorecard.tsx` | Replaced booster preset emojis (🔥💎✨💪) with Lucide icons (Flame, Gem, Sparkles, Dumbbell); replaced tab emojis (📊🚀) with BarChart3/Rocket; replaced metric emojis (🎯⏱❤👁) with Target/Timer/Heart/Eye |
+| `src/components/EditCaptionTimeline.tsx` | Replaced 📝 with FileText icon; replaced 💡 with Lightbulb icon |
+| `src/components/VideoPlayerWorkspace.tsx` | Replaced 🎵 with Music icon; fixed `cat.emoji` → `cat.icon` bug from previous redesign; MOOD_CATEGORIES already use Lucide icons |
+| `src/components/LibraryPanel.tsx` | Replaced niche emojis (🍳🧠💪🖥️🎭💎) with Lucide icons (ChefHat, GraduationCap, Dumbbell, Cpu, Smile, FolderOpen) |
+| `src/components/ApiKeySettingsModal.tsx` | Colors updated to new palette via bulk replacement |
+| `src/components/ThumbnailGenerator.tsx` | Colors updated to new palette |
+| `src/components/NicheSelector.tsx` | Already redesigned in previous commit with theme tokens and Lucide icons |
+| `tests/e2e/app.spec.ts` | Updated text locators to match new UI (ACTIVE instead of READY, Virality/Co-Pilot without emojis, Studio without 🎬); fixed BAKE button click to use JS evaluation to avoid overlay interception |
+
+### Verification
+- **Builds**: `npm run build` exits 0, `npm run build:server` exits 0
+- **Smoke tests**: All 6 pass
+- **E2E tests**: 11/11 pass on Chromium (including new render/export test)
+- **Screenshots**: Captured at 375x812 mobile viewport, saved to `design-review/`
+
+### Blocked — needs human
+- Final brand approval on pink/blue palette vs original purple identity
+- Logo/icon finalization beyond Lucide defaults
+
 ## Blocked — needs human
 
 - Live Groq API key testing

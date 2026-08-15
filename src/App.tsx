@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Zap, Settings, Volume2, Infinity as InfinityIcon, Smartphone, Clapperboard, BarChart3, Brain, Menu, X, AlertTriangle, Satellite, Trophy, Loader2, Palette, Check, Eye, Download } from 'lucide-react';
 import { VideoProject } from './types';
 import { FREE_MUSIC_TRACKS, RAW_VIDEO_TEMPLATES } from './data';
 import NicheSelector from './components/NicheSelector';
@@ -11,6 +12,7 @@ import { saveFileToDevice } from './utils/download';
 import { renderVideoInBrowser } from './utils/ffmpegClient';
 import { computeViralityScore } from './utils/viralityScore';
 import { renderVideoWithFFmpegWasm, LUT_PRESETS, TRANSITION_PRESETS, detectViralMoments } from './utils/ffmpegWasmRenderer';
+import { colors, borderRadius, INTER, statusColors, TRANSITION, tint } from './utils/styles';
 
 
 
@@ -420,22 +422,22 @@ export default function App() {
   if (!hasStarted) {
     return (
       <div style={{
-        background: 'linear-gradient(180deg, #0f172a 0%, #020617 50%, #09090b 100%)',
+        background: `linear-gradient(180deg, ${colors.background} 0%, #020617 50%, #09090b 100%)`,
         minHeight: '100dvh',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
         textAlign: 'center',
-        padding: '40px 20px',
-        fontFamily: '"Inter", sans-serif',
+        padding: `${40}px 20px`,
+        fontFamily: INTER,
         position: 'relative',
         overflow: 'hidden'
       }}>
         {/* Background grid */}
         <div style={{
           position: 'absolute', inset: 0,
-          backgroundImage: 'linear-gradient(rgba(139,92,246,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(139,92,246,0.04) 1px, transparent 1px)',
+          backgroundImage: `linear-gradient(rgba(236,72,153,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(236,72,153,0.04) 1px, transparent 1px)`,
           backgroundSize: '60px 60px',
           maskImage: 'radial-gradient(ellipse at center, black 30%, transparent 70%)',
           WebkitMaskImage: 'radial-gradient(ellipse at center, black 30%, transparent 70%)'
@@ -445,49 +447,53 @@ export default function App() {
         <div style={{
           position: 'absolute', top: '15%', left: '50%', transform: 'translateX(-50%)',
           width: '500px', height: '500px',
-          background: 'radial-gradient(circle, rgba(139,92,246,0.2) 0%, transparent 70%)',
+          background: `radial-gradient(circle, ${tint(colors.primary, 0.2)} 0%, transparent 70%)`,
           borderRadius: '50%', filter: 'blur(80px)',
           pointerEvents: 'none'
         }} />
         <div style={{
           position: 'absolute', bottom: '10%', right: '10%',
           width: '300px', height: '300px',
-          background: 'radial-gradient(circle, rgba(6,182,212,0.12) 0%, transparent 70%)',
+          background: `radial-gradient(circle, ${tint(colors.accent, 0.12)} 0%, transparent 70%)`,
           borderRadius: '50%', filter: 'blur(60px)',
           pointerEvents: 'none'
         }} />
 
         <div style={{
           width: '96px', height: '96px', borderRadius: '32px',
-          background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+          background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: '44px', marginBottom: '36px', position: 'relative', zIndex: 1,
-          boxShadow: '0 24px 80px rgba(139,92,246,0.4)',
+          boxShadow: `0 24px 80px ${tint(colors.primary, 0.4)}`,
           animation: 'float 6s ease-in-out infinite'
-        }}>⚡</div>
+        }}>
+          <Zap size={48} color={colors.onPrimary} />
+        </div>
 
         <h1 style={{
-          color: 'white',
+          color: colors.foreground,
           fontSize: 'clamp(48px, 10vw, 80px)',
           fontWeight: 900,
           margin: '0 0 20px 0',
           letterSpacing: '-3px',
-          fontFamily: '"Inter", sans-serif',
+          fontFamily: INTER,
           textTransform: 'uppercase',
           lineHeight: 0.95,
           position: 'relative', zIndex: 1
         }}>
           VIRAL<br />
           <span style={{
-            background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
+            background: `linear-gradient(135deg, ${colors.primary}, ${colors.accent})`,
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text'
-          }}>AI FORGE</span>
+          }}>
+            AI FORGE
+          </span>
         </h1>
 
         <p style={{
-          color: '#cbd5e1', fontSize: 'clamp(15px, 2.5vw, 17px)',
+          color: colors.mutedForeground, fontSize: 'clamp(15px, 2.5vw, 17px)',
           maxWidth: '480px', marginBottom: '52px', fontWeight: 500, lineHeight: 1.7,
           position: 'relative', zIndex: 1
         }}>
@@ -498,26 +504,26 @@ export default function App() {
         <button
           onClick={startApp}
           style={{
-            background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
-            color: 'white', border: 'none', borderRadius: '18px',
+            background: `linear-gradient(135deg, ${colors.accent}, ${colors.secondary})`,
+            color: colors.onAccent, border: 'none', borderRadius: '18px',
             padding: '22px 72px', fontWeight: 800, fontSize: '14px',
-            fontFamily: '"Inter", sans-serif', textTransform: 'uppercase',
+            fontFamily: INTER, textTransform: 'uppercase',
             cursor: 'pointer',
-            boxShadow: '0 20px 60px rgba(139,92,246,0.4), inset 0 1px 0 rgba(255,255,255,0.2)',
+            boxShadow: `0 20px 60px ${tint(colors.accent, 0.4)}, inset 0 1px 0 rgba(255,255,255,0.2)`,
             letterSpacing: '1.5px',
             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             position: 'relative', zIndex: 1
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.transform = 'translateY(-3px) scale(1.03)';
-            e.currentTarget.style.boxShadow = '0 28px 80px rgba(139,92,246,0.5), inset 0 1px 0 rgba(255,255,255,0.25)';
+            e.currentTarget.style.boxShadow = `0 28px 80px ${tint(colors.accent, 0.5)}, inset 0 1px 0 rgba(255,255,255,0.25)`;
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.transform = 'translateY(0) scale(1)';
-            e.currentTarget.style.boxShadow = '0 20px 60px rgba(139,92,246,0.4), inset 0 1px 0 rgba(255,255,255,0.2)';
+            e.currentTarget.style.boxShadow = `0 20px 60px ${tint(colors.accent, 0.4)}, inset 0 1px 0 rgba(255,255,255,0.2)`;
           }}
         >
-          Launch Studio →
+          Launch Studio <Menu size={16} style={{ display: 'inline', marginLeft: '8px' }} />
         </button>
 
         <div style={{
@@ -525,33 +531,34 @@ export default function App() {
           justifyContent: 'center', position: 'relative', zIndex: 1
         }}>
           {[
-            { label: 'Frame Engine', icon: '⚙' },
-            { label: 'Audio Sync', icon: '🔊' },
-            { label: 'Free Forever', icon: '∞' },
-            { label: 'Native Ready', icon: '📱' },
+            { label: 'Frame Engine', icon: <Settings size={12} /> },
+            { label: 'Audio Sync', icon: <Volume2 size={12} /> },
+            { label: 'Free Forever', icon: <InfinityIcon size={12} /> },
+            { label: 'Native Ready', icon: <Smartphone size={12} /> },
           ].map((f) => (
             <div key={f.label} style={{
               display: 'flex', alignItems: 'center', gap: '8px',
-              fontSize: '10px', color: '#94a3b8', fontWeight: 700,
+              fontSize: '10px', color: colors.mutedForeground, fontWeight: 700,
               textTransform: 'uppercase', letterSpacing: '0.8px',
               background: 'rgba(30,41,59,0.3)',
               padding: '10px 16px', borderRadius: '12px',
-              border: '1px solid rgba(30,41,59,0.4)',
+              border: `1px solid rgba(236,72,153,0.1)`,
               backdropFilter: 'blur(8px)',
-              transition: 'all 0.2s ease'
+              transition: TRANSITION.smooth,
+              cursor: 'default'
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.background = 'rgba(30,41,59,0.5)';
-              e.currentTarget.style.borderColor = 'rgba(139,92,246,0.3)';
-              e.currentTarget.style.color = '#e2e8f0';
+              e.currentTarget.style.borderColor = tint(colors.primary, 0.3);
+              e.currentTarget.style.color = colors.foreground;
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.background = 'rgba(30,41,59,0.3)';
-              e.currentTarget.style.borderColor = 'rgba(30,41,59,0.4)';
-              e.currentTarget.style.color = '#94a3b8';
+              e.currentTarget.style.borderColor = tint(colors.primary, 0.1);
+              e.currentTarget.style.color = colors.mutedForeground;
             }}
             >
-              <span>{f.icon}</span>
+              {f.icon}
               <span>{f.label}</span>
             </div>
           ))}
@@ -563,8 +570,8 @@ export default function App() {
             50% { transform: translateY(-10px); }
           }
           @keyframes pulse-glow {
-            0%, 100% { box-shadow: 0 20px 60px rgba(139,92,246,0.4), inset 0 1px 0 rgba(255,255,255,0.2); }
-            50% { box-shadow: 0 24px 80px rgba(139,92,246,0.5), inset 0 1px 0 rgba(255,255,255,0.2); }
+            0%, 100% { box-shadow: 0 20px 60px rgba(236,72,153,0.4), inset 0 1px 0 rgba(255,255,255,0.2); }
+            50% { box-shadow: 0 24px 80px rgba(236,72,153,0.5), inset 0 1px 0 rgba(255,255,255,0.2); }
           }
         `}</style>
       </div>
@@ -574,55 +581,55 @@ export default function App() {
   const sidebarContent = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', height: '100%' }}>
       {/* Logo */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '4px 4px 16px 4px', borderBottom: '1px solid rgba(30,41,59,0.5)', marginBottom: '8px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '4px 4px 16px 4px', borderBottom: `1px solid ${colors.border}`, marginBottom: '8px' }}>
         <div style={{
           width: '32px', height: '32px', borderRadius: '10px',
-          background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+          background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontWeight: 900, fontSize: '14px', flexShrink: 0,
-          boxShadow: '0 0 20px rgba(139,92,246,0.3)'
+          boxShadow: `0 0 20px ${tint(colors.primary, 0.3)}`
         }}>F</div>
         <div>
-          <div style={{ fontWeight: 900, fontSize: '13px', letterSpacing: '-0.3px', fontFamily: '"Inter", sans-serif', lineHeight: 1.2 }}>FORGE</div>
-          <div style={{ fontSize: '9px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px' }}>Universal Engine</div>
+          <div style={{ fontWeight: 900, fontSize: '13px', letterSpacing: '-0.3px', fontFamily: INTER, lineHeight: 1.2, color: colors.foreground }}>FORGE</div>
+          <div style={{ fontSize: '9px', color: colors.mutedForeground, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px' }}>Universal Engine</div>
         </div>
       </div>
 
       {/* Navigation */}
       {[
-        { key: 'studio', label: 'Studio', icon: '🎬' },
-        { key: 'viral', label: 'Virality', icon: '📊' },
-        { key: 'copilot', label: 'Co-Pilot', icon: '🧠' },
+        { key: 'studio', label: 'Studio', icon: <Clapperboard size={15} /> },
+        { key: 'viral', label: 'Virality', icon: <BarChart3 size={15} /> },
+        { key: 'copilot', label: 'Co-Pilot', icon: <Brain size={15} /> },
       ].map(tab => (
         <button
           key={tab.key}
           onClick={() => { setActiveTab(tab.key as 'studio' | 'viral' | 'copilot'); setSidebarOpen(false); }}
           style={{
             padding: '11px 14px', borderRadius: '10px', border: 'none',
-            background: activeTab === tab.key ? 'rgba(139,92,246,0.18)' : 'transparent',
-            color: activeTab === tab.key ? '#c4b5fd' : '#a1a1aa',
+            background: activeTab === tab.key ? tint(colors.primary, 0.18) : 'transparent',
+            color: activeTab === tab.key ? colors.foreground : colors.mutedForeground,
             fontWeight: 700, fontSize: '12px', cursor: 'pointer',
-            textAlign: 'left', fontFamily: '"Inter", sans-serif',
-            display: 'flex', alignItems: 'center', gap: '10px', transition: 'all 0.2s',
+            textAlign: 'left', fontFamily: INTER,
+            display: 'flex', alignItems: 'center', gap: '10px', transition: TRANSITION.smooth,
             position: 'relative', overflow: 'hidden'
           }}
           onMouseEnter={(e) => {
             if (activeTab !== tab.key) {
               e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
-              e.currentTarget.style.color = '#e4e4e7';
+              e.currentTarget.style.color = colors.foreground;
             }
           }}
           onMouseLeave={(e) => {
             if (activeTab !== tab.key) {
               e.currentTarget.style.background = 'transparent';
-              e.currentTarget.style.color = '#a1a1aa';
+              e.currentTarget.style.color = colors.mutedForeground;
             }
           }}
         >
           {activeTab === tab.key && (
             <div style={{
               position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)',
-              width: '3px', height: '20px', background: 'linear-gradient(180deg, #8b5cf6, #06b6d4)',
+              width: '3px', height: '20px', background: `linear-gradient(180deg, ${colors.primary}, ${colors.accent})`,
               borderRadius: '0 2px 2px 0'
             }} />
           )}
@@ -632,27 +639,27 @@ export default function App() {
       ))}
 
       {/* Bake Button */}
-      <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid rgba(30,41,59,0.5)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: `1px solid ${colors.border}`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {/* Render Mode Selector */}
         <div style={{ display: 'flex', gap: '4px', background: 'rgba(2,6,23,0.6)', padding: '4px', borderRadius: '10px' }}>
           {[
-            { key: 'ffmpeg' as const, label: 'Pro FFmpeg', icon: '⚡' },
-            { key: 'canvas' as const, label: 'Fast Canvas', icon: '🎨' },
+            { key: 'ffmpeg' as const, label: 'Pro FFmpeg', icon: <Zap size={12} /> },
+            { key: 'canvas' as const, label: 'Fast Canvas', icon: <Palette size={12} /> },
           ].map(mode => (
             <button
               key={mode.key}
               onClick={() => setRenderMode(mode.key)}
               style={{
                 flex: 1, padding: '8px', borderRadius: '8px', border: 'none',
-                background: renderMode === mode.key ? 'rgba(139,92,246,0.25)' : 'transparent',
-                color: renderMode === mode.key ? '#e9d5ff' : '#71717a',
+                background: renderMode === mode.key ? tint(colors.primary, 0.25) : 'transparent',
+                color: renderMode === mode.key ? colors.foreground : colors.mutedForeground,
                 fontWeight: 700, fontSize: '10px', cursor: 'pointer',
-                fontFamily: '"Inter", sans-serif', textTransform: 'uppercase',
-                letterSpacing: '0.5px', transition: 'all 0.2s',
+                fontFamily: INTER, textTransform: 'uppercase',
+                letterSpacing: '0.5px', transition: TRANSITION.smooth,
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px'
               }}
             >
-              <span>{mode.icon}</span>
+              {mode.icon}
               <span>{mode.label}</span>
             </button>
           ))}
@@ -663,56 +670,72 @@ export default function App() {
           disabled={isProcessing}
           style={{
             width: '100%', padding: '14px', borderRadius: '12px', border: 'none',
-            background: isProcessing ? '#18181b' : 'linear-gradient(135deg, #10b981, #059669)',
-            color: 'white', fontWeight: 900, fontSize: '12px',
-            fontFamily: '"Inter", sans-serif', textTransform: 'uppercase',
+            background: isProcessing ? colors.card : `linear-gradient(135deg, ${statusColors.success}, #059669)`,
+            color: colors.onAccent, fontWeight: 900, fontSize: '12px',
+            fontFamily: INTER, textTransform: 'uppercase',
             letterSpacing: '0.8px', cursor: isProcessing ? 'not-allowed' : 'pointer',
-            boxShadow: isProcessing ? 'none' : '0 8px 30px rgba(16,185,129,0.3)',
-            transition: 'all 0.2s'
+            boxShadow: isProcessing ? 'none' : `0 8px 30px ${tint(statusColors.success, 0.3)}`,
+            transition: TRANSITION.smooth,
+            opacity: isProcessing ? 0.5 : 1
           }}
         >
-          {isProcessing ? `⏳ ${processingStage || 'Baking...'}` : renderMode === 'ffmpeg' ? '⚡ BAKE PRO' : '🎨 BAKE FINAL'}
+          {isProcessing ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+              <Loader2 size={14} style={{ animation: 'spin 0.8s linear infinite' }} />
+              <span>{processingStage || 'Baking...'}</span>
+            </div>
+          ) : renderMode === 'ffmpeg' ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+              <Zap size={14} />
+              <span>BAKE PRO</span>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+              <Palette size={14} />
+              <span>BAKE FINAL</span>
+            </div>
+          )}
         </button>
 
         {exportError && (
           <div style={{
             padding: '12px', background: 'rgba(239,68,68,0.12)',
-            borderRadius: '10px', border: '1px solid rgba(239,68,68,0.3)',
-            color: '#fca5a5', fontSize: '10px', fontWeight: 600,
+            borderRadius: '10px', border: `1px solid rgba(239,68,68,0.3)`,
+            color: statusColors.successText, fontSize: '10px', fontWeight: 600,
             lineHeight: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px'
           }}>
             <span>{exportError}</span>
-            <button onClick={() => setExportError(null)} style={{ background: 'transparent', border: 'none', color: '#fca5a5', cursor: 'pointer', fontSize: '14px', lineHeight: 1, padding: 0 }}>×</button>
+            <button onClick={() => setExportError(null)} style={{ background: 'transparent', border: 'none', color: statusColors.successText, cursor: 'pointer', fontSize: '14px', lineHeight: 1, padding: 0, transition: TRANSITION.fast }}><X size={14} /></button>
           </div>
         )}
 
         {activeProject && (
           <div style={{
             padding: '14px', background: 'rgba(30,41,59,0.2)', borderRadius: '12px',
-            border: '1px solid rgba(30,41,59,0.4)'
+            border: `1px solid ${colors.border}`
           }}>
-            <div style={{ fontSize: '9px', color: '#64748b', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>Project</div>
-            <div style={{ fontSize: '10px', color: '#a1a1aa', lineHeight: 1.8 }}>
-              <div>Style: <span style={{ color: '#c4b5fd', fontWeight: 700 }}>{activeProject.captionStyle}</span></div>
-              <div>Grade: <span style={{ color: '#c4b5fd', fontWeight: 700 }}>{activeProject.colorGrade}</span></div>
-              <div>Music: <span style={{ color: '#c4b5fd', fontWeight: 700 }}>{FREE_MUSIC_TRACKS.find(t => t.id === activeProject.selectedMusicTrackId)?.name || 'None'}</span></div>
-              <div>Score: <span style={{ color: '#10b981', fontWeight: 800 }}>{activeProject.viralityScore}%</span></div>
+            <div style={{ fontSize: '9px', color: colors.mutedForeground, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>Project</div>
+            <div style={{ fontSize: '10px', color: colors.mutedForeground, lineHeight: 1.8, fontFamily: INTER }}>
+              <div>Style: <span style={{ color: colors.primary, fontWeight: 700 }}>{activeProject.captionStyle}</span></div>
+              <div>Grade: <span style={{ color: colors.primary, fontWeight: 700 }}>{activeProject.colorGrade}</span></div>
+              <div>Music: <span style={{ color: colors.primary, fontWeight: 700 }}>{FREE_MUSIC_TRACKS.find(t => t.id === activeProject.selectedMusicTrackId)?.name || 'None'}</span></div>
+              <div>Score: <span style={{ color: statusColors.success, fontWeight: 800 }}>{activeProject.viralityScore}%</span></div>
             </div>
           </div>
         )}
       </div>
     </div>
-  );
+  )
 
   return (
     <div style={{
-      background: 'linear-gradient(180deg, #0f172a 0%, #020617 100%)',
-      minHeight: '100dvh', color: 'white',
-      fontFamily: '"Inter", sans-serif', overflowX: 'hidden'
+      background: `linear-gradient(180deg, ${colors.background} 0%, #020617 100%)`,
+      minHeight: '100dvh', color: colors.foreground,
+      fontFamily: INTER, overflowX: 'hidden'
     }}>
       {/* ── HEADER ── */}
       <header style={{
-        padding: '12px 20px', borderBottom: '1px solid rgba(30,41,59,0.5)',
+        padding: '12px 20px', borderBottom: `1px solid ${colors.border}`,
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         background: 'rgba(9,9,11,0.85)', backdropFilter: 'blur(24px)',
         position: 'sticky', top: 0, zIndex: 100
@@ -721,39 +744,31 @@ export default function App() {
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             style={{
-              background: '#18181b', color: '#a1a1aa', border: '1px solid #27272a',
+              background: colors.card, color: colors.mutedForeground, border: `1px solid ${colors.border}`,
               padding: '8px 12px', borderRadius: '10px', fontSize: '12px',
-              fontWeight: 700, cursor: 'pointer', fontFamily: '"Inter", sans-serif',
+              fontWeight: 700, cursor: 'pointer', fontFamily: INTER,
               display: 'flex', alignItems: 'center', gap: '6px',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = 'rgba(139,92,246,0.4)';
-              e.currentTarget.style.color = '#e2e8f0';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = '#27272a';
-              e.currentTarget.style.color = '#a1a1aa';
+              transition: TRANSITION.smooth
             }}
           >
-            {sidebarOpen ? '✕' : '☰'}
+            {sidebarOpen ? <X size={14} /> : <Menu size={16} />}
           </button>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{
               width: '32px', height: '32px', borderRadius: '10px',
-              background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+              background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontWeight: 900, fontSize: '14px', flexShrink: 0,
-              boxShadow: '0 0 20px rgba(139,92,246,0.3)'
+              boxShadow: `0 0 20px ${tint(colors.primary, 0.3)}`
             }}>F</div>
             <div>
-              <div style={{ fontWeight: 900, fontSize: '15px', letterSpacing: '-0.5px', fontFamily: '"Inter", sans-serif', lineHeight: 1.2 }}>FORGE</div>
-              <div style={{ fontSize: '9px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', display: 'none' }} className="header-subtitle">Universal Engine</div>
+              <div style={{ fontWeight: 900, fontSize: '15px', letterSpacing: '-0.5px', fontFamily: INTER, lineHeight: 1.2, color: colors.foreground }}>FORGE</div>
+              <div style={{ fontSize: '9px', color: colors.mutedForeground, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', display: 'none' }} className="header-subtitle">Universal Engine</div>
             </div>
           </div>
           {activeProject && (
             <span style={{
-              fontSize: '10px', color: '#64748b', fontWeight: 600,
+              fontSize: '10px', color: colors.mutedForeground, fontWeight: 600,
               padding: '3px 8px', background: 'rgba(30,41,59,0.5)',
               borderRadius: '6px', marginLeft: '4px',
               display: 'none'
@@ -766,42 +781,30 @@ export default function App() {
           <button
             onClick={() => { setShowApiStatus(!showApiStatus); if (!showApiStatus) setApiStatusLog(getApiStatusLog()); }}
             style={{
-              background: apiStatusLog.some(l => !l.ok) ? 'rgba(239,68,68,0.15)' : '#18181b',
-              color: apiStatusLog.some(l => !l.ok) ? '#ef4444' : '#a1a1aa',
-              border: '1px solid #27272a',
+              background: apiStatusLog.some(l => !l.ok) ? 'rgba(239,68,68,0.15)' : colors.card,
+              color: apiStatusLog.some(l => !l.ok) ? colors.destructive : colors.mutedForeground,
+              border: `1px solid ${colors.border}`,
               padding: '8px 14px', borderRadius: '10px', fontSize: '11px',
-              fontWeight: 700, cursor: 'pointer', fontFamily: '"Inter", sans-serif',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
-              e.currentTarget.style.color = '#e2e8f0';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = '#27272a';
-              e.currentTarget.style.color = apiStatusLog.some(l => !l.ok) ? '#ef4444' : '#a1a1aa';
+              fontWeight: 700, cursor: 'pointer', fontFamily: INTER,
+              transition: TRANSITION.smooth
             }}
           >
-            {apiStatusLog.some(l => !l.ok) ? '⚠ API ERRORS' : '📡 API'}
+            {apiStatusLog.some(l => !l.ok) ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><AlertTriangle size={12} /> API ERRORS</div>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Satellite size={12} /> API</div>
+            )}
           </button>
           <button
             onClick={() => { setShowApiKeyModal(true); clearApiStatusLog(); setApiStatusLog([]); }}
             style={{
-              background: '#18181b', color: '#a1a1aa', border: '1px solid #27272a',
+              background: colors.card, color: colors.mutedForeground, border: `1px solid ${colors.border}`,
               padding: '8px 14px', borderRadius: '10px', fontSize: '11px',
-              fontWeight: 700, cursor: 'pointer', fontFamily: '"Inter", sans-serif',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = 'rgba(139,92,246,0.4)';
-              e.currentTarget.style.color = '#e2e8f0';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = '#27272a';
-              e.currentTarget.style.color = '#a1a1aa';
+              fontWeight: 700, cursor: 'pointer', fontFamily: INTER,
+              transition: TRANSITION.smooth
             }}
           >
-            ⚙ API Key
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Settings size={12} /> API Key</div>
           </button>
         </div>
       </header>
@@ -810,7 +813,7 @@ export default function App() {
       {isProcessing && (
         <div style={{
           position: 'fixed', top: '70px', right: '16px', zIndex: 200,
-          background: 'rgba(139,92,246,0.95)', color: 'white',
+          background: tint(colors.primary, 0.92), color: colors.onPrimary,
           padding: '16px 20px', borderRadius: '16px', fontWeight: 700,
           fontSize: '11px', boxShadow: '0 10px 40px rgba(0,0,0,0.5)',
           backdropFilter: 'blur(12px)', maxWidth: 'calc(100vw - 32px)',
@@ -819,7 +822,7 @@ export default function App() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
             <div style={{
               width: '14px', height: '14px',
-              border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white',
+              border: `2px solid ${colors.onPrimary}20`, borderTopColor: colors.onPrimary,
               borderRadius: '50%', animation: 'spin 0.8s linear infinite', flexShrink: 0
             }} />
             <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{processingStage}</span>
@@ -831,7 +834,7 @@ export default function App() {
           }}>
             <div style={{
               height: '100%', width: `${renderProgress}%`,
-              background: 'linear-gradient(90deg, #06b6d4, #8b5cf6)',
+              background: `linear-gradient(90deg, ${colors.accent}, ${colors.primary})`,
               borderRadius: '2px', transition: 'width 0.3s ease'
             }} />
           </div>
@@ -879,7 +882,7 @@ export default function App() {
               display: 'none', marginBottom: '16px', padding: '10px 14px',
               background: 'rgba(30,41,59,0.4)', borderRadius: '12px',
               border: '1px solid rgba(30,41,59,0.5)',
-              fontSize: '11px', color: '#a1a1aa', fontWeight: 600
+              fontSize: '11px', color: colors.mutedForeground, fontWeight: 600
             }} className="mobile-project-badge">
               {activeProject.name} — {activeProject.niche}
             </div>
@@ -889,44 +892,46 @@ export default function App() {
             <NicheSelector onSelectTemplate={handleSelectTemplate} isProcessing={isProcessing} onUploadCustomFile={handleUploadCustomFile} />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              {/* Tab bar */}
+               {/* Tab bar */}
               <div style={{
                 display: 'flex', gap: '4px',
                 background: 'rgba(9,9,11,0.8)', backdropFilter: 'blur(20px)',
                 padding: '4px', borderRadius: '14px',
-                border: '1px solid rgba(30,41,59,0.5)', width: 'fit-content'
+                border: `1px solid ${colors.border}`, width: 'fit-content'
               }}>
                 {[
-                  { key: 'studio', label: '🎬 Studio' },
-                  { key: 'viral', label: '📊 Virality' },
-                   { key: 'copilot', label: '🧠 Co-Pilot' },
-                 ].map(tab => (
-                   <button
-                     key={tab.key}
-                     onClick={() => setActiveTab(tab.key as 'studio' | 'viral' | 'copilot')}
-                     style={{
-                       padding: '10px 20px', borderRadius: '10px', border: 'none',
-                       background: activeTab === tab.key ? 'rgba(139,92,246,0.25)' : 'transparent',
-                       color: activeTab === tab.key ? '#e9d5ff' : '#71717a',
-                       fontWeight: 700, fontSize: '12px', fontFamily: '"Inter", sans-serif',
-                       cursor: 'pointer', transition: 'all 0.2s', position: 'relative'
-                     }}
-                     onMouseEnter={(e) => {
-                       if (activeTab !== tab.key) {
-                         e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
-                         e.currentTarget.style.color = '#a1a1aa';
-                       }
-                     }}
-                     onMouseLeave={(e) => {
-                       if (activeTab !== tab.key) {
-                         e.currentTarget.style.background = 'transparent';
-                         e.currentTarget.style.color = '#71717a';
-                       }
-                     }}
-                   >
-                     {tab.label}
-                   </button>
-                 ))}
+                  { key: 'studio', label: 'Studio', icon: <Clapperboard size={12} /> },
+                  { key: 'viral', label: 'Virality', icon: <BarChart3 size={12} /> },
+                  { key: 'copilot', label: 'Co-Pilot', icon: <Brain size={12} /> },
+                ].map(tab => (
+                  <button
+                    key={tab.key}
+                    onClick={() => setActiveTab(tab.key as 'studio' | 'viral' | 'copilot')}
+                    style={{
+                      padding: '10px 20px', borderRadius: '10px', border: 'none',
+                      background: activeTab === tab.key ? tint(colors.primary, 0.25) : 'transparent',
+                      color: activeTab === tab.key ? colors.foreground : colors.mutedForeground,
+                      fontWeight: 700, fontSize: '12px', fontFamily: INTER,
+                      cursor: 'pointer', transition: TRANSITION.smooth, position: 'relative',
+                      display: 'flex', alignItems: 'center', gap: '6px'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (activeTab !== tab.key) {
+                        e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+                        e.currentTarget.style.color = colors.mutedForeground;
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (activeTab !== tab.key) {
+                        e.currentTarget.style.background = 'transparent';
+                        e.currentTarget.style.color = colors.mutedForeground;
+                      }
+                    }}
+                  >
+                    {tab.icon}
+                    <span>{tab.label}</span>
+                  </button>
+                ))}
               </div>
 
               {activeTab === 'studio' && (
@@ -934,19 +939,30 @@ export default function App() {
                   {aiSuccess && (
                     <div style={{
                       position: 'absolute', top: '-8px', left: '50%', transform: 'translateX(-50%)',
-                      background: analysisMode === 'vision' 
-                        ? 'linear-gradient(135deg, #06b6d4, #0891b2)' 
-                        : 'linear-gradient(135deg, #10b981, #059669)',
-                      color: 'white', padding: '6px 16px', borderRadius: '20px',
+                      background: analysisMode === 'vision'
+                        ? `linear-gradient(135deg, ${statusColors.cyan}, #0891b2)`
+                        : `linear-gradient(135deg, ${statusColors.success}, #059669)`,
+                      color: colors.onAccent, padding: '6px 16px', borderRadius: '20px',
                       fontSize: '10px', fontWeight: 800, zIndex: 50,
                       textTransform: 'uppercase', letterSpacing: '0.5px',
                       boxShadow: analysisMode === 'vision'
-                        ? '0 4px 20px rgba(6,182,212,0.4)'
-                        : '0 4px 20px rgba(16,185,129,0.4)',
+                        ? `0 4px 20px ${tint(statusColors.cyan, 0.4)}`
+                        : `0 4px 20px ${tint(statusColors.success, 0.4)}`,
                       animation: 'pulse-glow 2s ease-in-out infinite',
-                      whiteSpace: 'nowrap'
+                      whiteSpace: 'nowrap',
+                      display: 'flex', alignItems: 'center', gap: '6px'
                     }}>
-                      {analysisMode === 'vision' ? '👁 VISION AI EDIT APPLIED' : '✓ AI EDIT APPLIED'}
+                      {analysisMode === 'vision' ? (
+                        <>
+                          <Eye size={12} />
+                          <span>VISION AI EDIT APPLIED</span>
+                        </>
+                      ) : (
+                        <>
+                          <Check size={12} />
+                          <span>AI EDIT APPLIED</span>
+                        </>
+                      )}
                     </div>
                   )}
                   <VideoPlayerWorkspace
@@ -978,28 +994,30 @@ export default function App() {
         <div className="card" style={{
           position: 'fixed', top: '70px', right: '16px', zIndex: 200,
           padding: '16px', borderRadius: '16px', width: '320px', maxWidth: 'calc(100vw - 32px)',
-          boxShadow: '0 25px 80px rgba(0,0,0,0.6)', fontFamily: '"Inter", sans-serif',
+          boxShadow: '0 25px 80px rgba(0,0,0,0.6)', fontFamily: INTER,
           animation: 'slideDown 0.3s ease-out'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-            <div style={{ fontWeight: 800, fontSize: '12px', color: 'white', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            <div style={{ fontWeight: 800, fontSize: '12px', color: colors.foreground, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               API Status Log
             </div>
-            <button onClick={() => setShowApiStatus(false)} style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '16px', transition: 'all 0.2s' }}
-              onMouseEnter={(e) => e.currentTarget.style.color = '#e2e8f0'}
-              onMouseLeave={(e) => e.currentTarget.style.color = '#64748b'}
-            >×</button>
+            <button onClick={() => setShowApiStatus(false)} style={{ background: 'transparent', border: 'none', color: colors.mutedForeground, cursor: 'pointer', fontSize: '16px', transition: TRANSITION.fast }}
+              onMouseEnter={(e) => e.currentTarget.style.color = colors.foreground}
+              onMouseLeave={(e) => e.currentTarget.style.color = colors.mutedForeground}
+            >
+              <X size={16} />
+            </button>
           </div>
           <div style={{ maxHeight: '240px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
             {apiStatusLog.length === 0 && (
-              <div style={{ fontSize: '11px', color: '#64748b' }}>No calls yet. Run AI to see status.</div>
+              <div style={{ fontSize: '11px', color: colors.mutedForeground }}>No calls yet. Run AI to see status.</div>
             )}
             {apiStatusLog.map((entry, i) => (
               <div key={i} style={{
                 padding: '8px 10px', borderRadius: '8px', fontSize: '10px',
-                background: entry.ok ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.08)',
+                background: entry.ok ? statusColors.successDim : 'rgba(239,68,68,0.08)',
                 border: `1px solid ${entry.ok ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'}`,
-                color: entry.ok ? '#10b981' : '#ef4444',
+                color: entry.ok ? statusColors.success : colors.destructive,
                 fontFamily: '"JetBrains Mono", monospace'
               }}>
                 <div style={{ fontWeight: 700, marginBottom: '2px' }}>{entry.model}</div>
@@ -1014,17 +1032,17 @@ export default function App() {
             onClick={() => { clearApiStatusLog(); setApiStatusLog([]); }}
             style={{
               marginTop: '12px', width: '100%', padding: '8px', borderRadius: '8px',
-              background: 'rgba(30,41,59,0.3)', border: '1px solid rgba(30,41,59,0.5)',
-              color: '#a1a1aa', fontSize: '10px', fontWeight: 700, cursor: 'pointer',
-              fontFamily: '"Inter", sans-serif', transition: 'all 0.2s'
+              background: 'rgba(30,41,59,0.3)', border: `1px solid ${colors.border}`,
+              color: colors.mutedForeground, fontSize: '10px', fontWeight: 700, cursor: 'pointer',
+              fontFamily: INTER, transition: TRANSITION.smooth
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.background = 'rgba(30,41,59,0.5)';
-              e.currentTarget.style.color = '#e2e8f0';
+              e.currentTarget.style.color = colors.foreground;
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.background = 'rgba(30,41,59,0.3)';
-              e.currentTarget.style.color = '#a1a1aa';
+              e.currentTarget.style.color = colors.mutedForeground;
             }}
           >
             Clear Log
@@ -1045,17 +1063,19 @@ export default function App() {
             width: '100%', maxWidth: '440px',
             animation: 'scaleIn 0.3s ease-out'
           }}>
-            <div style={{ fontSize: '64px', marginBottom: '16px', animation: 'float 3s ease-in-out infinite' }}>🏆</div>
-            <h3 style={{ fontWeight: 900, fontSize: '22px', marginBottom: '8px', letterSpacing: '-1px', fontFamily: '"Inter", sans-serif' }}>VIDEO READY</h3>
-            <p style={{ color: '#64748b', fontSize: '13px', marginBottom: '8px', fontFamily: '"Inter", sans-serif' }}>
+            <div style={{ fontSize: '64px', marginBottom: '16px', animation: 'float 3s ease-in-out infinite' }}>
+              <Trophy size={64} color={colors.primary} />
+            </div>
+            <h3 style={{ fontWeight: 900, fontSize: '22px', marginBottom: '8px', letterSpacing: '-1px', fontFamily: INTER, color: colors.foreground }}>VIDEO READY</h3>
+            <p style={{ color: colors.mutedForeground, fontSize: '13px', marginBottom: '8px', fontFamily: INTER }}>
               Your edit is ready for social media.
             </p>
             {ffmpegFallback && (
-              <p style={{ color: '#f59e0b', fontSize: '11px', marginBottom: '16px', fontFamily: '"Inter", sans-serif' }}>
-                ⚠ Rendered with Fast Canvas (FFmpeg unavailable). Quality may vary.
+              <p style={{ color: statusColors.warningText, fontSize: '11px', marginBottom: '16px', fontFamily: INTER, display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'center' }}>
+                <AlertTriangle size={12} /> Rendered with Fast Canvas (FFmpeg unavailable). Quality may vary.
               </p>
             )}
-            <p style={{ color: '#64748b', fontSize: '11px', marginBottom: '32px', fontFamily: '"Inter", sans-serif' }}>
+            <p style={{ color: colors.mutedForeground, fontSize: '11px', marginBottom: '32px', fontFamily: '"JetBrains Mono", monospace' }}>
               {downloadReadyInfo.filename} • {(downloadReadyInfo.blob.size / 1024 / 1024).toFixed(1)} MB
             </p>
             <button
@@ -1071,26 +1091,29 @@ export default function App() {
               }}
               style={{
                 display: 'block', width: '100%',
-                background: 'linear-gradient(135deg, #10b981, #059669)',
-                color: 'white', padding: '18px', borderRadius: '16px',
-                fontWeight: 900, fontFamily: '"Inter", sans-serif', fontSize: '14px',
+                background: `linear-gradient(135deg, ${statusColors.success}, #059669)`,
+                color: colors.onAccent, padding: '18px', borderRadius: '16px',
+                fontWeight: 900, fontFamily: INTER, fontSize: '14px',
                 border: 'none', cursor: 'pointer',
-                boxShadow: '0 8px 30px rgba(16,185,129,0.3)', marginBottom: '12px',
-                transition: 'all 0.2s ease'
+                boxShadow: `0 8px 30px ${tint(statusColors.success, 0.3)}`, marginBottom: '12px',
+                transition: TRANSITION.smooth
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 12px 40px rgba(16,185,129,0.4)';
+                e.currentTarget.style.boxShadow = `0 12px 40px ${tint(statusColors.success, 0.4)}`;
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 8px 30px rgba(16,185,129,0.3)';
+                e.currentTarget.style.boxShadow = `0 8px 30px ${tint(statusColors.success, 0.3)}`;
               }}
             >
-              SAVE TO GALLERY
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                <Download size={16} />
+                SAVE TO GALLERY
+              </div>
             </button>
             {downloadError && (
-              <p style={{ color: '#fca5a5', fontSize: '11px', marginBottom: '12px', fontFamily: '"Inter", sans-serif' }}>
+              <p style={{ color: statusColors.errorText, fontSize: '11px', marginBottom: '12px', fontFamily: INTER }}>
                 {downloadError}
               </p>
             )}
@@ -1098,9 +1121,9 @@ export default function App() {
               onClick={() => {
                 setDownloadReadyInfo(null);
               }}
-              style={{ background: 'transparent', color: '#64748b', border: 'none', fontWeight: 700, cursor: 'pointer', fontSize: '12px', fontFamily: '"Inter", sans-serif', transition: 'all 0.2s' }}
-              onMouseEnter={(e) => e.currentTarget.style.color = '#e2e8f0'}
-              onMouseLeave={(e) => e.currentTarget.style.color = '#64748b'}
+              style={{ background: 'transparent', color: colors.mutedForeground, border: 'none', fontWeight: 700, cursor: 'pointer', fontSize: '12px', fontFamily: INTER, transition: TRANSITION.fast }}
+              onMouseEnter={(e) => e.currentTarget.style.color = colors.foreground}
+              onMouseLeave={(e) => e.currentTarget.style.color = colors.mutedForeground}
             >
               CLOSE
             </button>
@@ -1110,8 +1133,8 @@ export default function App() {
 
       <style>{`
         @keyframes pulse-glow {
-          0%, 100% { box-shadow: 0 20px 60px rgba(139,92,246,0.4), inset 0 1px 0 rgba(255,255,255,0.2); }
-          50% { box-shadow: 0 24px 80px rgba(139,92,246,0.5), inset 0 1px 0 rgba(255,255,255,0.2); }
+          0%, 100% { box-shadow: 0 20px 60px rgba(236,72,153,0.4), inset 0 1px 0 rgba(255,255,255,0.2); }
+          50% { box-shadow: 0 24px 80px rgba(236,72,153,0.5), inset 0 1px 0 rgba(255,255,255,0.2); }
         }
         @media (max-width: 640px) {
           .project-badge { display: none !important; }

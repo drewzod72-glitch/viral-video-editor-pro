@@ -1,6 +1,7 @@
 import React from 'react';
 import { VideoProject } from '../types';
-import { FolderHeart, Trash2, Calendar, ClipboardList } from 'lucide-react';
+import { FolderHeart, Trash2, Calendar, ClipboardList, ChefHat, GraduationCap, Dumbbell, Cpu, Smile, FolderOpen } from 'lucide-react';
+import { colors } from '../utils/styles';
 
 const fixDunikTypo = (str: string): string => {
   if (!str) return str;
@@ -27,12 +28,12 @@ export default function LibraryPanel({
 }: LibraryPanelProps) {
   const formatNicheIcon = (niche: string) => {
     switch (niche) {
-      case 'cooking': return '🍳';
-      case 'education': return '🧠';
-      case 'fitness': return '💪';
-      case 'tech': return '🖥️';
-      case 'comedy': return '🎭';
-      default: return '💎';
+      case 'cooking': return <ChefHat size={20} color={colors.primary} />;
+      case 'education': return <GraduationCap size={20} color={colors.primary} />;
+      case 'fitness': return <Dumbbell size={20} color={colors.primary} />;
+      case 'tech': return <Cpu size={20} color={colors.primary} />;
+      case 'comedy': return <Smile size={20} color={colors.primary} />;
+      default: return <FolderOpen size={20} color={colors.primary} />;
     }
   };
 

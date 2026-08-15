@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { VideoProject, SubtitleItem } from '../types';
 import { runDetectCuts } from '../utils/groqClient';
-import { Type, Check, Plus, Edit2, Clock, Trash2, RotateCcw, Scissors, Sparkles, Info } from 'lucide-react';
+import { Type, Check, Plus, Edit2, Clock, Trash2, RotateCcw, Scissors, Sparkles, Info, Lightbulb, FileText } from 'lucide-react';
 
 const fixDunikTypo = (str: string): string => {
   if (!str) return str;
@@ -133,7 +133,7 @@ export default function EditCaptionTimeline({
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px' }}>
         <div>
           <h2 style={{ fontWeight: 900, fontSize: '16px', color: 'white', display: 'flex', alignItems: 'center', gap: '10px', fontFamily: '"Inter", sans-serif' }}>
-            <span style={{ color: '#8b5cf6' }}>📝</span> 2. Editable Transcription Backlog
+            <span style={{ color: '#EC4899' }}><FileText size={18} /></span> 2. Editable Transcription Backlog
           </h2>
           <p style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
             Edit any timing or text overlays directly below.
@@ -151,12 +151,12 @@ export default function EditCaptionTimeline({
 
       {/* AI Smart Cut Detection Panel */}
       <div style={{ background: 'rgba(2,6,23,0.7)', borderRadius: '16px', padding: '16px', marginBottom: '20px', border: '1px solid rgba(30,41,59,0.4)', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', top: 0, right: 0, width: '120px', height: '120px', background: 'rgba(139,92,246,0.05)', borderRadius: '50%', filter: 'blur(40px)', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', top: 0, right: 0, width: '120px', height: '120px', background: 'rgba(236,72,149,0.05)', borderRadius: '50%', filter: 'blur(40px)', pointerEvents: 'none' }} />
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Scissors style={{ color: '#8b5cf6', width: '18px', height: '18px' }} />
+            <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(236,72,149,0.1)', border: '1px solid rgba(236,72,149,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Scissors style={{ color: '#EC4899', width: '18px', height: '18px' }} />
             </div>
             <div>
               <h3 style={{ fontWeight: 700, fontSize: '13px', color: 'white', fontFamily: '"Inter", sans-serif' }}>
@@ -175,7 +175,7 @@ export default function EditCaptionTimeline({
             onClick={triggerCutDetection}
             style={{
               padding: '10px 16px', borderRadius: '10px', border: 'none',
-              background: isAnalyzingCuts ? '#18181b' : 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+              background: isAnalyzingCuts ? '#18181b' : 'linear-gradient(135deg, #EC4899, #DB2777)',
               color: 'white', fontWeight: 700, fontSize: '11px', cursor: isAnalyzingCuts ? 'default' : 'pointer',
               fontFamily: '"Inter", sans-serif', display: 'flex', alignItems: 'center', gap: '8px', alignSelf: 'flex-start'
             }}
@@ -188,7 +188,7 @@ export default function EditCaptionTimeline({
         {isAnalyzingCuts && (
           <div style={{ marginTop: '12px' }}>
             <div style={{ height: '4px', background: '#18181b', borderRadius: '2px', overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: '45%', background: 'linear-gradient(90deg, #8b5cf6, #ec4899)', borderRadius: '2px', animation: 'pulse 1.5s ease-in-out infinite' }} />
+              <div style={{ height: '100%', width: '45%', background: 'linear-gradient(90deg, #EC4899, #ec4899)', borderRadius: '2px', animation: 'pulse 1.5s ease-in-out infinite' }} />
             </div>
             <div style={{ marginTop: '8px', fontSize: '10px', color: '#475569', fontFamily: 'monospace' }}>
               STAGES: [1/3] Mapping sound frequencies...
@@ -211,7 +211,7 @@ export default function EditCaptionTimeline({
                 }}
               >
                 <span style={{ fontWeight: 600 }}>{cut.label}</span>
-                <span style={{ fontFamily: 'monospace', color: '#8b5cf6', fontSize: '10px' }}>{cut.timestamp.toFixed(1)}s</span>
+                <span style={{ fontFamily: 'monospace', color: '#EC4899', fontSize: '10px' }}>{cut.timestamp.toFixed(1)}s</span>
               </button>
             ))}
           </div>
@@ -219,8 +219,8 @@ export default function EditCaptionTimeline({
 
         {!isAnalyzingCuts && detectedCuts.length === 0 && (
           <div style={{ marginTop: '12px', padding: '10px', borderRadius: '8px', border: '1px dashed #27272a', textAlign: 'center' }}>
-            <p style={{ fontSize: '11px', color: '#475569' }}>
-              💡 Click "Scan Visual Beats" to map transitions automatically.
+            <p style={{ fontSize: '11px', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+              <Lightbulb size={14} color="#f59e0b" /> Click "Scan Visual Beats" to map transitions automatically.
             </p>
           </div>
         )}
@@ -229,7 +229,7 @@ export default function EditCaptionTimeline({
       {sortedSubtitles.length === 0 ? (
         <div style={{ padding: '24px', textAlign: 'center', background: 'rgba(2,6,23,0.4)', borderRadius: '12px', border: '1px dashed #27272a' }}>
           <p style={{ fontSize: '12px', color: '#475569' }}>No script timelines detected.</p>
-          <button onClick={addSub} style={{ marginTop: '12px', padding: '8px 16px', background: '#8b5cf6', color: 'white', borderRadius: '8px', fontWeight: 700, fontSize: '12px', border: 'none', cursor: 'pointer', fontFamily: '"Inter", sans-serif' }}>
+          <button onClick={addSub} style={{ marginTop: '12px', padding: '8px 16px', background: '#EC4899', color: 'white', borderRadius: '8px', fontWeight: 700, fontSize: '12px', border: 'none', cursor: 'pointer', fontFamily: '"Inter", sans-serif' }}>
             Create Initial Line
           </button>
         </div>
@@ -243,7 +243,7 @@ export default function EditCaptionTimeline({
                 key={sub.id}
                 style={{
                   padding: '12px', borderRadius: '12px', border: '1px solid rgba(30,41,59,0.4)',
-                  background: isEditing ? 'rgba(139,92,246,0.05)' : 'rgba(2,6,23,0.3)',
+                  background: isEditing ? 'rgba(236,72,149,0.05)' : 'rgba(2,6,23,0.3)',
                   marginBottom: '8px', transition: 'all 0.2s'
                 }}
               >
@@ -263,10 +263,10 @@ export default function EditCaptionTimeline({
                         />
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                           <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 700 }}>Start</span>
-                          <input type="number" step={0.1} min={0} value={editStart} onChange={(e) => setEditStart(Number(e.target.value))} style={{ width: '60px', fontSize: '11px', fontFamily: 'monospace', textAlign: 'center', background: 'transparent', color: '#8b5cf6', border: 'none', outline: 'none' }} />
+                          <input type="number" step={0.1} min={0} value={editStart} onChange={(e) => setEditStart(Number(e.target.value))} style={{ width: '60px', fontSize: '11px', fontFamily: 'monospace', textAlign: 'center', background: 'transparent', color: '#EC4899', border: 'none', outline: 'none' }} />
                           <span style={{ color: '#27272a', fontSize: '11px' }}>|</span>
                           <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 700 }}>End</span>
-                          <input type="number" step={0.1} min={0} value={editEnd} onChange={(e) => setEditEnd(Number(e.target.value))} style={{ width: '60px', fontSize: '11px', fontFamily: 'monospace', textAlign: 'center', background: 'transparent', color: '#8b5cf6', border: 'none', outline: 'none' }} />
+                          <input type="number" step={0.1} min={0} value={editEnd} onChange={(e) => setEditEnd(Number(e.target.value))} style={{ width: '60px', fontSize: '11px', fontFamily: 'monospace', textAlign: 'center', background: 'transparent', color: '#EC4899', border: 'none', outline: 'none' }} />
                         </div>
                       </div>
                     ) : (
@@ -295,7 +295,7 @@ export default function EditCaptionTimeline({
 
                   <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
                     {isEditing ? (
-                      <button onClick={() => saveEdit(sub.id)} style={{ padding: '6px 10px', background: '#8b5cf6', color: 'white', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '11px' }}>
+                      <button onClick={() => saveEdit(sub.id)} style={{ padding: '6px 10px', background: '#EC4899', color: 'white', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '11px' }}>
                         <Check style={{ width: '14px', height: '14px' }} />
                       </button>
                     ) : (

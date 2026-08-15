@@ -4,14 +4,16 @@ import { FREE_MUSIC_TRACKS } from '../data';
 import { ThumbnailGenerator } from './ThumbnailGenerator';
 import { playViralSFX } from '../utils/sfx';
 import { LUT_PRESETS, TRANSITION_PRESETS } from '../utils/ffmpegWasmRenderer';
+import { Play, Pause, SkipBack, SkipForward, Heart, MessageCircle, Share2, Music, Pause as PauseIcon, CheckCircle, Square, Flame, Coffee, Clapperboard, Disc } from 'lucide-react';
+import { colors, borderRadius, INTER, statusColors, TRANSITION, tint } from '../utils/styles';
 
 const fixDunikTypo = (str: string) => str?.replace(/dunik/gi, 'Dunk') || '';
 
 const MOOD_CATEGORIES = [
-  { key: 'hype', label: 'Hype', emoji: '🔥', color: '#ef4444' },
-  { key: 'lofi', label: 'Lofi', emoji: '☕', color: '#f59e0b' },
-  { key: 'cinematic', label: 'Cinematic', emoji: '🎬', color: '#8b5cf6' },
-  { key: 'chill', label: 'Tech / Chill', emoji: '💿', color: '#06b6d4' },
+  { key: 'hype', label: 'Hype', icon: <Flame size={14} color={statusColors.warning} />, color: statusColors.warning },
+  { key: 'lofi', label: 'Lofi', icon: <Coffee size={14} color={statusColors.warning} />, color: statusColors.warning },
+  { key: 'cinematic', label: 'Cinematic', icon: <Clapperboard size={14} color={colors.primary} />, color: colors.primary },
+  { key: 'chill', label: 'Tech / Chill', icon: <Disc size={14} color={statusColors.cyan} />, color: statusColors.cyan },
 ] as const;
 
 export default function VideoPlayerWorkspace({ project, activeMusicTrack, activeClipId, onClipSelect, onUpdateProject }: any) {
@@ -420,7 +422,7 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
             }}>
               <div style={{
                 width: '64px', height: '64px', borderRadius: '50%',
-                background: 'rgba(139,92,246,0.9)',
+                background: 'rgba(236,72,149,0.9)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 boxShadow: '0 10px 40px rgba(0,0,0,0.5)',
                 backdropFilter: 'blur(8px)',
@@ -452,7 +454,7 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
             {/* Profile */}
             <div style={{
               width: '36px', height: '36px', borderRadius: '50%',
-              background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
+              background: 'linear-gradient(135deg, #EC4899, #06b6d4)',
               border: '2px solid white',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: '14px', fontWeight: 900, color: 'white'
@@ -505,9 +507,9 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
               background: 'linear-gradient(135deg, #1a1a2e, #0f0f23)',
               border: '2px solid #333',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '10px', animation: 'spin 4s linear infinite'
+              animation: 'spin 4s linear infinite'
             }}>
-              🎵
+              <Music size={16} color="#94a3b8" />
             </div>
           </div>
         </div>
@@ -535,7 +537,7 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
             <div style={{
               position: 'absolute', left: 0, top: 0, bottom: 0,
               width: `${Math.max(0, Math.min(100, progressPct))}%`,
-              background: 'linear-gradient(90deg, rgba(139,92,246,0.3), rgba(139,92,246,0.15))',
+              background: 'linear-gradient(90deg, rgba(236,72,149,0.3), rgba(236,72,149,0.15))',
               borderRadius: '8px',
               transition: isDragging ? 'none' : 'width 0.1s linear'
             }} />
@@ -548,8 +550,8 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
                 <div key={h.id} style={{
                   position: 'absolute', left: `${startPct}%`, top: 0, bottom: 0,
                   width: `${widthPct}%`,
-                  borderLeft: activeClipId === h.id ? '2px solid #8b5cf6' : '1px solid rgba(139,92,246,0.3)',
-                  background: activeClipId === h.id ? 'rgba(139,92,246,0.05)' : 'transparent'
+                  borderLeft: activeClipId === h.id ? '2px solid #EC4899' : '1px solid rgba(236,72,149,0.3)',
+                  background: activeClipId === h.id ? 'rgba(236,72,149,0.05)' : 'transparent'
                 }} />
               );
             })}
@@ -586,8 +588,8 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
             {/* Playhead */}
             <div style={{
               position: 'absolute', left: `${progressPct}%`, top: 0, bottom: 0,
-              width: '2px', background: '#8b5cf6',
-              boxShadow: '0 0 8px rgba(139,92,246,0.6)',
+              width: '2px', background: '#EC4899',
+              boxShadow: '0 0 8px rgba(236,72,149,0.6)',
               transform: 'translateX(-1px)'
             }} />
           </div>
@@ -626,7 +628,7 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
             +5s ⏩
           </button>
           <button onClick={() => onClipSelect(null)} style={{
-            padding: '10px 16px', background: !activeClipId ? 'rgba(139,92,246,0.2)' : '#18181b',
+            padding: '10px 16px', background: !activeClipId ? 'rgba(236,72,149,0.2)' : '#18181b',
             color: 'white', borderRadius: '10px', border: '1px solid #27272a',
             fontWeight: 700, fontSize: '10px', cursor: 'pointer',
             whiteSpace: 'nowrap', fontFamily: '"Inter", sans-serif',
@@ -635,7 +637,7 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
           {activeHighlights.map((h: any) => (
             <button key={h.id} onClick={() => { onClipSelect(h.id); vRef.current!.currentTime = h.start; }} style={{
               padding: '10px 14px',
-              background: activeClipId === h.id ? 'rgba(139,92,246,0.2)' : '#18181b',
+              background: activeClipId === h.id ? 'rgba(236,72,149,0.2)' : '#18181b',
               color: 'white', borderRadius: '10px', border: '1px solid #27272a',
               fontWeight: 700, fontSize: '9px', whiteSpace: 'nowrap',
               cursor: 'pointer', fontFamily: '"Inter", sans-serif',
@@ -691,7 +693,7 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
                 }
               }}
             >
-              <span>{cat.emoji}</span>
+              <span style={{ display: 'flex', alignItems: 'center' }}>{cat.icon}</span>
               <span>{cat.label}</span>
             </button>
           ))}
@@ -702,8 +704,8 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
           {filteredTracks.map((t) => (
             <button key={t.id} onClick={() => updateSettings({ selectedMusicTrackId: t.id })} style={{
               padding: '12px', borderRadius: '12px',
-              border: project.selectedMusicTrackId === t.id ? '1px solid rgba(139,92,246,0.5)' : '1px solid #27272a',
-              background: project.selectedMusicTrackId === t.id ? 'rgba(139,92,246,0.08)' : '#020617',
+              border: project.selectedMusicTrackId === t.id ? '1px solid rgba(236,72,149,0.5)' : '1px solid #27272a',
+              background: project.selectedMusicTrackId === t.id ? 'rgba(236,72,149,0.08)' : '#020617',
               color: 'white', fontWeight: 700, textAlign: 'left', fontSize: '11px',
               cursor: 'pointer', fontFamily: '"Inter", sans-serif',
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -729,7 +731,7 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
                 <div style={{ fontSize: '9px', color: '#64748b', fontWeight: 500, marginTop: '1px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{t.genre}</div>
               </div>
               <span style={{
-                fontSize: '9px', color: project.selectedMusicTrackId === t.id ? '#8b5cf6' : '#475569',
+                fontSize: '9px', color: project.selectedMusicTrackId === t.id ? '#EC4899' : '#475569',
                 fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px'
               }}>
                 {project.selectedMusicTrackId === t.id ? '● Active' : '○'}
@@ -745,7 +747,7 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
             type="range" min="0" max="1" step="0.01"
             value={volume}
             onChange={(e) => setVolume(parseFloat(e.target.value))}
-            style={{ flex: 1, accentColor: '#8b5cf6', height: '4px', cursor: 'pointer' }}
+            style={{ flex: 1, accentColor: '#EC4899', height: '4px', cursor: 'pointer' }}
           />
           <span style={{
             fontSize: '11px', color: '#a1a1aa', fontWeight: 600,
@@ -782,9 +784,9 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
                 onClick={() => updateSettings({ colorGrade: key as any })}
                 style={{
                   padding: '6px 12px', borderRadius: '8px',
-                  border: project.colorGrade === key ? '1px solid rgba(139,92,246,0.5)' : '1px solid #27272a',
-                  background: project.colorGrade === key ? 'rgba(139,92,246,0.08)' : '#020617',
-                  color: project.colorGrade === key ? '#c4b5fd' : '#a1a1aa',
+                  border: project.colorGrade === key ? '1px solid rgba(236,72,149,0.5)' : '1px solid #27272a',
+                  background: project.colorGrade === key ? 'rgba(236,72,149,0.08)' : '#020617',
+                  color: project.colorGrade === key ? '#f9a8d4' : '#a1a1aa',
                   fontSize: '9px', fontWeight: 700, cursor: 'pointer',
                   fontFamily: '"Inter", sans-serif', textTransform: 'uppercase',
                   letterSpacing: '0.3px', transition: 'all 0.2s'
@@ -853,19 +855,19 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
         {/* Effect Toggles */}
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           <label style={{ fontSize: '10px', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-            <input type="checkbox" checked={project.enableZooms} onChange={(e) => updateSettings({ enableZooms: e.target.checked })} style={{ accentColor: '#8b5cf6' }} />
+            <input type="checkbox" checked={project.enableZooms} onChange={(e) => updateSettings({ enableZooms: e.target.checked })} style={{ accentColor: '#EC4899' }} />
             Zooms
           </label>
           <label style={{ fontSize: '10px', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-            <input type="checkbox" checked={project.shakeOnPunch} onChange={(e) => updateSettings({ shakeOnPunch: e.target.checked })} style={{ accentColor: '#8b5cf6' }} />
+            <input type="checkbox" checked={project.shakeOnPunch} onChange={(e) => updateSettings({ shakeOnPunch: e.target.checked })} style={{ accentColor: '#EC4899' }} />
             Shake
           </label>
           <label style={{ fontSize: '10px', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-            <input type="checkbox" checked={project.enableSubtitles} onChange={(e) => updateSettings({ enableSubtitles: e.target.checked })} style={{ accentColor: '#8b5cf6' }} />
+            <input type="checkbox" checked={project.enableSubtitles} onChange={(e) => updateSettings({ enableSubtitles: e.target.checked })} style={{ accentColor: '#EC4899' }} />
             Subtitles
           </label>
           <label style={{ fontSize: '10px', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-            <input type="checkbox" checked={project.enableColorGrade} onChange={(e) => updateSettings({ enableColorGrade: e.target.checked })} style={{ accentColor: '#8b5cf6' }} />
+            <input type="checkbox" checked={project.enableColorGrade} onChange={(e) => updateSettings({ enableColorGrade: e.target.checked })} style={{ accentColor: '#EC4899' }} />
             Color Grade
           </label>
         </div>

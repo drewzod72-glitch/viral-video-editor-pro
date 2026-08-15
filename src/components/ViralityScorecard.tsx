@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { detectViralMoments } from '../utils/ffmpegWasmRenderer';
+import { Flame, Gem, Sparkles, Dumbbell, BarChart3, Rocket, Target, TrendingUp, Timer, Heart, Eye } from 'lucide-react';
 
 const fixDunikTypo = (str: string) => str?.replace(/dunik/gi, 'Dunk') || '';
 
@@ -49,10 +50,10 @@ function ScoreRing({ score, size = 88, strokeWidth = 6 }: { score: number; size?
 }
 
 const BOOSTER_PRESETS = [
-  { id: 'mrbeast', label: 'MrBeast Style', icon: '🔥', desc: 'High-octane hooks, fast cuts, bold claims' },
-  { id: 'hormozi', label: 'Hormozi Style', icon: '💎', desc: 'Direct response, pain-agitation, value bombs' },
-  { id: 'asmr', label: 'Luxury ASMR', icon: '✨', desc: 'Satisfying textures, whisper pacing, premium feel' },
-  { id: 'fitness', label: 'Fitness Hype', icon: '💪', desc: 'Aggressive motivation, beat drops, callouts' },
+  { id: 'mrbeast', label: 'MrBeast Style', icon: <Flame size={18} color="#f59e0b" />, desc: 'High-octane hooks, fast cuts, bold claims' },
+  { id: 'hormozi', label: 'Hormozi Style', icon: <Gem size={18} color="#EC4899" />, desc: 'Direct response, pain-agitation, value bombs' },
+  { id: 'asmr', label: 'Luxury ASMR', icon: <Sparkles size={18} color="#06b6d4" />, desc: 'Satisfying textures, whisper pacing, premium feel' },
+  { id: 'fitness', label: 'Fitness Hype', icon: <Dumbbell size={18} color="#10b981" />, desc: 'Aggressive motivation, beat drops, callouts' },
 ];
 
 export default function ViralityScorecard({ project, onUpdateProject }: any) {
@@ -167,8 +168,8 @@ export default function ViralityScorecard({ project, onUpdateProject }: any) {
             onClick={() => setActiveTab(tab)}
             style={{
               flex: 1, padding: '10px', border: 'none', borderRadius: '10px',
-              background: activeTab === tab ? 'rgba(139,92,246,0.25)' : 'transparent',
-              color: activeTab === tab ? '#e9d5ff' : '#71717a',
+              background: activeTab === tab ? 'rgba(236,72,149,0.25)' : 'transparent',
+              color: activeTab === tab ? '#fbcfe8' : '#71717a',
               fontWeight: 800, fontSize: '10px', fontFamily: '"Inter", sans-serif',
               cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '1px',
               transition: 'all 0.2s', position: 'relative'
@@ -186,7 +187,7 @@ export default function ViralityScorecard({ project, onUpdateProject }: any) {
               }
             }}
           >
-            {tab === 'diagnostics' ? '📊 Scorecard' : '🚀 Booster'}
+            {tab === 'diagnostics' ? <><BarChart3 size={14} style={{ marginRight: '6px' }} />Scorecard</> : <><Rocket size={14} style={{ marginRight: '6px' }} />Booster</>}
           </button>
         ))}
       </div>
@@ -221,10 +222,10 @@ export default function ViralityScorecard({ project, onUpdateProject }: any) {
               gap: '10px'
             }}>
               {[
-                { label: 'Hook Strength', value: project?.viralityCriteria?.hook ?? 70, color: '#8b5cf6', icon: '🎯' },
-                { label: 'Pacing', value: project?.viralityCriteria?.pacing ?? 70, color: '#06b6d4', icon: '⏱' },
-                { label: 'Emotion', value: project?.viralityCriteria?.emotion ?? 70, color: '#ec4899', icon: '❤' },
-                { label: 'Visual Contrast', value: project?.viralityCriteria?.visualContrast ?? 70, color: '#10b981', icon: '👁' },
+                { label: 'Hook Strength', value: project?.viralityCriteria?.hook ?? 70, color: '#EC4899', icon: <Target size={16} color="#EC4899" /> },
+                { label: 'Pacing', value: project?.viralityCriteria?.pacing ?? 70, color: '#06b6d4', icon: <Timer size={16} color="#06b6d4" /> },
+                { label: 'Emotion', value: project?.viralityCriteria?.emotion ?? 70, color: '#EC4899', icon: <Heart size={16} color="#EC4899" /> },
+                { label: 'Visual Contrast', value: project?.viralityCriteria?.visualContrast ?? 70, color: '#10b981', icon: <Eye size={16} color="#10b981" /> },
               ].map((metric) => (
                 <div key={metric.label} style={{
                   background: 'rgba(2,6,23,0.6)',
@@ -300,7 +301,7 @@ export default function ViralityScorecard({ project, onUpdateProject }: any) {
                   disabled={isBoosting}
                   style={{
                     background: 'rgba(2,6,23,0.4)',
-                    border: boostTarget === preset.id ? '1px solid rgba(139,92,246,0.5)' : '1px solid rgba(30,41,59,0.5)',
+                    border: boostTarget === preset.id ? '1px solid rgba(236,72,149,0.5)' : '1px solid rgba(30,41,59,0.5)',
                     padding: '16px',
                     borderRadius: '14px',
                     color: 'white',
@@ -318,13 +319,13 @@ export default function ViralityScorecard({ project, onUpdateProject }: any) {
                   }}
                   onMouseEnter={(e) => {
                     if (!isBoosting || boostTarget === preset.id) {
-                      e.currentTarget.style.borderColor = 'rgba(139,92,246,0.4)';
+                      e.currentTarget.style.borderColor = 'rgba(236,72,149,0.4)';
                       e.currentTarget.style.transform = 'translateY(-2px)';
-                      e.currentTarget.style.background = 'rgba(139,92,246,0.05)';
+                      e.currentTarget.style.background = 'rgba(236,72,149,0.05)';
                     }
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = boostTarget === preset.id ? 'rgba(139,92,246,0.5)' : 'rgba(30,41,59,0.5)';
+                    e.currentTarget.style.borderColor = boostTarget === preset.id ? 'rgba(236,72,149,0.5)' : 'rgba(30,41,59,0.5)';
                     e.currentTarget.style.transform = 'translateY(0)';
                     e.currentTarget.style.background = 'rgba(2,6,23,0.4)';
                   }}
@@ -345,11 +346,11 @@ export default function ViralityScorecard({ project, onUpdateProject }: any) {
             {isBoosting && (
               <div style={{
                 textAlign: 'center', padding: '16px',
-                background: 'rgba(139,92,246,0.08)',
+                background: 'rgba(236,72,149,0.08)',
                 borderRadius: '14px',
-                border: '1px solid rgba(139,92,246,0.2)'
+                border: '1px solid rgba(236,72,149,0.2)'
               }}>
-                <div style={{ fontSize: '11px', color: '#8b5cf6', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px' }}>
+                <div style={{ fontSize: '11px', color: '#EC4899', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px' }}>
                   Engineering new vibe...
                 </div>
               </div>
