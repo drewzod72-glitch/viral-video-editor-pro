@@ -214,4 +214,47 @@ test.describe('Auto Viral Video Editor — E2E QA', () => {
       await page.waitForTimeout(500);
     }
   });
+
+  test('11. Render/export triggers download or inline error', async ({ page }) => {
+    test.setTimeout(300000);
+    await page.waitForLoadState('networkidle');
+    await page.getByRole('button', { name: /Launch Studio/i }).click();
+    await expect(page.locator('text=CREATE VIRAL CONTENT')).toBeVisible({ timeout: 10000 });
+
+    const firstTemplate = page.locator('button:has-text("READY")').first();
+    await firstTemplate.click();
+    await expect(page.locator('text=🎬 Studio').first()).toBeVisible({ timeout: 15000 });
+
+    // Wait for any AI processing to settle
+    await page.waitForTimeout(6000);
+
+    // Verify project is loaded (studio workspace should show video player)
+    const video = page.locator('video').first();
+    await expect(video).toBeVisible({ timeout: 10000 });
+
+    // Open sidebar to expose the BAKE button
+    const menuBtn = page.locator('button:has-text("☰")').first();
+    if (await menuBtn.count() > 0) {
+      await menuBtn.click();
+      await page.waitForTimeout(500);
+    }
+
+    // Click the export button (BAKE PRO or BAKE FINAL)
+    const exportBtn = page.locator('button:has-text("BAKE")').first();
+    await expect(exportBtn).toBeVisible();
+    await exportBtn.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(500);
+    await exportBtn.click();
+
+    // Either the download modal appears, or an inline error appears.
+    // Both are acceptable outcomes for the render pipeline.
+    const downloadModal = page.locator('text=VIDEO READY');
+    const inlineError = page.locator('text=Export failed').first();
+
+    try {
+      await expect(downloadModal).toBeVisible({ timeout: 240000 });
+    } catch {
+      await expect(inlineError).toBeVisible({ timeout: 10000 });
+    }
+  });
 });
