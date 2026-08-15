@@ -6,20 +6,28 @@
   --font-display: "Space Grotesk", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
-  --color-brand-purple: #8b5cf6;
-  --color-brand-cyan: #06b6d4;
-  --color-brand-pink: #ec4899;
-  --color-brand-yellow: #eab308;
-  --color-brand-green: #22c55e;
+  --color-primary: #EC4899;
+  --color-on-primary: #000000;
+  --color-secondary: #DB2777;
+  --color-on-secondary: #FFFFFF;
+  --color-accent: #2563EB;
+  --color-on-accent: #FFFFFF;
+  --color-background: #0F172A;
+  --color-foreground: #FFFFFF;
+  --color-card: #192134;
+  --color-card-foreground: #FFFFFF;
+  --color-muted: #201A32;
+  --color-muted-foreground: #94A3B8;
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-destructive: #DC2626;
+  --color-on-destructive: #FFFFFF;
+  --color-ring: #EC4899;
 
-  /* Dark Forge palette */
-  --color-forge-bg: #020617;
-  --color-forge-surface: #09090b;
-  --color-forge-card: #0f0f13;
-  --color-forge-border: rgba(30, 41, 59, 0.5);
-  --color-forge-text: #e2e8f0;
-  --color-forge-muted: #64748b;
-  --color-forge-accent: #8b5cf6;
+  /* Legacy aliases kept for className-based utilities */
+  --color-brand-purple: var(--color-primary);
+  --color-brand-pink: var(--color-primary);
+  --color-brand-cyan: var(--color-accent);
+  --color-brand-green: #22c55e;
 
   /* Design tokens */
   --radius-sm: 8px;
@@ -30,8 +38,8 @@
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
   --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-  --shadow-glow-purple: 0 0 40px -10px rgba(139, 92, 246, 0.4);
-  --shadow-glow-cyan: 0 0 40px -10px rgba(6, 182, 212, 0.4);
+  --shadow-glow-purple: 0 0 40px -10px rgba(236, 72, 153, 0.4);
+  --shadow-glow-cyan: 0 0 40px -10px rgba(37, 99, 235, 0.4);
 }
 
 /* ─── Safe Area Insets ──────────────────────────────────────────────────── */
@@ -56,8 +64,8 @@ html {
 
 body {
   margin: 0;
-  background-color: var(--color-forge-bg);
-  color: var(--color-forge-text);
+  background-color: var(--color-background);
+  color: var(--color-foreground);
   font-family: var(--font-sans);
   overflow-y: auto;
   -webkit-font-smoothing: antialiased;
@@ -77,6 +85,14 @@ body {
 ::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.15); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.3); }
 
+/* ─── Reduced Motion ───────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
 /* ─── Animations ───────────────────────────────────────────────────────── */
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -87,7 +103,10 @@ body {
 @keyframes scaleIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
 @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-@keyframes pulseBorder { 0%, 100% { border-color: rgba(139,92,246,0.4); } 50% { border-color: rgba(6,182,212,0.8); } }
+@keyframes pulseBorder {
+  0%, 100% { border-color: rgba(236, 72, 153, 0.4); }
+  50% { border-color: rgba(37, 99, 235, 0.8); }
+}
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
@@ -97,8 +116,8 @@ body {
   50% { transform: translateY(-10px); }
 }
 @keyframes pulseGlow {
-  0%, 100% { box-shadow: 0 0 20px rgba(139,92,246,0.3); }
-  50% { box-shadow: 0 0 40px rgba(139,92,246,0.5); }
+  0%, 100% { box-shadow: 0 0 20px rgba(236, 72, 153, 0.3); }
+  50% { box-shadow: 0 0 40px rgba(236, 72, 153, 0.5); }
 }
 @keyframes scaleIn {
   from { opacity: 0; transform: scale(0.9); }
@@ -182,13 +201,13 @@ button, a, input, select, textarea {
 
 /* ─── Focus States ─────────────────────────────────────────────────────── */
 button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
-  outline: 2px solid var(--color-brand-purple);
+  outline: 2px solid var(--color-ring);
   outline-offset: 2px;
 }
 
 /* ─── Selection ────────────────────────────────────────────────────────── */
 ::selection {
-  background: rgba(139, 92, 246, 0.3);
+  background: rgba(236, 72, 153, 0.3);
   color: white;
 }
 
@@ -207,26 +226,26 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 
 .card {
   background: linear-gradient(180deg, rgba(24,24,27,0.95) 0%, rgba(9,9,11,0.98) 100%);
-  border: 1px solid var(--color-forge-border);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
   backdrop-filter: blur(16px);
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--color-brand-purple), #7c3aed);
-  color: white;
+  background: linear-gradient(135deg, var(--color-accent), var(--color-secondary));
+  color: var(--color-on-accent);
   border: none;
   border-radius: var(--radius-md);
   padding: 12px 24px;
   font-weight: 700;
   font-size: 13px;
   cursor: pointer;
-  box-shadow: var(--shadow-glow-purple);
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.4);
   transition: all 0.2s ease;
 }
 .btn-primary:hover {
   transform: translateY(-1px);
-  box-shadow: 0 0 50px -10px rgba(139, 92, 246, 0.5);
+  box-shadow: 0 0 32px -10px rgba(139, 92, 246, 0.5);
 }
 .btn-primary:active {
   transform: translateY(0);
@@ -234,8 +253,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 
 .btn-ghost {
   background: transparent;
-  color: var(--color-forge-muted);
-  border: 1px solid var(--color-forge-border);
+  color: var(--color-muted-foreground);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   padding: 8px 16px;
   font-weight: 600;
@@ -245,23 +264,23 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 }
 .btn-ghost:hover {
   background: rgba(255,255,255,0.04);
-  color: var(--color-forge-text);
+  color: var(--color-foreground);
   border-color: rgba(255,255,255,0.1);
 }
 
 .input-field {
   background: rgba(2, 6, 23, 0.6);
-  border: 1px solid var(--color-forge-border);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   padding: 12px 16px;
-  color: var(--color-forge-text);
+  color: var(--color-foreground);
   font-size: 13px;
   outline: none;
   transition: all 0.2s ease;
 }
 .input-field:focus {
-  border-color: var(--color-brand-purple);
-  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.1);
 }
 
 .badge {
@@ -279,7 +298,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .section-label {
   font-size: 10px;
   font-weight: 800;
-  color: var(--color-forge-muted);
+  color: var(--color-muted-foreground);
   text-transform: uppercase;
   letter-spacing: 1.5px;
   margin-bottom: 10px;
