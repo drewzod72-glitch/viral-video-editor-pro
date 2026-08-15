@@ -313,7 +313,7 @@ export async function renderVideoInBrowser(
         0
       );
       const transitionFrames = safeHighlights.length > 1 ? (safeHighlights.length - 1) * 16 : 0; // 8 fade in + 8 fade out per transition
-      const totalFrames = Math.max(1, Math.floor(totalDuration * FPS) + transitionFrames);
+      const totalFrameCount = Math.max(1, Math.floor(totalDuration * FPS) + transitionFrames);
 
       let currentFrame = 0;
       let lastSubId: string | null = null;
@@ -491,7 +491,7 @@ export async function renderVideoInBrowser(
           // ── PROGRESS ────────────────────────────────────────────────────
           currentFrame++;
           framesDrawn++;
-          const overallProgress = Math.min(95, Math.round((currentFrame / totalFrames) * 100));
+          const overallProgress = Math.min(95, Math.round((currentFrame / totalFrameCount) * 100));
           onProgress(overallProgress);
 
           // Small timing buffer to keep FPS steady
