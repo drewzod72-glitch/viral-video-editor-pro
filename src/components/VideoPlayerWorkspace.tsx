@@ -630,7 +630,26 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
             fontWeight: 700, fontSize: '10px', cursor: 'pointer',
             whiteSpace: 'nowrap', fontFamily: '"Inter", sans-serif',
             transition: 'all 0.2s'
-          }}>FULL</button>
+          }}
+          onMouseEnter={(e) => {
+            if (!activeClipId) {
+              e.currentTarget.style.background = 'rgba(139,92,246,0.3)';
+              e.currentTarget.style.borderColor = 'rgba(139,92,246,0.4)';
+            } else {
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
+              e.currentTarget.style.background = '#27272a';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!activeClipId) {
+              e.currentTarget.style.background = 'rgba(139,92,246,0.2)';
+              e.currentTarget.style.borderColor = '#27272a';
+            } else {
+              e.currentTarget.style.borderColor = '#27272a';
+              e.currentTarget.style.background = '#18181b';
+            }
+          }}
+          >FULL</button>
           {activeHighlights.map((h: any) => (
             <button key={h.id} onClick={() => { onClipSelect(h.id); vRef.current!.currentTime = h.start; }} style={{
               padding: '10px 14px',
@@ -640,7 +659,20 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
               cursor: 'pointer', fontFamily: '"Inter", sans-serif',
               transition: 'all 0.2s',
               textTransform: 'uppercase', letterSpacing: '0.3px'
-            }}>{h.title.toUpperCase()}</button>
+            }}
+            onMouseEnter={(e) => {
+              if (activeClipId !== h.id) {
+                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
+                e.currentTarget.style.background = '#27272a';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (activeClipId !== h.id) {
+                e.currentTarget.style.borderColor = '#27272a';
+                e.currentTarget.style.background = '#18181b';
+              }
+            }}
+            >{h.title.toUpperCase()}</button>
           ))}
         </div>
       </div>
