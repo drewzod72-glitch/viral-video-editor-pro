@@ -540,6 +540,7 @@ export async function renderVideoInBrowser(
       }
 
       // ── FINALIZE ─────────────────────────────────────────────────────
+<<<<<<< ours
         const finishRender = async (): Promise<{ blob: Blob; extension: string; valid: boolean }> => {
           video.pause();
           recorder.stop();
@@ -590,6 +591,57 @@ export async function renderVideoInBrowser(
           return result;
         };
 
+=======
+        const finishRender = async () => {
+          video.pause();
+          recorder.stop();
+
+          await new Promise<void>((res) => {
+            recorder.onstop = () => {
+              const finalBlob = new Blob(chunks, { type: mimeType });
+
+              // Validate output before returning (Kilo reliability)
+              const isValid = finalBlob.size > 500_000;
+              if (!isValid) {
+                console.warn('[Forge] Output validation failed: blob too small', finalBlob.size);
+              }
+
+              // ── FULL MEMORY DISPOSAL ────────────────────────────────────
+              video.removeAttribute('src');
+              video.load();
+              video.remove();
+
+              if (videoAudioEl) {
+                videoAudioEl.pause();
+                videoAudioEl.removeAttribute('src');
+                videoAudioEl.load();
+                videoAudioEl.remove();
+              }
+
+              ctx.clearRect(0, 0, W, H);
+              canvas.width = 0;
+              canvas.height = 0;
+
+              if (musicEl) {
+                musicEl.pause();
+                musicEl.src = '';
+                musicEl.load();
+              }
+              if (videoGain) videoGain.disconnect();
+              if (videoSource) videoSource.disconnect();
+              audioCtx.close().catch(() => {});
+
+              canvasStream.getTracks().forEach((t) => t.stop());
+              combinedStream.getTracks().forEach((t) => t.stop());
+
+              res({ blob: finalBlob, extension: fileExtension, valid: isValid });
+            };
+          });
+
+          onProgress(100);
+        };
+
+>>>>>>> theirs
         const result = await finishRender();
         if (!result.valid) {
           throw new Error('Browser render produced an invalid output file (too small).');

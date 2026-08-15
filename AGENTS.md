@@ -12,6 +12,23 @@ This document captures the rules, feature set, architecture, and deployment proc
 
 ---
 
+## 🎬 Multi-Cut Editing & Content-Aware Pipeline
+
+The render pipeline accepts explicit keep-segments instead of a single trim range:
+
+```ts
+segments: [{ start: 0, end: 4.2 }, { start: 11.8, end: 34.0 }]
+```
+
+- **`server.ts`**: `/api/render-project` reads `segments` and falls back to `highlights` for backward compatibility.
+- **`server.ts`**: Subtitles, zoom effects, and SFX timestamps are remapped onto the spliced timeline.
+- **`types.ts`**: `VideoProject.segments` stores the keep-list.
+- **`groqClient.ts`**: AI analysis returns `contentSfx` timestamps for whoosh/pop/impact SFX based on actual video content, not filename keywords.
+- **`server.ts`**: Silence detection via `silencedetect`; audio ducking via `sidechaincompress` when music + speech are both present.
+- **`ffmpegWasmRenderer.ts` / `ffmpegClient.ts`**: Accept `segments` in renderer options for browser-side preview parity.
+
+---
+
 ## 🏗️ Architecture (current, as of this doc)
 
 - **Frontend**: Vite + React, deployed to **Netlify**. Netlify builds and serves the static frontend only — it does not run `server.ts` (Netlify Functions and a persistent Express app are different execution models; see `netlify.toml`).
