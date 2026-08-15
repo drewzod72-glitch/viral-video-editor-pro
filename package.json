@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "build:server": "tsc server.ts --outDir dist-server --module commonjs --target es2022 --moduleResolution node --esModuleInterop --skipLibCheck && node -e \"require('fs').writeFileSync('dist-server/package.json', JSON.stringify({type:'commonjs'}))\"",
     "start": "node dist-server/server.js",
-    "test": "node tests/smoke.test.js"
+    "test": "node tests/smoke.test.js",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@capacitor/core": "^7.0.0",
@@ -31,6 +32,7 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^7.6.8",
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/vite": "^4.0.0",
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.17",

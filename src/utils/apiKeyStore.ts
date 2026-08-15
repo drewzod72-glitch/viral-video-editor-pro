@@ -1,5 +1,5 @@
 /**
- * Stores the user's own Gemini API key locally on their device.
+ * Stores the user's own Groq API key locally on their device.
  *
  * This is the "bring your own key" model: nothing is sent to or stored on
  * any server operated by this app. The key lives only in the browser's
@@ -26,7 +26,7 @@
  *   await Preferences.remove({ key: STORAGE_KEY });
  */
 
-const STORAGE_KEY = 'avve.gemini_api_key';
+const STORAGE_KEY = 'avve.groq_api_key';
 
 /**
  * Cleans up a pasted API key before validating or storing it.
@@ -75,8 +75,7 @@ export function clearStoredApiKey(): void {
   }
 }
 
-/** Very loose shape check — Groq keys typically start with "gsk_" followed by a string of characters. Gemini keys are typically 39 chars. We'll allow both but focus on Groq format. */
+/** Very loose shape check — Groq keys typically start with "gsk_" followed by a string of characters. */
 export function looksLikeValidAiKey(key: string): boolean {
-  // Groq format: gsk_... or standard Gemini format
-  return /^gsk_[A-Za-z0-9]{20,}$/.test(key) || /^[A-Za-z0-9_\-\.]{20,}$/.test(key);
+  return /^gsk_[A-Za-z0-9]{20,}$/.test(key);
 }

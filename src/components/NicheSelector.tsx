@@ -8,6 +8,7 @@ export default function NicheSelector({ onSelectTemplate, onUploadCustomFile, is
   const [customDescription, setCustomDescription] = useState('');
   const [customFileName, setCustomFileName] = useState('');
   const [selectedFileObj, setSelectedFileObj] = useState<File | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -22,9 +23,10 @@ export default function NicheSelector({ onSelectTemplate, onUploadCustomFile, is
     e.preventDefault();
     if (isProcessing) return;
     if (!selectedFileObj) {
-      alert("Please upload a video file first.");
+      setUploadError('Please upload a video file first.');
       return;
     }
+    setUploadError(null);
     onUploadCustomFile(selectedFileObj, customFileName, selectedNiche, customDescription || 'Master review and viral hype edit.');
   };
 
@@ -202,6 +204,11 @@ export default function NicheSelector({ onSelectTemplate, onUploadCustomFile, is
           </div>
 
           {/* Submit */}
+          {uploadError && (
+            <p style={{ color: '#fca5a5', fontSize: '11px', fontWeight: 600, lineHeight: 1.5 }}>
+              {uploadError}
+            </p>
+          )}
           <button
             onClick={handleCustomSubmit}
             disabled={isProcessing}

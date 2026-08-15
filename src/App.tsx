@@ -31,6 +31,8 @@ export default function App() {
   const [renderMode, setRenderMode] = useState<'canvas' | 'ffmpeg'>('ffmpeg');
   const [renderProgress, setRenderProgress] = useState(0);
   const [ffmpegFallback, setFfmpegFallback] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   const startApp = () => {
     try {
@@ -39,7 +41,9 @@ export default function App() {
         const ctx = new AudioCtx();
         if (ctx.state === 'suspended') ctx.resume().catch(() => {});
       }
-    } catch (e) {}
+    } catch (e) {
+      console.warn('[App] AudioContext initialization failed:', e);
+    }
     setHasStarted(true);
   };
 
@@ -173,7 +177,6 @@ export default function App() {
         v.src = videoUrl;
         v.onloadedmetadata = () => {
           actualDuration = v.duration || 30;
-          URL.revokeObjectURL(v.src);
           v.remove();
           resolve(actualDuration);
         };
@@ -290,13 +293,20 @@ export default function App() {
       const v = document.createElement('video');
       v.preload = 'metadata';
       v.src = url;
+      const timer = setTimeout(() => {
+        URL.revokeObjectURL(url);
+        v.remove();
+        resolve(0);
+      }, 15000);
       v.onloadedmetadata = () => {
+        clearTimeout(timer);
         const dur = v.duration || 0;
         URL.revokeObjectURL(url);
         v.remove();
         resolve(dur);
       };
       v.onerror = () => {
+        clearTimeout(timer);
         URL.revokeObjectURL(url);
         v.remove();
         resolve(0);
@@ -308,20 +318,18 @@ export default function App() {
     if (!activeProject) return;
     setIsProcessing(true);
     setFfmpegFallback(false);
+    setExportError(null);
     setProcessingStage("Initializing render engine...");
     setRenderProgress(0);
     try {
       let result: { blob: Blob; filename: string };
 
       if (renderMode === 'ffmpeg') {
-        // Professional FFmpeg.wasm render
         const blob = await renderVideoWithFFmpegWasm({
           project: activeProject,
           onProgress: (p, stage) => {
             setRenderProgress(p);
             setProcessingStage(stage || `Rendering: ${p}%`);
-            // Wire Kilo's fallback indicator: the renderer signals canvas
-            // fallback via this stage message when FFmpeg.wasm fails.
             if (stage && stage.includes('switching to Fast Canvas')) {
               setFfmpegFallback(true);
             }
@@ -331,7 +339,6 @@ export default function App() {
         });
         result = { blob, filename: `${activeProject.name}_pro.mp4` };
       } else {
-        // Canvas fallback
         const canvasResult = await renderVideoInBrowser(
           activeProject,
           (p) => {
@@ -343,19 +350,17 @@ export default function App() {
         result = { blob: canvasResult.blob, filename: `${activeProject.name}_viral.${canvasResult.extension}` };
       }
 
-      // Size-Gate + Duration-Gate: verify blob is valid and duration matches expected
       const expectedDuration = activeProject.highlights?.reduce(
         (s, h) => s + (h.duration || (h.end - h.start)), 0
       ) || activeProject.duration || 30;
       
       const actualDuration = await getBlobDuration(result.blob);
-      const durationOk = Math.abs(actualDuration - expectedDuration) < 2.0; // Allow 2s tolerance
+      const durationOk = Math.abs(actualDuration - expectedDuration) < 2.0;
       const sizeOk = result.blob.size > 500_000;
       
       if (sizeOk && durationOk) {
         setDownloadReadyInfo(result);
       } else if (sizeOk && !durationOk) {
-        // Duration mismatch - re-render once with canvas fallback
         setProcessingStage("Fixing duration...");
         setRenderProgress(0);
         const retryBlob = await renderVideoInBrowser(
@@ -372,7 +377,7 @@ export default function App() {
           setFfmpegFallback(true);
           setDownloadReadyInfo({ blob: retryBlob, filename: result.filename });
         } else {
-          alert('Export failed. Duration mismatch after retry.');
+          setExportError('Export failed: duration mismatch after retry.');
         }
       } else if (result.blob && result.blob.size <= 500_000) {
         setProcessingStage("Re-rendering...");
@@ -399,13 +404,13 @@ export default function App() {
         if (retryBlob && retryBlob.size > 500_000) {
           setDownloadReadyInfo({ blob: retryBlob, filename: result.filename });
         } else {
-          alert('Export failed. Rendered file is empty or too small after retry.');
+          setExportError('Export failed: rendered file is empty or too small after retry.');
         }
       } else {
-        alert('Export failed. Rendered file is empty or too small.');
+        setExportError('Export failed: rendered file is empty or too small.');
       }
     } catch (err: any) {
-      alert('Export failed. ' + (err?.message || 'Device hardware busy.'));
+      setExportError('Export failed: ' + (err?.message || 'Device hardware busy.'));
     } finally {
       setIsProcessing(false);
       setRenderProgress(0);
@@ -668,6 +673,18 @@ export default function App() {
         >
           {isProcessing ? `⏳ ${processingStage || 'Baking...'}` : renderMode === 'ffmpeg' ? '⚡ BAKE PRO' : '🎨 BAKE FINAL'}
         </button>
+
+        {exportError && (
+          <div style={{
+            padding: '12px', background: 'rgba(239,68,68,0.12)',
+            borderRadius: '10px', border: '1px solid rgba(239,68,68,0.3)',
+            color: '#fca5a5', fontSize: '10px', fontWeight: 600,
+            lineHeight: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px'
+          }}>
+            <span>{exportError}</span>
+            <button onClick={() => setExportError(null)} style={{ background: 'transparent', border: 'none', color: '#fca5a5', cursor: 'pointer', fontSize: '14px', lineHeight: 1, padding: 0 }}>×</button>
+          </div>
+        )}
 
         {activeProject && (
           <div style={{
@@ -1043,12 +1060,13 @@ export default function App() {
             </p>
             <button
               onClick={async () => {
+                setDownloadError(null);
                 try {
                   if (downloadReadyInfo) {
                     await saveFileToDevice(downloadReadyInfo.blob, downloadReadyInfo.filename);
                   }
                 } catch (err: any) {
-                  alert('Download failed. ' + (err?.message || 'Storage busy.'));
+                  setDownloadError('Download failed: ' + (err?.message || 'Storage busy.'));
                 }
               }}
               style={{
@@ -1071,6 +1089,11 @@ export default function App() {
             >
               SAVE TO GALLERY
             </button>
+            {downloadError && (
+              <p style={{ color: '#fca5a5', fontSize: '11px', marginBottom: '12px', fontFamily: '"Inter", sans-serif' }}>
+                {downloadError}
+              </p>
+            )}
             <button
               onClick={() => {
                 setDownloadReadyInfo(null);
