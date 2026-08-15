@@ -166,6 +166,7 @@ Return ONLY JSON:
   "subtitles": [{"id":"1","text":"HOOK","start":0,"end":2.5}],
   "cuts": [{"id":"c1","start":12,"end":15,"reason":"Dead air"}],
   "highlights": [{"id":"h1","title":"Key Moment","start":0,"end":5,"viralityScore":92,"description":"Strong hook","whyEngaging":"Stops scrollers","speed":1.0}],
+  "contentSfx": {"whooshAt":[0.5,5.2],"popAt":[2.1,8.4],"impactAt":[0.2,10.5]},
   "archetype": "hype"
 }
 
@@ -173,6 +174,7 @@ RULES:
 - subtitles: at least ${Math.ceil(duration / 2.5)} items covering 0 to ${duration.toFixed(1)}s
 - cuts: at least 2 segments to REMOVE
 - highlights: at least 3 segments to KEEP
+- contentSfx: timestamps in seconds for whoosh/pop/impact SFX based on what's happening on screen
 - No markdown, no explanations.`;
 
 const TEXT_ANALYSIS_PROMPT = (niche: string, description: string, duration: number) => `You are a viral short-form video director.
@@ -192,6 +194,7 @@ Return ONLY JSON:
   "subtitles": [{"id":"1","text":"HOOK","start":0,"end":2.5}],
   "cuts": [{"id":"c1","start":12,"end":15,"reason":"Dead air"}],
   "highlights": [{"id":"h1","title":"Key Moment","start":0,"end":5,"viralityScore":92,"description":"Strong hook","whyEngaging":"Stops scrollers","speed":1.0}],
+  "contentSfx": {"whooshAt":[0.5,5.2],"popAt":[2.1,8.4],"impactAt":[0.2,10.5]},
   "archetype": "${niche}"
 }
 
@@ -201,6 +204,7 @@ RULES:
 - Cuts: at least 2 segments to REMOVE (dead air, boring parts)
 - Highlights: at least 3 segments to KEEP (viral moments)
 - Kept duration = 60-80% of original for pacing
+- contentSfx: timestamps in seconds for whoosh/pop/impact SFX based on what's happening on screen
 - Subtitles: 2-4 words, UPPERCASE, punchy
 - No markdown, no explanations.`;
 
@@ -362,6 +366,7 @@ export async function runAnalyzeVideo(params: any): Promise<any> {
                 project: {
                   ...parsed,
                   enableSubtitles: parsed.needsSubtitles !== false,
+                  contentSfx: parsed.contentSfx || null,
                 }
               };
             }
@@ -393,6 +398,7 @@ export async function runAnalyzeVideo(params: any): Promise<any> {
             project: {
               ...parsed,
               enableSubtitles: parsed.needsSubtitles !== false,
+              contentSfx: parsed.contentSfx || null,
             }
           };
         }

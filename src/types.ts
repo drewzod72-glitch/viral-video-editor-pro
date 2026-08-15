@@ -25,6 +25,13 @@ export interface HighlightClip {
   speed?: number;
 }
 
+export interface Segment {
+  start: number;
+  end: number;
+  speed?: number;
+  reason?: string;
+}
+
 export interface SubtitleItem {
   id: string;
   text: string;
@@ -57,6 +64,7 @@ export interface VideoProject {
   viralityFeedback: string[];
   highlights: HighlightClip[];
   cuts?: Array<{ id: string; start: number; end: number; reason: string }>;
+  segments?: Segment[];
   subtitles: SubtitleItem[];
   captionStyle: CaptionStyle;
   selectedMusicTrackId: string;

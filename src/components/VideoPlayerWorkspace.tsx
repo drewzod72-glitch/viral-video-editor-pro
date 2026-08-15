@@ -873,6 +873,95 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
         </div>
       </div>
 
+      {/* Segments / Smart Cuts */}
+      <div style={{
+        background: 'linear-gradient(180deg, rgba(24,24,27,0.95) 0%, rgba(9,9,11,0.98) 100%)',
+        padding: '20px', borderRadius: '24px',
+        border: '1px solid rgba(30,41,59,0.6)',
+        backdropFilter: 'blur(16px)'
+      }}>
+        <div style={{
+          color: '#64748b', fontSize: '9px', fontWeight: 800,
+          textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '14px'
+        }}>
+          Segments / Smart Cuts
+        </div>
+
+        <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          Keep segments (everything else is cut)
+        </div>
+
+        <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', flexWrap: 'wrap' }}>
+          <button
+            onClick={() => {
+              const segs = (project.segments || []).map((s: any) => ({ ...s }));
+              const newStart = parseFloat(prompt('Segment start (seconds):') || '0');
+              const newEnd = parseFloat(prompt('Segment end (seconds):') || '5');
+              if (!Number.isNaN(newStart) && !Number.isNaN(newEnd) && newEnd > newStart) {
+                updateSettings({ segments: [...segs, { start: newStart, end: newEnd, speed: 1.0 }] });
+              }
+            }}
+            style={{
+              padding: '6px 12px', borderRadius: '8px',
+              border: '1px solid #27272a',
+              background: '#020617',
+              color: 'white', fontSize: '9px', fontWeight: 700, cursor: 'pointer',
+              fontFamily: '"Inter", sans-serif', textTransform: 'uppercase',
+              letterSpacing: '0.3px', transition: 'all 0.2s'
+            }}
+          >
+            + Add Segment
+          </button>
+          <button
+            onClick={() => updateSettings({ segments: [] })}
+            style={{
+              padding: '6px 12px', borderRadius: '8px',
+              border: '1px solid #27272a',
+              background: '#020617',
+              color: '#f87171', fontSize: '9px', fontWeight: 700, cursor: 'pointer',
+              fontFamily: '"Inter", sans-serif', textTransform: 'uppercase',
+              letterSpacing: '0.3px', transition: 'all 0.2s'
+            }}
+          >
+            Clear All
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '220px', overflowY: 'auto', paddingRight: '4px' }}>
+          {(project.segments || []).map((seg: any, idx: number) => (
+            <div key={idx} style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              padding: '8px 10px', borderRadius: '10px',
+              border: '1px solid #27272a',
+              background: 'rgba(236,72,149,0.04)'
+            }}>
+              <span style={{ fontSize: '9px', color: '#EC4899', fontWeight: 800, minWidth: '18px' }}>#{idx + 1}</span>
+              <span style={{ fontSize: '10px', color: '#e4e4e7', fontFamily: '"JetBrains Mono", monospace', flex: 1 }}>
+                {seg.start.toFixed(2)}s → {seg.end.toFixed(2)}s
+                {seg.speed && seg.speed !== 1.0 ? ` (×${seg.speed.toFixed(2)})` : ''}
+              </span>
+              <button
+                onClick={() => {
+                  const next = (project.segments || []).filter((_: any, i: number) => i !== idx);
+                  updateSettings({ segments: next });
+                }}
+                style={{
+                  background: 'transparent', border: 'none', color: '#f87171',
+                  cursor: 'pointer', fontSize: '12px', fontWeight: 800, padding: '2px 6px'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+          {(project.segments || []).length === 0 && (
+            <div style={{ fontSize: '10px', color: '#64748b' }}>
+              No segments defined. Using full timeline or highlights.
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Thumbnail Generator */}
       <ThumbnailGenerator
         project={project}

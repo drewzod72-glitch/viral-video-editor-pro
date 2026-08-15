@@ -103,25 +103,30 @@ export default function App() {
     setIsProcessing(true);
     setProcessingStage('Analyzing media...');
 
-    const runAI = async () => {
-      try {
-        const result = await runAnalyzeVideo({ ...template });
-        console.log('[App] AI analysis result:', result);
-        if (result?.success && result.project) {
-          setActiveProject(prev => {
-            if (!prev) return prev;
-            const merged = { ...prev, ...result.project } as VideoProject;
-            const scored = computeViralityScore(merged);
-            return { ...merged, viralityScore: scored.score, viralityFeedback: scored.feedback };
-          });
-          setAnalysisMode(result.mode || 'text');
-          setAiSuccess(true);
-          setTimeout(() => { setAiSuccess(false); setAnalysisMode(null); }, 3000);
-          
-          // Auto-detect viral moments and apply as highlights (only if AI didn't provide them — Kilo)
-          if (result.project.videoUrl && (!result.project.highlights || result.project.highlights.length === 0)) {
-            try {
-              const moments = await detectViralMoments(result.project.videoUrl, result.project.duration || 30);
+     const runAI = async () => {
+       try {
+         const result = await runAnalyzeVideo({ ...template });
+         console.log('[App] AI analysis result:', result);
+         if (result?.success && result.project) {
+           setActiveProject(prev => {
+             if (!prev) return prev;
+             const merged = { ...prev, ...result.project } as VideoProject;
+             const scored = computeViralityScore(merged);
+             return { ...merged, viralityScore: scored.score, viralityFeedback: scored.feedback };
+           });
+           setAnalysisMode(result.mode || 'text');
+           setAiSuccess(true);
+           setTimeout(() => { setAiSuccess(false); setAnalysisMode(null); }, 3000);
+           
+           // Wire content-aware SFX from AI analysis into project state
+           if (result.project.contentSfx && typeof result.project.contentSfx === 'object') {
+             setActiveProject(prev => prev ? ({ ...prev, contentSfx: result.project.contentSfx }) : prev);
+           }
+           
+           // Auto-detect viral moments and apply as highlights (only if AI didn't provide them — Kilo)
+           if (result.project.videoUrl && (!result.project.highlights || result.project.highlights.length === 0)) {
+             try {
+               const moments = await detectViralMoments(result.project.videoUrl, result.project.duration || 30);
               if (moments.length > 0) {
                 setActiveProject(prev => {
                   if (!prev) return prev;

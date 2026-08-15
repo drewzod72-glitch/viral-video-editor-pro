@@ -194,6 +194,40 @@ Applied a full UI/UX redesign using the UI/UX Pro Max skill. Generated a product
 - Final brand approval on pink/blue palette vs original purple identity
 - Logo/icon finalization beyond Lucide defaults
 
+## Multi-Cut & Content-Aware Editing Pass
+
+### Phase 2 — Real multi-cut editing
+- **`server.ts`**: `/api/render-project` now accepts a `segments` array (`[{start, end, speed?, reason?}, ...]`) for explicit keep-segment editing.
+- **`server.ts`**: Generalized the smart-cuts FFmpeg pipeline to use a `keepList` built from `segments` first, falling back to `highlights` for backward compatibility.
+- **`server.ts`**: Subtitles and zoom effects are remapped onto the spliced timeline so timestamps stay correct after cuts.
+- **`types.ts`**: Added `Segment` interface and `segments` field to `VideoProject`.
+- **`ffmpegWasmRenderer.ts` / `ffmpegClient.ts`**: Renderer options accept `segments` so client-side preview stays in sync with server export.
+
+### Phase 3 — Content-aware AI decisions
+- **`groqClient.ts`**: Updated `VISION_PROMPT` and `TEXT_ANALYSIS_PROMPT` to request `contentSfx` timestamps from the AI.
+- **`groqClient.ts`**: `runAnalyzeVideo` returns `contentSfx` from the AI response alongside subtitles/highlights.
+- **`server.ts`**: SFX trigger times now come from `contentSfx.whooshAt` / `popAt` / `impactAt` when provided, falling back to heuristics only when no content analysis exists.
+- **`server.ts`**: Removed hard dependency on filename-keyword matching for SFX decisions; content-aware timestamps are the new primary path.
+
+### Phase 4 — Missing editor features
+- **`server.ts`**: Added FFmpeg `silencedetect` pass to find near-silent stretches (`enableSilenceDetection`, `silenceThreshold`, `silenceMinDuration`).
+- **`server.ts`**: Added `sidechaincompress` audio ducking when background music + speech audio are both present (`enableAudioDucking`).
+
+### Phase 5 — Reliability
+- **`server.ts`**: After FFmpeg render completes, the output file is probed to verify non-zero size and valid duration before streaming to the client.
+- **`ffmpegClient.ts`**: Browser canvas renderer validates the output blob size before resolving; throws a clear error if the rendered file is too small.
+- **`App.tsx`**: Existing retry logic preserved — duration mismatch or undersized blob triggers a second render attempt before surfacing an error.
+
+### Verification
+- **Builds**: `npm run build` exits 0, `npm run build:server` exits 0.
+- **Smoke tests**: All pass (`node tests/smoke.test.js`).
+
+### Blocked — needs human
+- Live Groq API key testing for vision + contentSfx timestamps
+- Live Render deploy verification
+- Full end-to-end render with real video file
+- Native Capacitor device testing
+
 ## Blocked — needs human
 
 - Live Groq API key testing
