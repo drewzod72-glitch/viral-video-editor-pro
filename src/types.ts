@@ -1,8 +1,31 @@
 import { resolveCaptionMetrics, normalizeCaptionStyle } from './utils/captionStyleConfig';
 
 export type VideoNiche = 'fitness' | 'education' | 'comedy' | 'motivation' | 'cooking' | 'tech' | 'pets' | 'unboxing' | 'sales' | 'general';
-
 export type CaptionStyle = 'mrbeast' | 'hormozi' | 'minimalist' | 'impact' | 'comic';
+export type AspectRatio = '9:16' | '16:9' | '1:1';
+
+export interface BrollClip {
+  id: string;
+  url: string;
+  label: string;
+  timestamp: number;
+  duration: number;
+  reason: string;
+}
+
+export type EditCommand =
+  | { type: 'remove_silence' }
+  | { type: 'add_zoom'; timestamp: number; scale?: number }
+  | { type: 'change_caption_style'; style: CaptionStyle }
+  | { type: 'add_broll'; timestamp: number; duration?: number }
+  | { type: 'speed_up'; factor: number }
+  | { type: 'remove_cuts' }
+  | { type: 'add_subtitle'; text: string; start: number; end: number }
+  | { type: 'change_music'; trackId: string }
+  | { type: 'change_color_grade'; grade: string }
+  | { type: 'add_transition'; style: string }
+  | { type: 'toggle_effect'; effect: 'enableSubtitles' | 'enableZooms' | 'enableColorGrade' | 'jumpCuts' | 'speedRamp' | 'shakeOnPunch'; value: boolean }
+  | { type: 'voiceover'; text: string; start?: number };
 
 export interface MusicTrack {
   id: string;
@@ -76,6 +99,10 @@ export interface VideoProject {
   endingCTA?: string;
   thumbnailRecommendation?: string;
   transitionStyle?: 'none' | 'crossfade' | 'glitch' | 'flash' | 'zoom' | 'fade_black' | 'slide_left' | 'wipe_left' | 'wipe_right' | 'slide_right' | 'circle_open' | 'circle_close' | 'dissolve' | 'glow' | 'pixelize';
+  aspectRatio?: AspectRatio;
+  brollClips?: BrollClip[];
+  voiceoverText?: string;
+  voiceoverStart?: number;
   
   // UNIFIED PERSISTENT SETTINGS
   enableSubtitles: boolean;

@@ -681,19 +681,24 @@ interface FFmpegSubtitleConfig {
   yPos: string;
 }
 
-// Export frame width for caption metric scaling. Must match the 1080x1920
-// (or 2160x3840 Pro) frame the FFmpeg pipeline renders into — captions are
-// scaled against this so the exported video matches the editor preview.
-const RENDER_FRAME_WIDTH = 1080;
+// Export frame width for caption metric scaling. Must match the frame width
+// the FFmpeg pipeline renders into — captions are scaled against this so
+// the exported video matches the editor preview.
+const RENDER_FRAME_WIDTHS: Record<string, number> = {
+  '9:16': 1080,
+  '16:9': 1920,
+  '1:1': 1080,
+};
 
-function getFFmpegCaptionConfig(style: string, textLen: number, hasHighlight: boolean): FFmpegSubtitleConfig {
+function getFFmpegCaptionConfig(style: string, textLen: number, hasHighlight: boolean, aspectRatio = '9:16'): FFmpegSubtitleConfig {
   // NOTE: All sizing/color/position numbers now come from
   // src/utils/captionStyleConfig.ts — the SAME table the browser preview
   // reads (see types.ts -> getCaptionStyles). Do not hardcode style
   // numbers here again; edit captionStyleConfig.ts instead, and both the
   // editor preview and the exported video will update together.
   const normalizedStyle = normalizeCaptionStyle(style);
-  const metrics = resolveCaptionMetrics(normalizedStyle, textLen, RENDER_FRAME_WIDTH);
+  const frameWidth = RENDER_FRAME_WIDTHS[aspectRatio] || 1080;
+  const metrics = resolveCaptionMetrics(normalizedStyle, textLen, frameWidth);
 
   return {
     fontcolor: hasHighlight ? metrics.highlightColor : metrics.textColor,
@@ -758,6 +763,7 @@ app.post('/api/render-project', upload.single('videoFile'), async (req, res) => 
   const startLimit = req.body.startLimit !== undefined ? Number(req.body.startLimit) : 0;
   const endLimitIn = req.body.endLimit !== undefined ? Number(req.body.endLimit) : null;
   const activeClipId = req.body.activeClipId || null;
+  const aspectRatio = req.body.aspectRatio || '9:16';
 
   // Multi-cut segments: explicit keep-list from AI or user.
   // Shape: [{ start, end, speed?, reason? }, ...]
@@ -1179,9 +1185,22 @@ app.post('/api/render-project', upload.single('videoFile'), async (req, res) => 
         vf += ',deshake';
       }
 
-      // 3. Scale and fit vertically (Standard 1080p or Pro 4K)
+      // 3. Scale and fit to target aspect ratio (Standard 1080p, 16:9, 1:1, or Pro 4K)
       const isProExport = req.body.isProExport === 'true' || req.body.isProExport === true;
-      const targetRes = isProExport ? '2160:3840' : '1080:1920';
+      
+      let targetW = 1080;
+      let targetH = 1920;
+      if (aspectRatio === '16:9') {
+        targetW = 1920;
+        targetH = 1080;
+      } else if (aspectRatio === '1:1') {
+        targetW = 1080;
+        targetH = 1080;
+      } else if (isProExport) {
+        targetW = 2160;
+        targetH = 3840;
+      }
+      const targetRes = `${targetW}:${targetH}`;
       
       vf += `,scale=${targetRes}:force_original_aspect_ratio=decrease,pad=${targetRes}:(ow-iw)/2:(oh-ih)/2:black`;
 
@@ -1270,7 +1289,7 @@ app.post('/api/render-project', upload.single('videoFile'), async (req, res) => 
             const cleanText = escapeFFmpegText(styledString);
 
             const hasHighlight = Array.isArray(sub.highlightWords) && sub.highlightWords.length > 0;
-            const config = getFFmpegCaptionConfig(captionStyle, sub.text.length, hasHighlight);
+            const config = getFFmpegCaptionConfig(captionStyle, sub.text.length, hasHighlight, aspectRatio);
 
             const escapedFontPath = chosenFontPath.replace(/\\/g, '/').replace(/:/g, '\\:');
             const fontOption = fs.existsSync(chosenFontPath) ? `:fontfile='${escapedFontPath}'` : '';

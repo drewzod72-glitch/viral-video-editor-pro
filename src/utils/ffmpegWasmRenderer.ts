@@ -19,6 +19,7 @@ interface FFmpegWasmRendererOptions {
   mode?: RenderMode;
   chunkDuration?: number;
   segments?: Array<{ start: number; end: number; speed?: number }>;
+  aspectRatio?: VideoProject['aspectRatio'];
 }
 
 // LUT definitions for professional color grading
@@ -74,7 +75,7 @@ export const TRANSITION_PRESETS = {
 // ─── Core FFmpeg.wasm Renderer ──────────────────────────────────────────────
 
 export async function renderVideoWithFFmpegWasm(options: FFmpegWasmRendererOptions): Promise<Blob> {
-  const { project, onProgress, activeClipId, mode = 'canvas', segments } = options;
+  const { project, onProgress, activeClipId, mode = 'canvas', segments, aspectRatio } = options;
 
   if (mode === 'canvas') {
     const { renderVideoInBrowser } = await import('./ffmpegClient');
@@ -133,10 +134,10 @@ export async function renderVideoWithFFmpegWasm(options: FFmpegWasmRendererOptio
       }
 
       // Build filter complex
-      const filterComplex = buildFilterComplex(project, subtitleFile);
+      const filterComplex = buildFilterComplex(project, subtitleFile, aspectRatio);
 
       // Build FFmpeg command
-      const args = buildFFmpegCommand(project, filterComplex, musicFile);
+      const args = buildFFmpegCommand(project, filterComplex, musicFile, aspectRatio);
 
       // Execute with progress
       ffmpeg.on('progress', ({ progress }) => {
@@ -222,11 +223,16 @@ function hexToAssColor(hex: string, alpha: number = 0): string {
   return `&H${aa}${b.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${r.toString(16).padStart(2, '0')}`;
 }
 
-function buildFilterComplex(project: VideoProject, subtitleFile: string | null): string {
+function buildFilterComplex(project: VideoProject, subtitleFile: string | null, aspectRatio?: VideoProject['aspectRatio']): string {
   const filters: string[] = [];
 
-  // 1. Scale to 1080x1920
-  filters.push('scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(1080-iw)/2:(1920-ih)/2');
+  const isWide = aspectRatio === '16:9';
+  const isSquare = aspectRatio === '1:1';
+  const targetW = isWide ? 1920 : isSquare ? 1080 : 1080;
+  const targetH = isWide ? 1080 : isSquare ? 1080 : 1920;
+
+  // 1. Scale to target resolution
+  filters.push(`scale=${targetW}:${targetH}:force_original_aspect_ratio=decrease,pad=${targetW}:${targetH}:(ow-iw)/2:(oh-ih)/2:black`);
 
   // 2. Color grading
   const lutKey = (project.colorGrade as keyof typeof LUT_PRESETS) || 'none';
@@ -242,27 +248,27 @@ function buildFilterComplex(project: VideoProject, subtitleFile: string | null):
         const scale = z.scale.toFixed(2);
         const start = z.timestamp.toFixed(2);
         const end = (z.timestamp + z.duration).toFixed(2);
-        filters.push(`zoompan=z='if(between(t,${start},${end}),${scale},1)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=1080x1920`);
+        filters.push(`zoompan=z='if(between(t,${start},${end}),${scale},1)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=${targetW}x${targetH}`);
       }
     }
   }
 
   // 4. Shake effect
   if (project.shakeOnPunch) {
-    filters.push('zoompan=z=1:x=\'iw/2-(iw/zoom/2)+sin(t*20)*5\':y=\'ih/2-(ih/zoom/2)+cos(t*20)*5\':d=1:s=1080x1920');
+    filters.push(`zoompan=z=1:x='iw/2-(iw/zoom/2)+sin(t*20)*5':y='ih/2-(ih/zoom/2)+cos(t*20)*5':d=1:s=${targetW}x${targetH}`);
   }
 
   // 5. Subtitle burn-in — styles come from captionStyleConfig.ts (single source of truth)
   if (subtitleFile && project.enableSubtitles) {
     const style = normalizeCaptionStyle(project.captionStyle || 'hormozi');
-    const metrics = resolveCaptionMetrics(style, 30, 1080);
+    const metrics = resolveCaptionMetrics(style, 30, targetW);
 
     const fontSize = metrics.fontSize;
     const primaryColor = hexToAssColor(metrics.textColor, 0);
     const highlightColor = hexToAssColor(metrics.highlightColor, 0);
     const outlineColor = hexToAssColor(metrics.strokeColor === 'transparent' ? '#000000' : metrics.strokeColor, 0);
     const outline = Math.max(1, metrics.strokeWidth);
-    const marginV = Math.round(metrics.yPositionFraction * 1920) - Math.round(fontSize * 1.3) - 40;
+    const marginV = Math.round(metrics.yPositionFraction * targetH) - Math.round(fontSize * 1.3) - 40;
     const fontName = metrics.fontFamilyCSS.split(',')[0].replace(/["']/g, '');
 
     filters.push(`subtitles=subs.srt:force_style='FontSize=${fontSize},PrimaryColour=${primaryColor},OutlineColour=${outlineColor},Outline=${outline},MarginV=${Math.max(10, marginV)},FontName=${fontName}'`);
@@ -273,7 +279,7 @@ function buildFilterComplex(project: VideoProject, subtitleFile: string | null):
 
 // ─── FFmpeg Command Builder ─────────────────────────────────────────────────
 
-function buildFFmpegCommand(project: VideoProject, filterComplex: string, musicFile: string): string[] {
+function buildFFmpegCommand(project: VideoProject, filterComplex: string, musicFile: string, aspectRatio?: VideoProject['aspectRatio']): string[] {
   const args: string[] = ['-i', 'input.mp4'];
 
   // Add music input if present
@@ -285,6 +291,13 @@ function buildFFmpegCommand(project: VideoProject, filterComplex: string, musicF
   if (filterComplex) {
     args.push('-vf', filterComplex);
   }
+
+  // Output dimensions based on aspect ratio
+  const isWide = aspectRatio === '16:9';
+  const isSquare = aspectRatio === '1:1';
+  const outW = isWide ? 1920 : isSquare ? 1080 : 1080;
+  const outH = isWide ? 1080 : isSquare ? 1080 : 1920;
+  args.push('-s', `${outW}x${outH}`);
 
   // Audio mixing
   const audioFilters: string[] = [];

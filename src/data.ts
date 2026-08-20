@@ -97,5 +97,52 @@ export const RAW_VIDEO_TEMPLATES = [
     originalDuration: 35,
     userDescription: 'Satisfying sound review and keycaps installation of custom custom linear mechanical keyboard. ASMR keyboard building vibe.',
     defaultTranscribe: 'This is officially the most satisfying mechanical keyboard build I have ever laid mine eyes on. These switches are butter-smooth linear switches lubricated by hand with genuine grease. Let\'s click them in. Listen to that deep, creamy, thocky sound. Now we mount these aesthetic retro PBT keycaps. Testing keys in 3, 2, 1... Oh, my goodness, the feedback is absolutely mind-blowing. Is this keyboard perfection?'
+  },
+  {
+    id: 'template-motivation',
+    name: '5 AM Club Morning Routine (Motivation)',
+    niche: 'motivation' as const,
+    videoUrl: 'https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4',
+    originalDuration: 28,
+    userDescription: 'Cinematic morning routine montage showing discipline, focus, and early rising. Strong motivational voiceover about grinding while others sleep.',
+    defaultTranscribe: 'While you hit snooze, someone is already winning. The 5 AM club is not just a time, it is a mindset. Cold shower, journal, workout, deep work before the world wakes up. The gap between where you are and where you want to be is measured in early mornings. Discipline equals freedom. Get up. Grind now. Thank yourself later.'
+  },
+  {
+    id: 'template-comedy',
+    name: 'Relatable Comedy Skit (Comedy)',
+    niche: 'comedy' as const,
+    videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4',
+    originalDuration: 22,
+    userDescription: 'Funny relatable skit about everyday situations that everyone recognizes. Quick punchlines and visual gags.',
+    defaultTranscribe: 'Me pretending to understand the group project in college. Me when the professor asks me a question. Me when my mom says we need to talk. Me when the WiFi goes out during a ranked match. If you related to any of these, drop a like and follow for more chaos!'
+  },
+  {
+    id: 'template-travel',
+    name: 'Hidden Gem Travel Vlog (Travel)',
+    niche: 'general' as const,
+    videoUrl: 'https://raw.githubusercontent.com/intel-iot-devkit/sample-videos/master/people-detection.mp4',
+    originalDuration: 35,
+    userDescription: 'Stunning travel vlog showcasing a hidden gem destination. Breathtaking landscapes, local culture, and food experiences.',
+    defaultTranscribe: 'You will not believe this place exists. Tucked away from every tourist map, this hidden gem is the most underrated destination of the year. Crystal clear waters, ancient architecture, and the friendliest locals you will ever meet. The street food alone is worth the flight. Save this for your next adventure and tag the person you need to bring here.'
+  },
+  {
+    id: 'template-business',
+    name: 'Startup Pitch Teaser (Business)',
+    niche: 'sales' as const,
+    videoUrl: 'https://test-videos.co.uk/vids/jellyfish/mp4/h264/360/Jellyfish_360_10s_1MB.mp4',
+    originalDuration: 30,
+    userDescription: 'High-energy startup pitch teaser showing product demo, problem/solution, and team culture. Designed to attract investors and customers.',
+    defaultTranscribe: 'We are solving the problem everyone has but no one talks about. Our AI platform cuts your workflow from days to minutes. We have already onboarded fifty companies, saved them over two million dollars, and we are just getting started. If you are ready to build the future with us, hit that link and join the revolution.'
   }
+];
+
+export const STOCK_FOOTAGE_BROLL = [
+  { id: 'broll-city', url: 'https://assets.mixkit.co/videos/preview/mixkit-typing-on-a-laptop-in-an-office-4492-large.mp4', label: 'Office Typing', category: 'tech' },
+  { id: 'broll-nature', url: 'https://assets.mixkit.co/videos/preview/mixkit-tree-with-yellow-flowers-1173-large.mp4', label: 'Nature', category: 'lifestyle' },
+  { id: 'broll-people', url: 'https://assets.mixkit.co/videos/preview/mixkit-group-of-friends-laughing-4982-large.mp4', label: 'People Laughing', category: 'social' },
+  { id: 'broll-aerial', url: 'https://assets.mixkit.co/videos/preview/mixkit-aerial-view-of-city-traffic-at-night-11-large.mp4', label: 'City Aerial', category: 'urban' },
+  { id: 'broll-food', url: 'https://assets.mixkit.co/videos/preview/mixkit-pouring-water-on-a-salad-4265-large.mp4', label: 'Food Prep', category: 'food' },
+  { id: 'broll-tech', url: 'https://assets.mixkit.co/videos/preview/mixkit-software-developer-working-on-code-1723-large.mp4', label: 'Coding', category: 'tech' },
+  { id: 'broll-fitness', url: 'https://assets.mixkit.co/videos/preview/mixkit-woman-stretching-her-arms-in-the-morning-4807-large.mp4', label: 'Morning Stretch', category: 'fitness' },
+  { id: 'broll-money', url: 'https://assets.mixkit.co/videos/preview/mixkit-close-up-of-a-womans-hand-holding-a-credit-card-4805-large.mp4', label: 'Credit Card', category: 'business' },
 ];

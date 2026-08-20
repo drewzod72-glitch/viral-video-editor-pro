@@ -4,8 +4,8 @@ import { playViralSFX } from './sfx';
 
 // ─── Renderer Configuration ───────────────────────────────────────────────
 const FPS = 30;
-const W = 1080;
-const H = 1920;
+let W = 1080;
+let H = 1920;
 const CANVAS_BITRATE = 4_000_000; // 4 Mbps — stable on mobile, crisp text
 const FRAME_CAPTURE_DELAY_MS = 12; // tiny paint settle, not a throttle
 const SEEK_THRESHOLD = 0.15; // only seek if drift exceeds 150ms
@@ -50,7 +50,8 @@ export async function renderVideoInBrowser(
   project: VideoProject,
   onProgress: (progress: number) => void,
   activeClipId: string | null = null,
-  segments?: Array<{ start: number; end: number; speed?: number }>
+  segments?: Array<{ start: number; end: number; speed?: number }>,
+  aspectRatio: '9:16' | '16:9' | '1:1' = '9:16'
 ): Promise<{ blob: Blob; extension: string; valid: boolean }> {
   return new Promise(async (resolve, reject) => {
     let cancelled = false;
@@ -77,6 +78,17 @@ export async function renderVideoInBrowser(
       });
 
       // ── 2. CANVAS + STREAM SETUP ─────────────────────────────────────
+      if (aspectRatio === '16:9') {
+        W = 1920;
+        H = 1080;
+      } else if (aspectRatio === '1:1') {
+        W = 1080;
+        H = 1080;
+      } else {
+        W = 1080;
+        H = 1920;
+      }
+
       const canvas = document.createElement('canvas');
       canvas.width = W;
       canvas.height = H;
@@ -540,7 +552,6 @@ export async function renderVideoInBrowser(
       }
 
       // ── FINALIZE ─────────────────────────────────────────────────────
-<<<<<<< ours
         const finishRender = async (): Promise<{ blob: Blob; extension: string; valid: boolean }> => {
           video.pause();
           recorder.stop();
@@ -591,57 +602,6 @@ export async function renderVideoInBrowser(
           return result;
         };
 
-=======
-        const finishRender = async () => {
-          video.pause();
-          recorder.stop();
-
-          await new Promise<void>((res) => {
-            recorder.onstop = () => {
-              const finalBlob = new Blob(chunks, { type: mimeType });
-
-              // Validate output before returning (Kilo reliability)
-              const isValid = finalBlob.size > 500_000;
-              if (!isValid) {
-                console.warn('[Forge] Output validation failed: blob too small', finalBlob.size);
-              }
-
-              // ── FULL MEMORY DISPOSAL ────────────────────────────────────
-              video.removeAttribute('src');
-              video.load();
-              video.remove();
-
-              if (videoAudioEl) {
-                videoAudioEl.pause();
-                videoAudioEl.removeAttribute('src');
-                videoAudioEl.load();
-                videoAudioEl.remove();
-              }
-
-              ctx.clearRect(0, 0, W, H);
-              canvas.width = 0;
-              canvas.height = 0;
-
-              if (musicEl) {
-                musicEl.pause();
-                musicEl.src = '';
-                musicEl.load();
-              }
-              if (videoGain) videoGain.disconnect();
-              if (videoSource) videoSource.disconnect();
-              audioCtx.close().catch(() => {});
-
-              canvasStream.getTracks().forEach((t) => t.stop());
-              combinedStream.getTracks().forEach((t) => t.stop());
-
-              res({ blob: finalBlob, extension: fileExtension, valid: isValid });
-            };
-          });
-
-          onProgress(100);
-        };
-
->>>>>>> theirs
         const result = await finishRender();
         if (!result.valid) {
           throw new Error('Browser render produced an invalid output file (too small).');

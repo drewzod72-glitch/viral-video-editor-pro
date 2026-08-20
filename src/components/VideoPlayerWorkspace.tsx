@@ -1,10 +1,10 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { VideoProject, getCaptionStyles } from '../types';
-import { FREE_MUSIC_TRACKS } from '../data';
+import { VideoProject, getCaptionStyles, AspectRatio, BrollClip } from '../types';
+import { FREE_MUSIC_TRACKS, STOCK_FOOTAGE_BROLL } from '../data';
 import { ThumbnailGenerator } from './ThumbnailGenerator';
 import { playViralSFX } from '../utils/sfx';
 import { LUT_PRESETS, TRANSITION_PRESETS } from '../utils/ffmpegWasmRenderer';
-import { Play, Pause, SkipBack, SkipForward, Heart, MessageCircle, Share2, Music, Pause as PauseIcon, CheckCircle, Square, Flame, Coffee, Clapperboard, Disc } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Heart, MessageCircle, Share2, Music, Pause as PauseIcon, CheckCircle, Square, Flame, Coffee, Clapperboard, Disc, Wand2, Command, X } from 'lucide-react';
 import { colors, borderRadius, INTER, statusColors, TRANSITION, tint } from '../utils/styles';
 
 const fixDunikTypo = (str: string) => str?.replace(/dunik/gi, 'Dunk') || '';
@@ -16,7 +16,7 @@ const MOOD_CATEGORIES = [
   { key: 'chill', label: 'Tech / Chill', icon: <Disc size={14} color={statusColors.cyan} />, color: statusColors.cyan },
 ] as const;
 
-export default function VideoPlayerWorkspace({ project, activeMusicTrack, activeClipId, onClipSelect, onUpdateProject }: any) {
+export default function VideoPlayerWorkspace({ project, activeMusicTrack, activeClipId, onClipSelect, onUpdateProject, aspectRatio, onUpdateAspectRatio, commandInput, onCommandChange, onCommandKeyDown, commandSuggestions, onCommandSubmit, voiceoverText, onGenerateVoiceover, isGeneratingVoiceover, brollClips }: any) {
   if (!project) return null;
 
   const {
@@ -45,6 +45,7 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
   const [showSafeZone, setShowSafeZone] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [musicMood, setMusicMood] = useState<string>('hype');
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   // Refs for the master sync loop to avoid stale closures
   const playingRef = useRef(playing);
@@ -289,7 +290,7 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           marginBottom: '14px', flexWrap: 'wrap', gap: '8px'
         }}>
-          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
             <button
               onClick={() => setShowSafeZone(!showSafeZone)}
               style={{
@@ -305,6 +306,26 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
             >
               {showSafeZone ? '🟡 Safe Zone' : '⬜ Safe Zone'}
             </button>
+            <div style={{ display: 'flex', gap: '4px', marginLeft: '8px' }}>
+              {(['9:16', '16:9', '1:1'] as AspectRatio[]).map((ar) => (
+                <button
+                  key={ar}
+                  onClick={() => onUpdateAspectRatio(ar)}
+                  style={{
+                    padding: '5px 10px', borderRadius: '8px',
+                    border: aspectRatio === ar ? '1px solid rgba(236,72,153,0.5)' : '1px solid rgba(30,41,59,0.5)',
+                    background: aspectRatio === ar ? 'rgba(236,72,153,0.15)' : 'rgba(9,9,11,0.4)',
+                    color: aspectRatio === ar ? '#EC4899' : '#a1a1aa',
+                    fontSize: '9px', fontWeight: 700,
+                    cursor: 'pointer', fontFamily: '"Inter", sans-serif',
+                    textTransform: 'uppercase', letterSpacing: '0.5px',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  {ar === '9:16' ? '📱' : ar === '16:9' ? '🖥' : '⬜'} {ar}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div style={{ fontSize: '10px', color: '#64748b', fontWeight: 700, fontFamily: '"JetBrains Mono", monospace' }}>
@@ -648,6 +669,85 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
         </div>
       </div>
 
+      {/* AI Command Bar */}
+      <div style={{
+        background: 'linear-gradient(180deg, rgba(24,24,27,0.95) 0%, rgba(9,9,11,0.98) 100%)',
+        padding: '16px 20px', borderRadius: '24px',
+        border: '1px solid rgba(30,41,59,0.6)',
+        backdropFilter: 'blur(16px)'
+      }}>
+        <div style={{
+          color: '#64748b', fontSize: '9px', fontWeight: 800,
+          textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '10px'
+        }}>
+          AI Command Bar
+        </div>
+        <div style={{ position: 'relative' }}>
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <Wand2 size={14} color="#EC4899" style={{ position: 'absolute', left: '12px', zIndex: 2 }} />
+            <input
+              type="text"
+              value={commandInput}
+              onChange={onCommandChange}
+              onKeyDown={onCommandKeyDown}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+              placeholder="Type a command... e.g. 'change caption style to mrbeast', 'add zoom at 5s', 'remove silence', 'add broll at 2s', 'voiceover: hello'"
+              style={{
+                width: '100%', padding: '12px 12px 12px 36px',
+                background: '#020617', border: '1px solid #27272a',
+                borderRadius: '12px', color: '#e4e4e7',
+                fontSize: '11px', fontFamily: '"Inter", sans-serif',
+                outline: 'none', transition: 'all 0.2s'
+              }}
+            />
+            <span style={{
+              position: 'absolute', right: '10px',
+              background: 'rgba(236,72,153,0.15)', color: '#EC4899',
+              padding: '2px 8px', borderRadius: '6px',
+              fontSize: '9px', fontWeight: 800,
+              textTransform: 'uppercase', letterSpacing: '0.5px',
+              fontFamily: '"Inter", sans-serif'
+            }}>
+              AI
+            </span>
+          </div>
+          {showSuggestions && commandSuggestions.length > 0 && (
+            <div style={{
+              position: 'absolute', top: '100%', left: 0, right: 0,
+              marginTop: '4px', background: '#18181b',
+              border: '1px solid #27272a', borderRadius: '10px',
+              overflow: 'hidden', zIndex: 50,
+              boxShadow: '0 8px 32px rgba(0,0,0,0.5)'
+            }}>
+              {commandSuggestions.slice(0, 5).map((suggestion, idx) => (
+                <div
+                  key={idx}
+                  onMouseDown={(e) => { e.preventDefault(); onCommandSubmit(); }}
+                  style={{
+                    padding: '8px 12px', fontSize: '10px',
+                    color: '#a1a1aa', cursor: 'pointer',
+                    borderBottom: idx < Math.min(commandSuggestions.length, 5) - 1 ? '1px solid rgba(39,39,42,0.5)' : 'none',
+                    fontFamily: '"Inter", sans-serif',
+                    transition: 'all 0.15s'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(236,72,153,0.08)';
+                    e.currentTarget.style.color = '#e4e4e7';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'transparent';
+                    e.currentTarget.style.color = '#a1a1aa';
+                  }}
+                >
+                  {suggestion}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Music Matrix */}
       <div style={{
         background: 'linear-gradient(180deg, rgba(24,24,27,0.95) 0%, rgba(9,9,11,0.98) 100%)',
@@ -755,6 +855,116 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
           }}>
             {Math.round(volume * 100)}%
           </span>
+        </div>
+      </div>
+
+      {/* B-Roll & Voiceover */}
+      <div style={{
+        background: 'linear-gradient(180deg, rgba(24,24,27,0.95) 0%, rgba(9,9,11,0.98) 100%)',
+        padding: '20px', borderRadius: '24px',
+        border: '1px solid rgba(30,41,59,0.6)',
+        backdropFilter: 'blur(16px)'
+      }}>
+        <div style={{
+          color: '#64748b', fontSize: '9px', fontWeight: 800,
+          textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '14px'
+        }}>
+          B-Roll & Voiceover
+        </div>
+
+        {/* B-Roll Clips */}
+        <div style={{ marginBottom: '16px' }}>
+          <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            B-Roll Clips
+          </div>
+          {brollClips && brollClips.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '180px', overflowY: 'auto', paddingRight: '4px' }}>
+              {brollClips.map((clip) => (
+                <div key={clip.id} style={{
+                  display: 'flex', alignItems: 'center', gap: '8px',
+                  padding: '8px 10px', borderRadius: '10px',
+                  border: '1px solid #27272a',
+                  background: 'rgba(236,72,153,0.04)'
+                }}>
+                  <span style={{ fontSize: '9px', color: '#EC4899', fontWeight: 800, minWidth: '18px' }}>#{clip.id.slice(-4)}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '10px', color: '#e4e4e7', fontWeight: 600 }}>{clip.label}</div>
+                    <div style={{ fontSize: '9px', color: '#64748b', fontFamily: '"JetBrains Mono", monospace' }}>
+                      @ {clip.timestamp.toFixed(2)}s · {clip.duration.toFixed(1)}s
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (onUpdateProject) {
+                        const updated = (brollClips || []).filter((c: BrollClip) => c.id !== clip.id);
+                        onUpdateProject({ ...project, brollClips: updated });
+                      }
+                    }}
+                    style={{
+                      background: 'transparent', border: 'none', color: '#f87171',
+                      cursor: 'pointer', fontSize: '12px', fontWeight: 800, padding: '2px 6px',
+                      display: 'flex', alignItems: 'center'
+                    }}
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ fontSize: '10px', color: '#64748b' }}>
+              No B-Roll clips added yet. Use the AI command bar to add B-Roll at specific timestamps.
+            </div>
+          )}
+        </div>
+
+        {/* Voiceover */}
+        <div>
+          <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            Voiceover Text
+          </div>
+          {voiceoverText ? (
+            <div style={{
+              padding: '10px 12px', borderRadius: '10px',
+              border: '1px solid #27272a',
+              background: '#020617',
+              marginBottom: '10px'
+            }}>
+              <div style={{ fontSize: '11px', color: '#e4e4e7', lineHeight: 1.5 }}>
+                {voiceoverText}
+              </div>
+            </div>
+          ) : (
+            <div style={{ fontSize: '10px', color: '#64748b', marginBottom: '10px' }}>
+              No voiceover text set. Use the AI command bar with "voiceover: your text" to add one.
+            </div>
+          )}
+          <button
+            onClick={onGenerateVoiceover}
+            disabled={isGeneratingVoiceover || !voiceoverText}
+            style={{
+              padding: '8px 16px', borderRadius: '10px',
+              border: '1px solid #27272a',
+              background: isGeneratingVoiceover ? 'rgba(236,72,153,0.1)' : 'rgba(236,72,153,0.2)',
+              color: isGeneratingVoiceover ? '#a1a1aa' : '#EC4899',
+              fontSize: '10px', fontWeight: 700, cursor: isGeneratingVoiceover || !voiceoverText ? 'not-allowed' : 'pointer',
+              fontFamily: '"Inter", sans-serif', textTransform: 'uppercase',
+              letterSpacing: '0.5px', transition: 'all 0.2s',
+              display: 'flex', alignItems: 'center', gap: '6px'
+            }}
+          >
+            {isGeneratingVoiceover ? (
+              <>
+                <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#EC4899', animation: 'spin 1s linear infinite' }} />
+                Generating...
+              </>
+            ) : (
+              <>
+                <Command size={12} />
+                Generate Voiceover
+              </>
+            )}
+          </button>
         </div>
       </div>
 
