@@ -3,6 +3,8 @@ import { resolveCaptionMetrics, normalizeCaptionStyle } from './utils/captionSty
 export type VideoNiche = 'fitness' | 'education' | 'comedy' | 'motivation' | 'cooking' | 'tech' | 'pets' | 'unboxing' | 'sales' | 'general';
 export type CaptionStyle = 'mrbeast' | 'hormozi' | 'minimalist' | 'impact' | 'comic';
 export type AspectRatio = '9:16' | '16:9' | '1:1';
+export type ExportQuality = 'draft' | 'standard' | 'high' | 'pro';
+export type ExportFormat = 'mp4' | 'webm' | 'mov';
 
 export interface BrollClip {
   id: string;
@@ -10,6 +12,15 @@ export interface BrollClip {
   label: string;
   timestamp: number;
   duration: number;
+  reason: string;
+}
+
+export interface ReframeCrop {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  score: number;
   reason: string;
 }
 
@@ -46,6 +57,23 @@ export interface HighlightClip {
   description: string;
   whyEngaging: string;
   speed?: number;
+}
+
+export interface GeneratedImage {
+  id: string;
+  url: string;
+  prompt: string;
+  model: string;
+  timestamp: number;
+}
+
+export interface BlurRegion {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  blurAmount: number;
 }
 
 export interface Segment {
@@ -103,7 +131,23 @@ export interface VideoProject {
   brollClips?: BrollClip[];
   voiceoverText?: string;
   voiceoverStart?: number;
-  
+  reframeCrops?: {
+    '9:16': ReframeCrop;
+    '16:9': ReframeCrop;
+    '1:1': ReframeCrop;
+  };
+  selectedReframe?: AspectRatio;
+  exportQuality?: ExportQuality;
+  exportFormat?: ExportFormat;
+
+  // AI IMAGE GENERATION
+  generatedImages?: GeneratedImage[];
+  selectedImageId?: string;
+
+  // FACE / REGION BLUR
+  blurRegions?: BlurRegion[];
+  enableFaceBlur?: boolean;
+
   // UNIFIED PERSISTENT SETTINGS
   enableSubtitles: boolean;
   enableZooms: boolean;

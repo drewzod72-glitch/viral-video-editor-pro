@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Zap, Settings, Volume2, Infinity as InfinityIcon, Smartphone, Clapperboard, BarChart3, Brain, Menu, X, AlertTriangle, Satellite, Trophy, Loader2, Palette, Check, Eye, Download, Wand2, Command } from 'lucide-react';
-import { VideoProject, AspectRatio, BrollClip } from './types';
+import { VideoProject, AspectRatio, BrollClip, ExportQuality, ExportFormat } from './types';
 import { FREE_MUSIC_TRACKS, RAW_VIDEO_TEMPLATES, STOCK_FOOTAGE_BROLL } from './data';
 import NicheSelector from './components/NicheSelector';
 import VideoPlayerWorkspace from './components/VideoPlayerWorkspace';
@@ -12,8 +12,11 @@ import { saveFileToDevice } from './utils/download';
 import { renderVideoInBrowser } from './utils/ffmpegClient';
 import { computeViralityScore } from './utils/viralityScore';
 import { renderVideoWithFFmpegWasm, LUT_PRESETS, TRANSITION_PRESETS, detectViralMoments } from './utils/ffmpegWasmRenderer';
+import { analyzeReframeCrops, getCropFFmpegFilter } from './utils/reframeAI';
 import { colors, borderRadius, INTER, statusColors, TRANSITION, tint } from './utils/styles';
 import { parseTextCommand, getCommandSuggestions } from './utils/textCommands';
+import { generateImageWithAI, getImageGenModels } from './utils/imageGenAI';
+import { BlurRegion, GeneratedImage } from './types';
 
 
 
@@ -37,11 +40,22 @@ export default function App() {
   const [exportError, setExportError] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('9:16');
+  const [exportQuality, setExportQuality] = useState<ExportQuality>('high');
+  const [exportFormat, setExportFormat] = useState<ExportFormat>('mp4');
   const [commandInput, setCommandInput] = useState('');
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
   const [commandSuggestions, setCommandSuggestions] = useState<string[]>([]);
   const [voiceoverBlob, setVoiceoverBlob] = useState<Blob | null>(null);
   const [isGeneratingVoiceover, setIsGeneratingVoiceover] = useState(false);
+  const [isAnalyzingReframe, setIsAnalyzingReframe] = useState(false);
+  const [reframeAnalysis, setReframeAnalysis] = useState<any>(null);
+  const [imageGenPrompt, setImageGenPrompt] = useState('');
+  const [imageGenModel, setImageGenModel] = useState<'flux' | 'dall-e-3' | 'stable-diffusion'>('flux');
+  const [imageGenAspect, setImageGenAspect] = useState<'1:1' | '16:9' | '9:16'>('1:1');
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
+  const [blurRegions, setBlurRegions] = useState<BlurRegion[]>([]);
+  const [enableFaceBlur, setEnableFaceBlur] = useState(false);
 
   const startApp = () => {
     try {
@@ -350,10 +364,11 @@ export default function App() {
           },
           activeClipId,
           mode: 'ffmpeg',
-          aspectRatio
+          aspectRatio,
+          exportQuality,
+          exportFormat
         });
-        const ext = aspectRatio === '16:9' ? 'mp4' : aspectRatio === '1:1' ? 'mp4' : 'mp4';
-        result = { blob, filename: `${activeProject.name}_${aspectRatio.replace(':', 'x')}_pro.${ext}` };
+        result = { blob, filename: `${activeProject.name}_${exportQuality}_${exportFormat}.${exportFormat}` };
       } else {
         const canvasResult = await renderVideoInBrowser(
           activeProject,
@@ -362,9 +377,12 @@ export default function App() {
             setProcessingStage(`Baking: ${p}%`);
           },
           activeClipId,
-          aspectRatio
+          undefined,
+          aspectRatio,
+          exportQuality,
+          exportFormat
         );
-        result = { blob: canvasResult.blob, filename: `${activeProject.name}_${aspectRatio.replace(':', 'x')}_viral.${canvasResult.extension}` };
+        result = { blob: canvasResult.blob, filename: `${activeProject.name}_${exportQuality}_${exportFormat}.${canvasResult.extension}` };
       }
 
       const expectedDuration = activeProject.highlights?.reduce(
@@ -386,7 +404,11 @@ export default function App() {
             setRenderProgress(p);
             setProcessingStage(`Fixing: ${p}%`);
           },
-          activeClipId
+          activeClipId,
+          undefined,
+          aspectRatio,
+          exportQuality,
+          exportFormat
         ).then(r => r.blob);
         
         const retryDuration = await getBlobDuration(retryBlob);
@@ -407,7 +429,10 @@ export default function App() {
                 setProcessingStage(stage || `Retry: ${p}%`);
               },
               activeClipId,
-              mode: 'ffmpeg'
+              mode: 'ffmpeg',
+              aspectRatio,
+              exportQuality,
+              exportFormat
             })
           : await renderVideoInBrowser(
               activeProject,
@@ -415,7 +440,11 @@ export default function App() {
                 setRenderProgress(p);
                 setProcessingStage(`Retry: ${p}%`);
               },
-              activeClipId
+              activeClipId,
+              undefined,
+              aspectRatio,
+              exportQuality,
+              exportFormat
             ).then(r => r.blob);
 
         if (retryBlob && retryBlob.size > 500_000) {
@@ -540,6 +569,56 @@ export default function App() {
       console.warn('Voiceover generation failed:', e);
       setIsGeneratingVoiceover(false);
     }
+  };
+
+  const runReframeAnalysis = async () => {
+    if (!activeProject || isAnalyzingReframe) return;
+    setIsAnalyzingReframe(true);
+    setReframeAnalysis(null);
+    try {
+      const result = await analyzeReframeCrops(activeProject.videoUrl, activeProject.duration || 30);
+      if (result) {
+        setReframeAnalysis(result);
+        setActiveProject(prev => prev ? { ...prev, reframeCrops: result.recommended } : prev);
+      }
+    } catch (e) {
+      console.warn('Reframe analysis failed:', e);
+    } finally {
+      setIsAnalyzingReframe(false);
+    }
+  };
+
+  const generateImage = async () => {
+    if (!imageGenPrompt.trim() || isGeneratingImage) return;
+    setIsGeneratingImage(true);
+    try {
+      const result = await generateImageWithAI({
+        prompt: imageGenPrompt.trim(),
+        model: imageGenModel,
+        aspectRatio: imageGenAspect,
+      });
+      setGeneratedImages(prev => [...prev, result]);
+      setImageGenPrompt('');
+    } catch (e: any) {
+      console.warn('Image generation failed:', e);
+    } finally {
+      setIsGeneratingImage(false);
+    }
+  };
+
+  const addBlurRegion = (region: BlurRegion) => {
+    setBlurRegions(prev => [...prev, region]);
+  };
+
+  const removeBlurRegion = (id: string) => {
+    setBlurRegions(prev => prev.filter(r => r.id !== id));
+  };
+
+  const applyReframeCrop = (ratio: AspectRatio) => {
+    if (!reframeAnalysis || !activeProject) return;
+    const crop = reframeAnalysis.recommended[ratio];
+    if (!crop) return;
+    setActiveProject(prev => prev ? { ...prev, selectedReframe: ratio, aspectRatio: ratio } : prev);
   };
 
   const handleCommandKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -837,6 +916,57 @@ export default function App() {
             ))}
           </div>
         )}
+
+        {/* Quality Selector */}
+        <div style={{ display: 'flex', gap: '4px', background: 'rgba(2,6,23,0.6)', padding: '4px', borderRadius: '10px' }}>
+          {([
+            { key: 'draft' as ExportQuality, label: 'Draft' },
+            { key: 'standard' as ExportQuality, label: 'Standard' },
+            { key: 'high' as ExportQuality, label: 'High' },
+            { key: 'pro' as ExportQuality, label: 'Pro' },
+          ]).map(q => (
+            <button
+              key={q.key}
+              onClick={() => setExportQuality(q.key)}
+              style={{
+                flex: 1, padding: '6px', borderRadius: '8px', border: 'none',
+                background: exportQuality === q.key ? tint(colors.primary, 0.25) : 'transparent',
+                color: exportQuality === q.key ? colors.foreground : colors.mutedForeground,
+                fontWeight: 700, fontSize: '9px', cursor: 'pointer',
+                fontFamily: INTER, textTransform: 'uppercase',
+                letterSpacing: '0.5px', transition: TRANSITION.smooth,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '3px'
+              }}
+            >
+              <span>{q.label}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Format Selector */}
+        <div style={{ display: 'flex', gap: '4px', background: 'rgba(2,6,23,0.6)', padding: '4px', borderRadius: '10px' }}>
+          {([
+            { key: 'mp4' as ExportFormat, label: 'MP4' },
+            { key: 'webm' as ExportFormat, label: 'WebM' },
+            { key: 'mov' as ExportFormat, label: 'MOV' },
+          ]).map(f => (
+            <button
+              key={f.key}
+              onClick={() => setExportFormat(f.key)}
+              style={{
+                flex: 1, padding: '6px', borderRadius: '8px', border: 'none',
+                background: exportFormat === f.key ? tint(colors.primary, 0.25) : 'transparent',
+                color: exportFormat === f.key ? colors.foreground : colors.mutedForeground,
+                fontWeight: 700, fontSize: '9px', cursor: 'pointer',
+                fontFamily: INTER, textTransform: 'uppercase',
+                letterSpacing: '0.5px', transition: TRANSITION.smooth,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '3px'
+              }}
+            >
+              <span>{f.label}</span>
+            </button>
+          ))}
+        </div>
 
         <button
           onClick={triggerExport}
@@ -1138,24 +1268,50 @@ export default function App() {
                       )}
                     </div>
                   )}
-                  <VideoPlayerWorkspace
-                    project={activeProject}
-                    onUpdateProject={(up) => setActiveProject(up as VideoProject)}
-                    activeMusicTrack={FREE_MUSIC_TRACKS.find(t => t.id === activeProject.selectedMusicTrackId) || null}
-                    activeClipId={activeClipId}
-                    onClipSelect={setActiveClipId}
-                    aspectRatio={aspectRatio}
-                    onUpdateAspectRatio={setAspectRatio}
-                    commandInput={commandInput}
-                    onCommandChange={handleCommandChange}
-                    onCommandKeyDown={handleCommandKeyDown}
-                    commandSuggestions={commandSuggestions}
-                    onCommandSubmit={handleTextCommand}
-                    voiceoverText={activeProject.voiceoverText}
-                    onGenerateVoiceover={generateVoiceover}
-                    isGeneratingVoiceover={isGeneratingVoiceover}
-                    brollClips={activeProject.brollClips}
-                  />
+                    <VideoPlayerWorkspace
+                      project={activeProject}
+                      onUpdateProject={(up) => setActiveProject(up as VideoProject)}
+                      activeMusicTrack={FREE_MUSIC_TRACKS.find(t => t.id === activeProject.selectedMusicTrackId) || null}
+                      activeClipId={activeClipId}
+                      onClipSelect={setActiveClipId}
+                      aspectRatio={aspectRatio}
+                      onUpdateAspectRatio={setAspectRatio}
+                      commandInput={commandInput}
+                      onCommandChange={handleCommandChange}
+                      onCommandKeyDown={handleCommandKeyDown}
+                      commandSuggestions={commandSuggestions}
+                      onCommandSubmit={handleTextCommand}
+                      voiceoverText={activeProject.voiceoverText}
+                      onGenerateVoiceover={generateVoiceover}
+                      isGeneratingVoiceover={isGeneratingVoiceover}
+                      brollClips={activeProject.brollClips}
+                      reframeAnalysis={reframeAnalysis}
+                      onRunReframeAnalysis={runReframeAnalysis}
+                      isAnalyzingReframe={isAnalyzingReframe}
+                      selectedReframe={activeProject.selectedReframe}
+                      onApplyReframe={applyReframeCrop}
+                      imageGenPrompt={imageGenPrompt}
+                      onImageGenPromptChange={setImageGenPrompt}
+                      imageGenModel={imageGenModel}
+                      onImageGenModelChange={setImageGenModel}
+                      imageGenAspect={imageGenAspect}
+                      onImageGenAspectChange={setImageGenAspect}
+                      isGeneratingImage={isGeneratingImage}
+                      onGenerateImage={generateImage}
+                      generatedImages={generatedImages}
+                      onSelectImage={(img) => {
+                        setGeneratedImages(prev => prev);
+                      }}
+                      blurRegions={blurRegions}
+                      onAddBlurRegion={addBlurRegion}
+                      onRemoveBlurRegion={removeBlurRegion}
+                      enableFaceBlur={enableFaceBlur}
+                      onToggleFaceBlur={setEnableFaceBlur}
+                      exportQuality={exportQuality}
+                      onUpdateExportQuality={setExportQuality}
+                      exportFormat={exportFormat}
+                      onUpdateExportFormat={setExportFormat}
+                    />
                 </div>
               )}
               {activeTab === 'viral' && <ViralityScorecard project={activeProject} onUpdateProject={(up) => setActiveProject(up as VideoProject)} />}

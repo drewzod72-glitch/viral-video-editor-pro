@@ -20,6 +20,9 @@ interface FFmpegWasmRendererOptions {
   chunkDuration?: number;
   segments?: Array<{ start: number; end: number; speed?: number }>;
   aspectRatio?: VideoProject['aspectRatio'];
+  reframeCrop?: { x: number; y: number; width: number; height: number } | null;
+  exportQuality?: VideoProject['exportQuality'];
+  exportFormat?: VideoProject['exportFormat'];
 }
 
 // LUT definitions for professional color grading
@@ -75,11 +78,11 @@ export const TRANSITION_PRESETS = {
 // ─── Core FFmpeg.wasm Renderer ──────────────────────────────────────────────
 
 export async function renderVideoWithFFmpegWasm(options: FFmpegWasmRendererOptions): Promise<Blob> {
-  const { project, onProgress, activeClipId, mode = 'canvas', segments, aspectRatio } = options;
+  const { project, onProgress, activeClipId, mode = 'canvas', segments, aspectRatio, reframeCrop, exportQuality, exportFormat } = options;
 
   if (mode === 'canvas') {
     const { renderVideoInBrowser } = await import('./ffmpegClient');
-    const canvasResult = await renderVideoInBrowser(project, onProgress, activeClipId);
+    const canvasResult = await renderVideoInBrowser(project, onProgress, activeClipId, segments, aspectRatio, exportQuality, exportFormat);
     return canvasResult.blob;
   }
 
@@ -134,10 +137,10 @@ export async function renderVideoWithFFmpegWasm(options: FFmpegWasmRendererOptio
       }
 
       // Build filter complex
-      const filterComplex = buildFilterComplex(project, subtitleFile, aspectRatio);
+      const filterComplex = buildFilterComplex(project, subtitleFile, aspectRatio, reframeCrop);
 
       // Build FFmpeg command
-      const args = buildFFmpegCommand(project, filterComplex, musicFile, aspectRatio);
+      const args = buildFFmpegCommand(project, filterComplex, musicFile, aspectRatio, exportQuality, exportFormat);
 
       // Execute with progress
       ffmpeg.on('progress', ({ progress }) => {
@@ -148,7 +151,7 @@ export async function renderVideoWithFFmpegWasm(options: FFmpegWasmRendererOptio
       await ffmpeg.exec(args);
 
       onProgress(95, 'Finalizing...');
-      const outputData = await ffmpeg.readFile('output.mp4');
+      const outputExt = exportFormat === 'mov' ? 'mov' : 'mp4'; const outputData = await ffmpeg.readFile(`output.${outputExt}`);
       const blob = new Blob([outputData as BlobPart], { type: 'video/mp4' });
 
       // Cleanup
@@ -156,7 +159,7 @@ export async function renderVideoWithFFmpegWasm(options: FFmpegWasmRendererOptio
         await ffmpeg.deleteFile('input.mp4');
         if (musicFile) await ffmpeg.deleteFile(musicFile);
         if (subtitleFile) await ffmpeg.deleteFile('subs.srt');
-        await ffmpeg.deleteFile('output.mp4');
+        await ffmpeg.deleteFile('output.' + (exportFormat === 'mov' ? 'mov' : 'mp4'));
       } catch (e) {
         // Ignore cleanup errors
       }
@@ -179,14 +182,14 @@ export async function renderVideoWithFFmpegWasm(options: FFmpegWasmRendererOptio
       console.warn('[FFmpeg.wasm] All attempts failed, falling back to canvas renderer:', error);
       
       const { renderVideoInBrowser } = await import('./ffmpegClient');
-      const canvasResult = await renderVideoInBrowser(project, onProgress, activeClipId);
+      const canvasResult = await renderVideoInBrowser(project, onProgress, activeClipId, segments, aspectRatio, exportQuality, exportFormat);
       return canvasResult.blob;
     }
   }
 
   // Should never reach here, but just in case
   const { renderVideoInBrowser } = await import('./ffmpegClient');
-  const canvasResult = await renderVideoInBrowser(project, onProgress, activeClipId);
+  const canvasResult = await renderVideoInBrowser(project, onProgress, activeClipId, segments, aspectRatio, exportQuality, exportFormat);
   return canvasResult.blob;
 }
 
@@ -223,7 +226,7 @@ function hexToAssColor(hex: string, alpha: number = 0): string {
   return `&H${aa}${b.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${r.toString(16).padStart(2, '0')}`;
 }
 
-function buildFilterComplex(project: VideoProject, subtitleFile: string | null, aspectRatio?: VideoProject['aspectRatio']): string {
+function buildFilterComplex(project: VideoProject, subtitleFile: string | null, aspectRatio?: VideoProject['aspectRatio'], reframeCrop?: { x: number; y: number; width: number; height: number } | null): string {
   const filters: string[] = [];
 
   const isWide = aspectRatio === '16:9';
@@ -231,8 +234,11 @@ function buildFilterComplex(project: VideoProject, subtitleFile: string | null, 
   const targetW = isWide ? 1920 : isSquare ? 1080 : 1080;
   const targetH = isWide ? 1080 : isSquare ? 1080 : 1920;
 
-  // 1. Scale to target resolution
-  filters.push(`scale=${targetW}:${targetH}:force_original_aspect_ratio=decrease,pad=${targetW}:${targetH}:(ow-iw)/2:(oh-ih)/2:black`);
+  if (reframeCrop && reframeCrop.width > 0 && reframeCrop.height > 0) {
+    filters.push(`crop=w='${Math.round(reframeCrop.width)}':h='${Math.round(reframeCrop.height)}':x='${Math.round(reframeCrop.x)}':y='${Math.round(reframeCrop.y)}'`);
+  } else {
+    filters.push(`scale=${targetW}:${targetH}:force_original_aspect_ratio=decrease,pad=${targetW}:${targetH}:(ow-iw)/2:(oh-ih)/2:black`);
+  }
 
   // 2. Color grading
   const lutKey = (project.colorGrade as keyof typeof LUT_PRESETS) || 'none';
@@ -241,7 +247,14 @@ function buildFilterComplex(project: VideoProject, subtitleFile: string | null, 
     filters.push(lut.ffmpeg);
   }
 
-  // 3. Motion effects
+  // 3. Face/region blur
+  if (project.blurRegions?.length) {
+    for (const blur of project.blurRegions) {
+      filters.push(`boxblur=10:1:x='${blur.x}':y='${blur.y}':w='${blur.width}':h='${blur.height}'`);
+    }
+  }
+
+  // 4. Motion effects
   if (project.enableZooms && project.zoomEffects?.length) {
     for (const z of project.zoomEffects) {
       if (z.timestamp >= 0 && z.duration > 0) {
@@ -279,7 +292,7 @@ function buildFilterComplex(project: VideoProject, subtitleFile: string | null, 
 
 // ─── FFmpeg Command Builder ─────────────────────────────────────────────────
 
-function buildFFmpegCommand(project: VideoProject, filterComplex: string, musicFile: string, aspectRatio?: VideoProject['aspectRatio']): string[] {
+function buildFFmpegCommand(project: VideoProject, filterComplex: string, musicFile: string, aspectRatio?: VideoProject['aspectRatio'], exportQuality?: VideoProject['exportQuality'], exportFormat?: VideoProject['exportFormat']): string[] {
   const args: string[] = ['-i', 'input.mp4'];
 
   // Add music input if present
@@ -313,18 +326,30 @@ function buildFFmpegCommand(project: VideoProject, filterComplex: string, musicF
     args.push('-af', audioFilters.join(';'));
   }
 
-  // Encoding settings - professional quality
+  // Quality-based encoding settings
+  const qualityMap: Record<string, { crf: string; preset: string }> = {
+    draft: { crf: '28', preset: 'ultrafast' },
+    standard: { crf: '23', preset: 'fast' },
+    high: { crf: '18', preset: 'fast' },
+    pro: { crf: '16', preset: 'slow' },
+  };
+  const q = qualityMap[exportQuality || 'high'] || qualityMap['high'];
+
+  const ext = exportFormat === 'mov' ? 'mov' : 'mp4';
+  const videoCodec = ext === 'mov' ? 'libx264' : 'libx264';
+  const audioCodec = ext === 'mov' ? 'aac' : 'aac';
+
   args.push(
-    '-c:v', 'libx264',
-    '-preset', 'fast',
-    '-crf', '18',
+    '-c:v', videoCodec,
+    '-preset', q.preset,
+    '-crf', q.crf,
     '-profile:v', 'high',
     '-pix_fmt', 'yuv420p',
-    '-c:a', 'aac',
+    '-c:a', audioCodec,
     '-b:a', '192k',
     '-ar', '44100',
     '-movflags', '+faststart',
-    'output.mp4'
+    `output.${ext}`
   );
 
   return args;

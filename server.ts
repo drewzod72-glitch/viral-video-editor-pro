@@ -20,6 +20,15 @@ interface Segment {
   reason?: string;
 }
 
+interface BlurRegion {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  blurAmount: number;
+}
+
 // __dirname is provided by Node's CommonJS wrapper (see build:server).
 // No shim needed — the ESM variant was removed along with the ESM build.
 
@@ -263,13 +272,14 @@ const cacheRenderFileAndSetHeaders = (res: any, sourcePath: string, cleanSafeNam
     fs.mkdirSync(savedRendersDir, { recursive: true });
   }
   const renderId = `render_v_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
-  const persistentPath = path.join(savedRendersDir, `${renderId}.mp4`);
+  const sourceExt = path.extname(sourcePath) || '.mp4';
+  const persistentPath = path.join(savedRendersDir, `${renderId}${sourceExt}`);
   try {
     fs.copyFileSync(sourcePath, persistentPath);
     savedRendersMap.set(renderId, persistentPath);
     console.log(`[Video Compiler Server] Saved copy of compiled video to persistent cache: ${persistentPath}`);
     
-    const downloadUrl = `/api/download-render?id=${renderId}&name=${encodeURIComponent(cleanSafeName + '_edited.mp4')}`;
+    const downloadUrl = `/api/download-render?id=${renderId}&name=${encodeURIComponent(cleanSafeName + '_edited' + sourceExt)}`;
     res.setHeader('X-Render-Id', renderId);
     res.setHeader('X-Render-Download-Url', downloadUrl);
     res.setHeader('Access-Control-Expose-Headers', 'X-Render-Id, X-Render-Download-Url');
@@ -764,6 +774,21 @@ app.post('/api/render-project', upload.single('videoFile'), async (req, res) => 
   const endLimitIn = req.body.endLimit !== undefined ? Number(req.body.endLimit) : null;
   const activeClipId = req.body.activeClipId || null;
   const aspectRatio = req.body.aspectRatio || '9:16';
+  const exportQuality = req.body.exportQuality || 'high';
+  const exportFormat = req.body.exportFormat || 'mp4';
+  const reframeCropRaw = req.body.reframeCrop;
+  const reframeCrop = reframeCropRaw ? {
+    x: Number(reframeCropRaw.x) || 0,
+    y: Number(reframeCropRaw.y) || 0,
+    width: Number(reframeCropRaw.width) || 0,
+    height: Number(reframeCropRaw.height) || 0,
+  } : null;
+
+  const blurRegionsRaw = req.body.blurRegions;
+  let blurRegions: BlurRegion[] = [];
+  if (blurRegionsRaw) {
+     blurRegions = JSON.parse(blurRegionsRaw);
+  }
 
   // Multi-cut segments: explicit keep-list from AI or user.
   // Shape: [{ start, end, speed?, reason? }, ...]
@@ -923,7 +948,8 @@ app.post('/api/render-project', upload.single('videoFile'), async (req, res) => 
 
   const cleanSafeName = fixedName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
   const inputTempPath = path.join(os.tmpdir(), `input_v_${Date.now()}.mp4`);
-  const outputTempPath = path.join(os.tmpdir(), `output_v_${Date.now()}.mp4`);
+  const outputExt = exportFormat === 'mov' ? 'mov' : 'mp4';
+  const outputTempPath = path.join(os.tmpdir(), `output_v_${Date.now()}.${outputExt}`);
   const musicTempPath = path.join(os.tmpdir(), `music_v_${Date.now()}.mp3`);
   const sfx1TempPath = path.join(os.tmpdir(), `sfx1_${Date.now()}.ogg`);
   const sfx2TempPath = path.join(os.tmpdir(), `sfx2_${Date.now()}.ogg`);
@@ -1185,6 +1211,11 @@ app.post('/api/render-project', upload.single('videoFile'), async (req, res) => 
         vf += ',deshake';
       }
 
+      // 2b. Smart Reframe crop (AI-detected subject region)
+      if (reframeCrop && reframeCrop.width > 0 && reframeCrop.height > 0) {
+        vf += `,crop=w='${reframeCrop.width}':h='${reframeCrop.height}':x='${reframeCrop.x}':y='${reframeCrop.y}'`;
+      }
+
       // 3. Scale and fit to target aspect ratio (Standard 1080p, 16:9, 1:1, or Pro 4K)
       const isProExport = req.body.isProExport === 'true' || req.body.isProExport === true;
       
@@ -1203,6 +1234,13 @@ app.post('/api/render-project', upload.single('videoFile'), async (req, res) => 
       const targetRes = `${targetW}:${targetH}`;
       
       vf += `,scale=${targetRes}:force_original_aspect_ratio=decrease,pad=${targetRes}:(ow-iw)/2:(oh-ih)/2:black`;
+
+      // 4. Face/region blur
+      if (blurRegions.length > 0) {
+        for (const blur of blurRegions) {
+          vf += `,boxblur=10:1:x='${blur.x}':y='${blur.y}':w='${blur.width}':h='${blur.height}'`;
+        }
+      }
 
       // 4. Pro Motion Smoothing (Paid Feature - 60FPS conversion)
       if (isProExport) {
@@ -1582,15 +1620,23 @@ app.post('/api/render-project', upload.single('videoFile'), async (req, res) => 
         compileArgs.push('-shortest'); // force end when video stream ends
       }
 
-      // High quality, 30fps constant rate constant-factor-ratio and faststart metadata indices relocation
+      // Quality-based encoding settings
+      const qualitySettings: Record<string, { crf: string; preset: string; bitrate: string }> = {
+        draft: { crf: '28', preset: 'ultrafast', bitrate: '3000k' },
+        standard: { crf: '23', preset: 'fast', bitrate: '5500k' },
+        high: { crf: '18', preset: 'fast', bitrate: '8000k' },
+        pro: { crf: '16', preset: 'slow', bitrate: '12000k' },
+      };
+      const q = qualitySettings[exportQuality] || qualitySettings['high'];
+
       compileArgs.push(
         '-r', '30',
         '-c:v', 'libx264',
-        '-preset', 'ultrafast',
-        '-crf', '23',
-        '-b:v', '5500k',
-        '-maxrate', '6500k',
-        '-bufsize', '12000k',
+        '-preset', q.preset,
+        '-crf', q.crf,
+        '-b:v', q.bitrate,
+        '-maxrate', String(Number(q.bitrate.replace('k', '')) * 1.2) + 'k',
+        '-bufsize', String(Number(q.bitrate.replace('k', '')) * 2.2) + 'k',
         '-pix_fmt', 'yuv420p',
         '-c:a', 'aac',
         '-b:a', '192k',
@@ -1628,8 +1674,8 @@ app.post('/api/render-project', upload.single('videoFile'), async (req, res) => 
             // Fall through to send the file anyway — the client will validate on its end
           }
 
-          res.setHeader('Content-Type', 'video/mp4');
-          res.setHeader('Content-Disposition', `attachment; filename="${cleanSafeName}_edited.mp4"`);
+          res.setHeader('Content-Type', outputExt === 'mov' ? 'video/quicktime' : 'video/mp4');
+          res.setHeader('Content-Disposition', `attachment; filename="${cleanSafeName}_edited.${outputExt}"`);
           res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
           res.setHeader('Pragma', 'no-cache');
           res.setHeader('Expires', '0');
@@ -1732,11 +1778,12 @@ app.post('/api/render-project', upload.single('videoFile'), async (req, res) => 
             if (hasMusic) {
               fallbackArgs.push('-shortest');
             }
+            const fbQ = qualitySettings[exportQuality] || qualitySettings['high'];
             fallbackArgs.push(
               '-r', '30',
               '-c:v', 'libx264',
-              '-preset', 'ultrafast',
-              '-crf', '25',
+              '-preset', fbQ.preset,
+              '-crf', fbQ.crf,
               '-pix_fmt', 'yuv420p',
               '-c:a', 'aac',
               '-b:a', '128k',
@@ -1758,8 +1805,8 @@ app.post('/api/render-project', upload.single('videoFile'), async (req, res) => 
             // Cache the compiled file and inject custom sandbox-bypassing headers
             cacheRenderFileAndSetHeaders(res, outputTempPath, cleanSafeName);
 
-            res.setHeader('Content-Type', 'video/mp4');
-            res.setHeader('Content-Disposition', `attachment; filename="${cleanSafeName}_edited.mp4"`);
+            res.setHeader('Content-Type', outputExt === 'mov' ? 'video/quicktime' : 'video/mp4');
+            res.setHeader('Content-Disposition', `attachment; filename="${cleanSafeName}_edited.${outputExt}"`);
             res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
             res.setHeader('Pragma', 'no-cache');
             res.setHeader('Expires', '0');
@@ -1895,7 +1942,8 @@ app.get('/api/download-render', (req, res) => {
   }
 
   const downloadName = (name as string) || 'edited_video.mp4';
-  res.setHeader('Content-Type', 'video/mp4');
+  const downloadExt = path.extname(downloadName) || '.mp4';
+  res.setHeader('Content-Type', downloadExt === '.mov' ? 'video/quicktime' : 'video/mp4');
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
   
   res.download(filePath, downloadName, (err) => {

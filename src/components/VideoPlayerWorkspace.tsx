@@ -16,7 +16,7 @@ const MOOD_CATEGORIES = [
   { key: 'chill', label: 'Tech / Chill', icon: <Disc size={14} color={statusColors.cyan} />, color: statusColors.cyan },
 ] as const;
 
-export default function VideoPlayerWorkspace({ project, activeMusicTrack, activeClipId, onClipSelect, onUpdateProject, aspectRatio, onUpdateAspectRatio, commandInput, onCommandChange, onCommandKeyDown, commandSuggestions, onCommandSubmit, voiceoverText, onGenerateVoiceover, isGeneratingVoiceover, brollClips }: any) {
+export default function VideoPlayerWorkspace({ project, activeMusicTrack, activeClipId, onClipSelect, onUpdateProject, aspectRatio, onUpdateAspectRatio, commandInput, onCommandChange, onCommandKeyDown, commandSuggestions, onCommandSubmit, voiceoverText, onGenerateVoiceover, isGeneratingVoiceover, brollClips, exportQuality, onUpdateExportQuality, exportFormat, onUpdateExportFormat }: any) {
   if (!project) return null;
 
   const {
@@ -46,6 +46,8 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
   const [isDragging, setIsDragging] = useState(false);
   const [musicMood, setMusicMood] = useState<string>('hype');
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [timelineZoom, setTimelineZoom] = useState(1);
+  const [thumbnails, setThumbnails] = useState<string[]>([]);
 
   // Refs for the master sync loop to avoid stale closures
   const playingRef = useRef(playing);
@@ -183,6 +185,59 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
     }
   }, []);
 
+  // Generate clip thumbnails when highlights or video URL changes
+  useEffect(() => {
+    if (!project.videoUrl || activeHighlights.length === 0) {
+      setThumbnails([]);
+      return;
+    }
+
+    let cancelled = false;
+    const generateThumbnails = async () => {
+      const video = document.createElement('video');
+      video.crossOrigin = 'anonymous';
+      video.muted = true;
+      video.preload = 'auto';
+      video.src = project.videoUrl;
+
+      const canvas = document.createElement('canvas');
+      canvas.width = 40;
+      canvas.height = 22;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      const urls: string[] = [];
+
+      try {
+        await new Promise<void>((resolve, reject) => {
+          video.onloadedmetadata = () => resolve();
+          video.onerror = () => reject(new Error('Video load failed for thumbnails'));
+        });
+
+        for (const h of activeHighlights) {
+          const midTime = (h.start + h.end) / 2;
+          if (midTime < 0 || midTime > video.duration) continue;
+
+          video.currentTime = midTime;
+          await new Promise<void>((resolve) => {
+            video.onseeked = () => resolve();
+          });
+
+          ctx.drawImage(video, 0, 0, 40, 22);
+          urls.push(canvas.toDataURL('image/jpeg', 0.7));
+        }
+      } catch (e) {
+        console.warn('[VideoPlayer] Thumbnail generation failed:', e);
+      } finally {
+        video.src = '';
+        if (!cancelled) setThumbnails(urls);
+      }
+    };
+
+    generateThumbnails();
+    return () => { cancelled = true; };
+  }, [project.videoUrl, activeHighlights.length, activeHighlights.map((h: any) => h.start).join(',')]);
+
   // Load video duration
   useEffect(() => {
     const v = vRef.current;
@@ -203,10 +258,13 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
     if (!timelineRef.current || !vRef.current) return;
     const rect = timelineRef.current.getBoundingClientRect();
     const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-    const newTime = clipStart + pct * clipDuration;
-    vRef.current.currentTime = newTime;
-    setTime(newTime);
-  }, [clipStart, clipDuration]);
+    const windowDuration = timelineZoom > 1 ? duration / timelineZoom : duration;
+    const clampedWindow = Math.max(0.1, Math.min(duration, windowDuration));
+    const windowStart = Math.max(0, Math.min(duration - clampedWindow, time - clampedWindow / 2));
+    const newTime = windowStart + pct * clampedWindow;
+    vRef.current.currentTime = Math.max(0, Math.min(duration, newTime));
+    setTime(Math.max(0, Math.min(duration, newTime)));
+  }, [clipStart, clipDuration, duration, time, timelineZoom]);
 
   const handleTimelineClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     handleTimelineInteraction(e.clientX);
@@ -250,6 +308,14 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
     setTime(newTime);
   }, [duration]);
 
+  const stepFrame = useCallback((direction: number) => {
+    if (!vRef.current) return;
+    const frameDuration = 1 / 30;
+    const newTime = Math.max(0, Math.min(duration, vRef.current.currentTime + direction * frameDuration));
+    vRef.current.currentTime = newTime;
+    setTime(newTime);
+  }, [duration]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -261,19 +327,28 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
           break;
         case 'arrowleft':
           e.preventDefault();
-          skip(-5);
-          break;
+          if (e.shiftKey) {
+            stepFrame(-1);
+          } else {
+            skip(-5);
+          }
         case 'arrowright':
           e.preventDefault();
-          skip(5);
-          break;
+          if (e.shiftKey) {
+            stepFrame(1);
+          } else {
+            skip(5);
+          }
       }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
   }, [toggle, skip]);
 
-  const progressPct = duration > 0 ? Math.max(0, Math.min(100, ((time - clipStart) / clipDuration) * 100)) : 0;
+  const windowDuration = timelineZoom > 1 ? duration / timelineZoom : duration;
+  const clampedWindow = Math.max(0.1, Math.min(duration, windowDuration));
+  const windowStart = Math.max(0, Math.min(duration - clampedWindow, time - clampedWindow / 2));
+  const progressPct = duration > 0 ? Math.max(0, Math.min(100, ((time - windowStart) / clampedWindow) * 100)) : 0;
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', paddingBottom: '40px' }}>
@@ -329,9 +404,78 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
           </div>
 
           <div style={{ fontSize: '10px', color: '#64748b', fontWeight: 700, fontFamily: '"JetBrains Mono", monospace' }}>
-            {String(Math.floor(time / 60)).padStart(2, '0')}:{String(Math.floor(time % 60)).padStart(2, '0')}
-            {' / '}
-            {String(Math.floor(duration / 60)).padStart(2, '0')}:{String(Math.floor(duration % 60)).padStart(2, '0')}
+          {(() => {
+            const h = Math.floor(time / 3600);
+            const m = Math.floor((time % 3600) / 60);
+            const s = Math.floor(time % 60);
+            const f = Math.floor((time % 1) * 30);
+            const hd = Math.floor(duration / 3600);
+            const md = Math.floor((duration % 3600) / 60);
+            const sd = Math.floor(duration % 60);
+            const fd = Math.floor((duration % 1) * 30);
+            return (
+              <>
+                {String(h).padStart(2, '0')}:{String(m).padStart(2, '0')}:{String(s).padStart(2, '0')}:{String(f).padStart(2, '0')}
+                {' / '}
+                {String(hd).padStart(2, '0')}:{String(md).padStart(2, '0')}:{String(sd).padStart(2, '0')}:{String(fd).padStart(2, '0')}
+              </>
+            );
+          })()}
+          </div>
+        </div>
+
+        {/* Export Settings */}
+        <div style={{
+          display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center',
+          marginBottom: '12px', padding: '10px 14px',
+          background: 'rgba(9,9,11,0.6)', borderRadius: '12px',
+          border: '1px solid rgba(30,41,59,0.5)'
+        }}>
+          <span style={{ fontSize: '9px', color: '#64748b', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', marginRight: '4px' }}>Export</span>
+          <div style={{ display: 'flex', gap: '4px', flex: 1 }}>
+            {([
+              { key: 'draft' as const, label: 'Draft' },
+              { key: 'standard' as const, label: 'Standard' },
+              { key: 'high' as const, label: 'High' },
+              { key: 'pro' as const, label: 'Pro' },
+            ]).map(q => (
+              <button
+                key={q.key}
+                onClick={() => onUpdateExportQuality?.(q.key)}
+                style={{
+                  padding: '5px 10px', borderRadius: '8px', border: 'none',
+                  background: exportQuality === q.key ? 'rgba(236,72,149,0.25)' : 'rgba(9,9,11,0.4)',
+                  color: exportQuality === q.key ? '#EC4899' : '#a1a1aa',
+                  fontWeight: 700, fontSize: '9px', cursor: 'pointer',
+                  fontFamily: '"Inter", sans-serif', textTransform: 'uppercase',
+                  letterSpacing: '0.5px', transition: 'all 0.2s'
+                }}
+              >
+                {q.label}
+              </button>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: '4px' }}>
+            {([
+              { key: 'mp4' as const, label: 'MP4' },
+              { key: 'webm' as const, label: 'WebM' },
+              { key: 'mov' as const, label: 'MOV' },
+            ]).map(f => (
+              <button
+                key={f.key}
+                onClick={() => onUpdateExportFormat?.(f.key)}
+                style={{
+                  padding: '5px 10px', borderRadius: '8px', border: 'none',
+                  background: exportFormat === f.key ? 'rgba(6,182,212,0.25)' : 'rgba(9,9,11,0.4)',
+                  color: exportFormat === f.key ? '#22d3ee' : '#a1a1aa',
+                  fontWeight: 700, fontSize: '9px', cursor: 'pointer',
+                  fontFamily: '"Inter", sans-serif', textTransform: 'uppercase',
+                  letterSpacing: '0.5px', transition: 'all 0.2s'
+                }}
+              >
+                {f.label}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -535,6 +679,77 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
           </div>
         </div>
 
+        {/* Thumbnails Row */}
+        {thumbnails.length > 0 && (
+          <div style={{
+            display: 'flex', gap: '4px', overflowX: 'auto',
+            marginBottom: '8px', padding: '4px 0',
+            scrollbarWidth: 'thin', scrollbarColor: '#27272a transparent'
+          }}>
+            {thumbnails.map((src, i) => (
+              <img
+                key={i}
+                src={src}
+                alt=""
+                style={{
+                  width: '40px', height: '22px', borderRadius: '4px',
+                  border: '1px solid rgba(30,41,59,0.5)',
+                  flexShrink: 0, objectFit: 'cover'
+                }}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Zoom Controls */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '8px',
+          marginBottom: '8px'
+        }}>
+          <span style={{ fontSize: '9px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Zoom</span>
+          <button
+            onClick={() => setTimelineZoom(Math.max(1, timelineZoom - 1))}
+            style={{
+              width: '24px', height: '24px', borderRadius: '6px',
+              border: '1px solid #27272a', background: '#18181b',
+              color: 'white', fontSize: '12px', fontWeight: 700,
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'all 0.2s'
+            }}
+          >-</button>
+          <span style={{ fontSize: '10px', color: '#a1a1aa', fontWeight: 700, minWidth: '32px', textAlign: 'center', fontFamily: '"JetBrains Mono", monospace' }}>
+            {timelineZoom}x
+          </span>
+          <button
+            onClick={() => setTimelineZoom(Math.min(10, timelineZoom + 1))}
+            style={{
+              width: '24px', height: '24px', borderRadius: '6px',
+              border: '1px solid #27272a', background: '#18181b',
+              color: 'white', fontSize: '12px', fontWeight: 700,
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'all 0.2s'
+            }}
+          >+</button>
+          <input
+            type="range" min="1" max="10" step="1"
+            value={timelineZoom}
+            onChange={(e) => setTimelineZoom(Number(e.target.value))}
+            style={{ flex: 1, accentColor: '#EC4899', height: '4px', cursor: 'pointer' }}
+          />
+          {timelineZoom > 1 && (
+            <button
+              onClick={() => setTimelineZoom(1)}
+              style={{
+                padding: '4px 8px', borderRadius: '6px',
+                border: '1px solid #27272a', background: '#18181b',
+                color: '#a1a1aa', fontSize: '9px', fontWeight: 700,
+                cursor: 'pointer', transition: 'all 0.2s',
+                textTransform: 'uppercase', letterSpacing: '0.5px'
+              }}
+            >Reset</button>
+          )}
+        </div>
+
         {/* Timeline Scrubber */}
         <div style={{ marginTop: '16px' }}>
           <div
@@ -565,12 +780,13 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
 
             {/* Clip markers */}
             {activeHighlights.map((h: any) => {
-              const startPct = ((h.start - clipStart) / clipDuration) * 100;
-              const widthPct = ((h.end - h.start) / clipDuration) * 100;
+              const startPct = ((h.start - windowStart) / clampedWindow) * 100;
+              const widthPct = ((h.end - h.start) / clampedWindow) * 100;
+              if (startPct + widthPct < 0 || startPct > 100) return null;
               return (
                 <div key={h.id} style={{
-                  position: 'absolute', left: `${startPct}%`, top: 0, bottom: 0,
-                  width: `${widthPct}%`,
+                  position: 'absolute', left: `${Math.max(0, startPct)}%`, top: 0, bottom: 0,
+                  width: `${Math.min(100 - Math.max(0, startPct), widthPct)}%`,
                   borderLeft: activeClipId === h.id ? '2px solid #EC4899' : '1px solid rgba(236,72,149,0.3)',
                   background: activeClipId === h.id ? 'rgba(236,72,149,0.05)' : 'transparent'
                 }} />
@@ -592,12 +808,13 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
                 cuts.push({ start: cursor, end: clipEnd });
               }
               return cuts.map((c, i) => {
-                const startPct = ((c.start - clipStart) / clipDuration) * 100;
-                const widthPct = ((c.end - c.start) / clipDuration) * 100;
+                const startPct = ((c.start - windowStart) / clampedWindow) * 100;
+                const widthPct = ((c.end - c.start) / clampedWindow) * 100;
+                if (startPct + widthPct < 0 || startPct > 100) return null;
                 return (
                   <div key={`cut-${i}`} style={{
-                    position: 'absolute', left: `${startPct}%`, top: 0, bottom: 0,
-                    width: `${widthPct}%`,
+                  position: 'absolute', left: `${Math.max(0, startPct)}%`, top: 0, bottom: 0,
+                  width: `${Math.min(100 - Math.max(0, startPct), widthPct)}%`,
                     background: 'rgba(239, 68, 68, 0.15)',
                     borderLeft: '1px dashed rgba(239, 68, 68, 0.4)',
                     borderRight: '1px dashed rgba(239, 68, 68, 0.4)'
@@ -638,6 +855,24 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
             transition: 'all 0.2s'
           }}>
             ⏪ -5s
+          </button>
+          <button onClick={() => stepFrame(-1)} style={{
+            padding: '6px 10px', background: '#18181b', color: '#a1a1aa',
+            borderRadius: '8px', border: '1px solid #27272a',
+            fontWeight: 700, fontSize: '9px', cursor: 'pointer',
+            whiteSpace: 'nowrap', fontFamily: '"Inter", sans-serif',
+            transition: 'all 0.2s'
+          }}>
+            ◀ Frame
+          </button>
+          <button onClick={() => stepFrame(1)} style={{
+            padding: '6px 10px', background: '#18181b', color: '#a1a1aa',
+            borderRadius: '8px', border: '1px solid #27272a',
+            fontWeight: 700, fontSize: '9px', cursor: 'pointer',
+            whiteSpace: 'nowrap', fontFamily: '"Inter", sans-serif',
+            transition: 'all 0.2s'
+          }}>
+            Frame ▶
           </button>
           <button onClick={() => skip(5)} style={{
             padding: '10px 14px', background: '#18181b', color: 'white',

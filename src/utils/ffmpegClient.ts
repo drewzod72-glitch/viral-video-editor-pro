@@ -6,7 +6,12 @@ import { playViralSFX } from './sfx';
 const FPS = 30;
 let W = 1080;
 let H = 1920;
-const CANVAS_BITRATE = 4_000_000; // 4 Mbps — stable on mobile, crisp text
+const CANVAS_BITRATE_MAP: Record<string, number> = {
+  draft: 1_000_000, // 1 Mbps
+  standard: 2_000_000, // 2 Mbps
+  high: 4_000_000, // 4 Mbps — stable on mobile, crisp text
+  pro: 8_000_000, // 8 Mbps
+};
 const FRAME_CAPTURE_DELAY_MS = 12; // tiny paint settle, not a throttle
 const SEEK_THRESHOLD = 0.15; // only seek if drift exceeds 150ms
 
@@ -51,7 +56,9 @@ export async function renderVideoInBrowser(
   onProgress: (progress: number) => void,
   activeClipId: string | null = null,
   segments?: Array<{ start: number; end: number; speed?: number }>,
-  aspectRatio: '9:16' | '16:9' | '1:1' = '9:16'
+  aspectRatio: '9:16' | '16:9' | '1:1' = '9:16',
+  exportQuality?: VideoProject['exportQuality'],
+  exportFormat?: VideoProject['exportFormat']
 ): Promise<{ blob: Blob; extension: string; valid: boolean }> {
   return new Promise(async (resolve, reject) => {
     let cancelled = false;
@@ -99,8 +106,15 @@ export async function renderVideoInBrowser(
       const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent || '') || 
                     (navigator.userAgent.includes('Mac') && 'ontouchend' in document);
       
+      const effectiveFormat = exportFormat === 'mov' ? 'mp4' : (exportFormat || 'mp4');
+      
       let mimeType: string;
-      if (isIOS) {
+      if (effectiveFormat === 'webm') {
+        mimeType = MediaRecorder.isTypeSupported('video/webm; codecs=vp9') ? 'video/webm; codecs=vp9' :
+                   MediaRecorder.isTypeSupported('video/webm; codecs=vp8') ? 'video/webm; codecs=vp8' :
+                   MediaRecorder.isTypeSupported('video/webm') ? 'video/webm' :
+                   getBestMimeType();
+      } else if (isIOS) {
         mimeType = MediaRecorder.isTypeSupported('video/mp4') ? 'video/mp4' : 
                    MediaRecorder.isTypeSupported('video/mp4; codecs=avc1') ? 'video/mp4; codecs=avc1' :
                    getBestMimeType();
@@ -110,7 +124,7 @@ export async function renderVideoInBrowser(
       
       if (!mimeType) throw new Error('No supported MediaRecorder mimeType');
 
-      const fileExtension = mimeType.startsWith('video/mp4') ? 'mp4' : 'webm';
+      const fileExtension = effectiveFormat;
       const canvasStream = canvas.captureStream(FPS);
 
       // ── 3. AUDIO BUS ──────────────────────────────────────────────────
@@ -209,10 +223,12 @@ export async function renderVideoInBrowser(
 
 
       // ── 5. START RECORDER + WARM-UP ──────────────────────────────────
+      const qualityBitrate = CANVAS_BITRATE_MAP[exportQuality || 'high'] || CANVAS_BITRATE_MAP['high'];
+      
       const createRecorder = (stream: MediaStream) => {
         const recorder = new MediaRecorder(stream, {
           mimeType,
-          videoBitsPerSecond: CANVAS_BITRATE,
+          videoBitsPerSecond: qualityBitrate,
         });
         const chunks: Blob[] = [];
         recorder.ondataavailable = (e: BlobEvent) => {
@@ -422,6 +438,26 @@ export async function renderVideoInBrowser(
             ctx.fillRect(0, 0, W, H);
             ctx.globalCompositeOperation = 'source-over';
             ctx.globalAlpha = 1.0;
+          }
+
+          // Blur regions
+          if (project.blurRegions?.length) {
+            for (const blur of project.blurRegions) {
+              ctx.save();
+              ctx.filter = `blur(${blur.blurAmount}px)`;
+              ctx.drawImage(
+                video,
+                (blur.x / 100) * W,
+                (blur.y / 100) * H,
+                (blur.width / 100) * W,
+                (blur.height / 100) * H,
+                (blur.x / 100) * W,
+                (blur.y / 100) * H,
+                (blur.width / 100) * W,
+                (blur.height / 100) * H
+              );
+              ctx.restore();
+            }
           }
 
           // Zoom / shake
