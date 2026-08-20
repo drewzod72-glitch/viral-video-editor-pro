@@ -1,5 +1,4 @@
 node_modules/
-dist/
 dist-server/
 .npm/
 uploads/
@@ -11,3 +10,4 @@ uploads/
 final_recovery/
 .ssh/
 .gitconfig
+dist/
