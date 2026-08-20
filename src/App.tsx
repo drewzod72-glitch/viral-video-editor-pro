@@ -3,6 +3,8 @@ import { Zap, Settings, Volume2, Infinity as InfinityIcon, Smartphone, Clapperbo
 import { VideoProject, AspectRatio, BrollClip, ExportQuality, ExportFormat } from './types';
 import { FREE_MUSIC_TRACKS, RAW_VIDEO_TEMPLATES, STOCK_FOOTAGE_BROLL } from './data';
 import NicheSelector from './components/NicheSelector';
+import InspectorPanel from './components/InspectorPanel';
+import Timeline from './components/Timeline';
 import VideoPlayerWorkspace from './components/VideoPlayerWorkspace';
 import ViralityScorecard from './components/ViralityScorecard';
 import { AICopilotConsole } from './components/AICopilotConsole';
@@ -29,7 +31,7 @@ export default function App() {
   const [downloadReadyInfo, setDownloadReadyInfo] = useState<{ blob: Blob; filename: string } | null>(null);
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [activeClipId, setActiveClipId] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [aiSuccess, setAiSuccess] = useState(false);
   const [analysisMode, setAnalysisMode] = useState<'vision' | 'text' | null>(null);
   const [apiStatusLog, setApiStatusLog] = useState<any[]>([]);
@@ -1036,39 +1038,52 @@ export default function App() {
       minHeight: '100dvh', color: colors.foreground,
       fontFamily: INTER, overflowX: 'hidden'
     }}>
-      {/* ── HEADER ── */}
+      {/* ── HEADER / MENU BAR ── */}
       <header style={{
-        padding: '12px 20px', borderBottom: `1px solid ${colors.border}`,
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        background: 'rgba(9,9,11,0.85)', backdropFilter: 'blur(24px)',
-        position: 'sticky', top: 0, zIndex: 100
+        height: '48px', padding: '0 16px', borderBottom: `1px solid ${colors.border}`,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        background: '#0f0f0f', position: 'sticky', top: 0, zIndex: 100
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
+            onClick={() => setActiveProject(null)}
             style={{
-              background: colors.card, color: colors.mutedForeground, border: `1px solid ${colors.border}`,
-              padding: '8px 12px', borderRadius: '10px', fontSize: '12px',
-              fontWeight: 700, cursor: 'pointer', fontFamily: INTER,
-              display: 'flex', alignItems: 'center', gap: '6px',
-              transition: TRANSITION.smooth
+              padding: '6px 12px', borderRadius: '6px', border: 'none',
+              background: 'transparent', color: '#a1a1aa',
+              fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+              fontFamily: INTER, transition: 'all 0.15s',
+              display: 'flex', alignItems: 'center', gap: '4px'
             }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = '#252525'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = '#a1a1aa'; e.currentTarget.style.background = 'transparent'; }}
           >
-            {sidebarOpen ? <X size={14} /> : <Menu size={16} />}
+            <span style={{ fontSize: '16px', lineHeight: 1 }}>+</span> New
           </button>
+          <div style={{ width: '1px', height: '20px', background: colors.border, margin: '0 4px' }} />
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{
-              width: '32px', height: '32px', borderRadius: '10px',
+              width: '28px', height: '28px', borderRadius: '8px',
               background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontWeight: 900, fontSize: '14px', flexShrink: 0,
-              boxShadow: `0 0 20px ${tint(colors.primary, 0.3)}`
+              fontWeight: 900, fontSize: '12px', flexShrink: 0
             }}>F</div>
-            <div>
-              <div style={{ fontWeight: 900, fontSize: '15px', letterSpacing: '-0.5px', fontFamily: INTER, lineHeight: 1.2, color: colors.foreground }}>FORGE</div>
-              <div style={{ fontSize: '9px', color: colors.mutedForeground, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', display: 'none' }} className="header-subtitle">Universal Engine</div>
-            </div>
+            <span style={{ fontWeight: 700, fontSize: '13px', letterSpacing: '-0.3px', fontFamily: INTER, color: colors.foreground }}>FORGE</span>
           </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          {['File', 'Edit', 'View', 'Export'].map(item => (
+            <button key={item} style={{
+              padding: '6px 10px', borderRadius: '6px', border: 'none',
+              background: 'transparent', color: '#a1a1aa',
+              fontSize: '12px', fontWeight: 500, cursor: 'pointer',
+              fontFamily: INTER, transition: 'all 0.15s'
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = '#252525'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = '#a1a1aa'; e.currentTarget.style.background = 'transparent'; }}
+            >{item}</button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {activeProject && (
             <span style={{
               fontSize: '10px', color: colors.mutedForeground, fontWeight: 600,
@@ -1158,172 +1173,131 @@ export default function App() {
         />
       )}
 
-      {/* ── MAIN LAYOUT ── */}
-      <main style={{ display: 'flex', maxWidth: '1400px', margin: '0 auto', minHeight: 'calc(100dvh - 60px)', position: 'relative' }}>
-        {/* ── SIDEBAR ── */}
-        <aside style={{
-          width: sidebarOpen ? '260px' : '0px', minWidth: sidebarOpen ? '260px' : '0px',
-          background: 'rgba(9,9,11,0.95)', backdropFilter: 'blur(20px)',
-          borderRight: sidebarOpen ? '1px solid rgba(30,41,59,0.5)' : '1px solid transparent',
-          padding: sidebarOpen ? '20px 16px' : '20px 0',
-          overflowY: 'auto', overflowX: 'hidden',
-          position: 'sticky', top: '60px', height: 'calc(100dvh - 60px)',
-          transition: 'all 0.3s ease', zIndex: 160
-        }}>
-          {sidebarContent}
-        </aside>
-
-        {/* ── CONTENT AREA ── */}
-        <div style={{
-          flex: 1, padding: '20px', paddingBottom: '120px',
-          maxWidth: '1100px', margin: '0 auto', width: '100%',
-          boxSizing: 'border-box'
-        }}>
-          {/* Mobile project badge */}
-          {activeProject && (
-            <div style={{
-              display: 'none', marginBottom: '16px', padding: '10px 14px',
-              background: 'rgba(30,41,59,0.4)', borderRadius: '12px',
-              border: '1px solid rgba(30,41,59,0.5)',
-              fontSize: '11px', color: colors.mutedForeground, fontWeight: 600
-            }} className="mobile-project-badge">
-              {activeProject.name} — {activeProject.niche}
-            </div>
-          )}
-
-          {!activeProject ? (
-            <NicheSelector onSelectTemplate={handleSelectTemplate} isProcessing={isProcessing} onUploadCustomFile={handleUploadCustomFile} />
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-               {/* Tab bar */}
-              <div style={{
-                display: 'flex', gap: '4px',
-                background: 'rgba(9,9,11,0.8)', backdropFilter: 'blur(20px)',
-                padding: '4px', borderRadius: '14px',
-                border: `1px solid ${colors.border}`, width: 'fit-content'
-              }}>
-                {[
-                  { key: 'studio', label: 'Studio', icon: <Clapperboard size={12} /> },
-                  { key: 'viral', label: 'Virality', icon: <BarChart3 size={12} /> },
-                  { key: 'copilot', label: 'Co-Pilot', icon: <Brain size={12} /> },
-                ].map(tab => (
-                  <button
-                    key={tab.key}
-                    onClick={() => setActiveTab(tab.key as 'studio' | 'viral' | 'copilot')}
-                    style={{
-                      padding: '10px 20px', borderRadius: '10px', border: 'none',
-                      background: activeTab === tab.key ? tint(colors.primary, 0.25) : 'transparent',
-                      color: activeTab === tab.key ? colors.foreground : colors.mutedForeground,
-                      fontWeight: 700, fontSize: '12px', fontFamily: INTER,
-                      cursor: 'pointer', transition: TRANSITION.smooth, position: 'relative',
-                      display: 'flex', alignItems: 'center', gap: '6px'
-                    }}
-                    onMouseEnter={(e) => {
-                      if (activeTab !== tab.key) {
-                        e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
-                        e.currentTarget.style.color = colors.mutedForeground;
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (activeTab !== tab.key) {
-                        e.currentTarget.style.background = 'transparent';
-                        e.currentTarget.style.color = colors.mutedForeground;
-                      }
-                    }}
-                  >
-                    {tab.icon}
-                    <span>{tab.label}</span>
-                  </button>
-                ))}
-              </div>
-
-              {activeTab === 'studio' && (
-                <div style={{ position: 'relative' }}>
-                  {aiSuccess && (
-                    <div style={{
-                      position: 'absolute', top: '-8px', left: '50%', transform: 'translateX(-50%)',
-                      background: analysisMode === 'vision'
-                        ? `linear-gradient(135deg, ${statusColors.cyan}, #0891b2)`
-                        : `linear-gradient(135deg, ${statusColors.success}, #059669)`,
-                      color: colors.onAccent, padding: '6px 16px', borderRadius: '20px',
-                      fontSize: '10px', fontWeight: 800, zIndex: 50,
-                      textTransform: 'uppercase', letterSpacing: '0.5px',
-                      boxShadow: analysisMode === 'vision'
-                        ? `0 4px 20px ${tint(statusColors.cyan, 0.4)}`
-                        : `0 4px 20px ${tint(statusColors.success, 0.4)}`,
-                      animation: 'pulse-glow 2s ease-in-out infinite',
-                      whiteSpace: 'nowrap',
-                      display: 'flex', alignItems: 'center', gap: '6px'
-                    }}>
-                      {analysisMode === 'vision' ? (
-                        <>
-                          <Eye size={12} />
-                          <span>VISION AI EDIT APPLIED</span>
-                        </>
-                      ) : (
-                        <>
-                          <Check size={12} />
-                          <span>AI EDIT APPLIED</span>
-                        </>
-                      )}
-                    </div>
-                  )}
-                    <VideoPlayerWorkspace
-                      project={activeProject}
-                      onUpdateProject={(up) => setActiveProject(up as VideoProject)}
-                      activeMusicTrack={FREE_MUSIC_TRACKS.find(t => t.id === activeProject.selectedMusicTrackId) || null}
-                      activeClipId={activeClipId}
-                      onClipSelect={setActiveClipId}
-                      aspectRatio={aspectRatio}
-                      onUpdateAspectRatio={setAspectRatio}
-                      commandInput={commandInput}
-                      onCommandChange={handleCommandChange}
-                      onCommandKeyDown={handleCommandKeyDown}
-                      commandSuggestions={commandSuggestions}
-                      onCommandSubmit={handleTextCommand}
-                      voiceoverText={activeProject.voiceoverText}
-                      onGenerateVoiceover={generateVoiceover}
-                      isGeneratingVoiceover={isGeneratingVoiceover}
-                      brollClips={activeProject.brollClips}
-                      reframeAnalysis={reframeAnalysis}
-                      onRunReframeAnalysis={runReframeAnalysis}
-                      isAnalyzingReframe={isAnalyzingReframe}
-                      selectedReframe={activeProject.selectedReframe}
-                      onApplyReframe={applyReframeCrop}
-                      imageGenPrompt={imageGenPrompt}
-                      onImageGenPromptChange={setImageGenPrompt}
-                      imageGenModel={imageGenModel}
-                      onImageGenModelChange={setImageGenModel}
-                      imageGenAspect={imageGenAspect}
-                      onImageGenAspectChange={setImageGenAspect}
-                      isGeneratingImage={isGeneratingImage}
-                      onGenerateImage={generateImage}
-                      generatedImages={generatedImages}
-                      onSelectImage={(img) => {
-                        setGeneratedImages(prev => prev);
+      {/* ── MAIN EDITOR LAYOUT ── */}
+      <main style={{ display: 'flex', height: 'calc(100dvh - 48px)', background: '#0f0f0f' }}>
+        {/* ── CENTER: Preview + Timeline ── */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+          {/* Preview Area */}
+          <div style={{
+            flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '24px', background: '#0a0a0a', overflow: 'hidden'
+          }}>
+            {!activeProject ? (
+              <NicheSelector onSelectTemplate={handleSelectTemplate} isProcessing={isProcessing} onUploadCustomFile={handleUploadCustomFile} />
+            ) : (
+              <div style={{ width: '100%', maxWidth: '1200px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {/* Tab bar */}
+                <div style={{
+                  display: 'flex', gap: '4px',
+                  background: '#1a1a1a', padding: '4px',
+                  borderRadius: '10px', border: '1px solid #333',
+                  width: 'fit-content'
+                }}>
+                  {[
+                    { key: 'studio', label: 'Studio', icon: <Clapperboard size={12} /> },
+                    { key: 'viral', label: 'Virality', icon: <BarChart3 size={12} /> },
+                    { key: 'copilot', label: 'Co-Pilot', icon: <Brain size={12} /> },
+                  ].map(tab => (
+                    <button
+                      key={tab.key}
+                      onClick={() => setActiveTab(tab.key as 'studio' | 'viral' | 'copilot')}
+                      style={{
+                        padding: '8px 16px', borderRadius: '8px', border: 'none',
+                        background: activeTab === tab.key ? '#252525' : 'transparent',
+                        color: activeTab === tab.key ? '#fff' : '#a1a1aa',
+                        fontWeight: 600, fontSize: '12px', fontFamily: INTER,
+                        cursor: 'pointer', transition: 'all 0.15s',
+                        display: 'flex', alignItems: 'center', gap: '6px'
                       }}
-                      blurRegions={blurRegions}
-                      onAddBlurRegion={addBlurRegion}
-                      onRemoveBlurRegion={removeBlurRegion}
-                      enableFaceBlur={enableFaceBlur}
-                      onToggleFaceBlur={setEnableFaceBlur}
-                      exportQuality={exportQuality}
-                      onUpdateExportQuality={setExportQuality}
-                      exportFormat={exportFormat}
-                      onUpdateExportFormat={setExportFormat}
-                    />
+                    >
+                      {tab.icon}
+                      <span>{tab.label}</span>
+                    </button>
+                  ))}
                 </div>
-              )}
-              {activeTab === 'viral' && <ViralityScorecard project={activeProject} onUpdateProject={(up) => setActiveProject(up as VideoProject)} />}
-              {activeTab === 'copilot' && (
-                <AICopilotConsole
-                  project={activeProject}
-                  onUpdateProject={(up) => setActiveProject(up as VideoProject)}
-                  onUpdateSubtitles={(subs: any) => setActiveProject(p => ({ ...p!, subtitles: subs }))}
-                />
-              )}
-            </div>
-          )}
+                
+                {/* Editor Content */}
+                <div style={{ flex: 1, display: 'flex', gap: '16px', minHeight: 0 }}>
+                  {/* Preview */}
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px', minWidth: 0 }}>
+                    {activeTab === 'studio' && (
+                      <VideoPlayerWorkspace
+                        project={activeProject}
+                        onUpdateProject={(up) => setActiveProject(up as VideoProject)}
+                        activeMusicTrack={FREE_MUSIC_TRACKS.find(t => t.id === activeProject.selectedMusicTrackId) || null}
+                        activeClipId={activeClipId}
+                        onClipSelect={setActiveClipId}
+                        aspectRatio={aspectRatio}
+                        onUpdateAspectRatio={setAspectRatio}
+                        commandInput={commandInput}
+                        onCommandChange={handleCommandChange}
+                        onCommandKeyDown={handleCommandKeyDown}
+                        commandSuggestions={commandSuggestions}
+                        onCommandSubmit={handleTextCommand}
+                        voiceoverText={activeProject.voiceoverText}
+                        onGenerateVoiceover={generateVoiceover}
+                        isGeneratingVoiceover={isGeneratingVoiceover}
+                        brollClips={activeProject.brollClips}
+                        reframeAnalysis={reframeAnalysis}
+                        onRunReframeAnalysis={runReframeAnalysis}
+                        isAnalyzingReframe={isAnalyzingReframe}
+                        selectedReframe={activeProject.selectedReframe}
+                        onApplyReframe={applyReframeCrop}
+                        imageGenPrompt={imageGenPrompt}
+                        onImageGenPromptChange={setImageGenPrompt}
+                        imageGenModel={imageGenModel}
+                        onImageGenModelChange={setImageGenModel}
+                        imageGenAspect={imageGenAspect}
+                        onImageGenAspectChange={setImageGenAspect}
+                        isGeneratingImage={isGeneratingImage}
+                        onGenerateImage={generateImage}
+                        generatedImages={generatedImages}
+                        onSelectImage={(img) => { setGeneratedImages(prev => prev); }}
+                        blurRegions={blurRegions}
+                        onAddBlurRegion={addBlurRegion}
+                        onRemoveBlurRegion={removeBlurRegion}
+                        enableFaceBlur={enableFaceBlur}
+                        onToggleFaceBlur={setEnableFaceBlur}
+                        exportQuality={exportQuality}
+                        onUpdateExportQuality={setExportQuality}
+                        exportFormat={exportFormat}
+                        onUpdateExportFormat={setExportFormat}
+                        onTriggerExport={triggerExport}
+                        onNewProject={() => setActiveProject(null)}
+                      />
+                    )}
+                    {activeTab === 'viral' && <ViralityScorecard project={activeProject} onUpdateProject={(up) => setActiveProject(up as VideoProject)} />}
+                    {activeTab === 'copilot' && (
+                      <AICopilotConsole
+                        project={activeProject}
+                        onUpdateProject={(up) => setActiveProject(up as VideoProject)}
+                        onUpdateSubtitles={(subs: any) => setActiveProject(p => ({ ...p!, subtitles: subs }))}
+                      />
+                    )}
+                  </div>
+                  
+                  {/* Right Inspector Panel */}
+                  <div style={{
+                    width: '320px', minWidth: '320px',
+                    background: '#1a1a1a', borderLeft: '1px solid #333',
+                    overflowY: 'auto', borderRadius: '12px 0 0 12px'
+                  }}>
+                    {/* Inspector content will be rendered here */}
+                    <InspectorPanel project={activeProject} onUpdateProject={(up) => setActiveProject(up as VideoProject)} />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {/* Bottom Timeline */}
+          <div style={{
+            height: '180px', minHeight: '180px',
+            background: '#1a1a1a', borderTop: '1px solid #333',
+            padding: '12px 16px'
+          }}>
+            <Timeline project={activeProject} activeClipId={activeClipId} onClipSelect={setActiveClipId} />
+          </div>
         </div>
       </main>
 

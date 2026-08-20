@@ -26,7 +26,8 @@
  *   await Preferences.remove({ key: STORAGE_KEY });
  */
 
-const STORAGE_KEY = 'avve.groq_api_key';
+const STORAGE_KEY_GROQ = 'avve.groq_api_key';
+const STORAGE_KEY_OPENROUTER = 'avve.openrouter_api_key';
 
 /**
  * Cleans up a pasted API key before validating or storing it.
@@ -51,17 +52,16 @@ export function sanitizeApiKeyInput(raw: string): string {
 
 export function getStoredApiKey(): string | null {
   try {
-    const value = localStorage.getItem(STORAGE_KEY);
+    const value = localStorage.getItem(STORAGE_KEY_GROQ);
     return value && value.trim() ? value.trim() : null;
   } catch {
-    // localStorage can throw in some privacy modes / sandboxed iframes.
     return null;
   }
 }
 
 export function setStoredApiKey(key: string): void {
   try {
-    localStorage.setItem(STORAGE_KEY, sanitizeApiKeyInput(key));
+    localStorage.setItem(STORAGE_KEY_GROQ, sanitizeApiKeyInput(key));
   } catch (err) {
     console.error('[API Key Store] Could not persist key to localStorage:', err);
   }
@@ -69,13 +69,46 @@ export function setStoredApiKey(key: string): void {
 
 export function clearStoredApiKey(): void {
   try {
-    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(STORAGE_KEY_GROQ);
   } catch (err) {
     console.error('[API Key Store] Could not clear key from localStorage:', err);
   }
 }
 
-/** Very loose shape check — Groq keys typically start with "gsk_" followed by a string of characters. */
+export function getStoredOpenRouterKey(): string | null {
+  try {
+    const value = localStorage.getItem(STORAGE_KEY_OPENROUTER);
+    return value && value.trim() ? value.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setStoredOpenRouterKey(key: string): void {
+  try {
+    localStorage.setItem(STORAGE_KEY_OPENROUTER, sanitizeApiKeyInput(key));
+  } catch (err) {
+    console.error('[API Key Store] Could not persist key to localStorage:', err);
+  }
+}
+
+export function clearStoredOpenRouterKey(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEY_OPENROUTER);
+  } catch (err) {
+    console.error('[API Key Store] Could not clear key from localStorage:', err);
+  }
+}
+
+/** Checks if a key looks valid for any supported provider. */
 export function looksLikeValidAiKey(key: string): boolean {
+  return looksLikeValidGroqKey(key) || looksLikeValidOpenRouterKey(key);
+}
+
+export function looksLikeValidGroqKey(key: string): boolean {
   return /^gsk_[A-Za-z0-9]{20,}$/.test(key);
+}
+
+export function looksLikeValidOpenRouterKey(key: string): boolean {
+  return /^sk-or-v1-[A-Za-z0-9]{20,}$/.test(key);
 }

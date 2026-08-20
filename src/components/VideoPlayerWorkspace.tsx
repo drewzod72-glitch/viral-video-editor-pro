@@ -16,7 +16,7 @@ const MOOD_CATEGORIES = [
   { key: 'chill', label: 'Tech / Chill', icon: <Disc size={14} color={statusColors.cyan} />, color: statusColors.cyan },
 ] as const;
 
-export default function VideoPlayerWorkspace({ project, activeMusicTrack, activeClipId, onClipSelect, onUpdateProject, aspectRatio, onUpdateAspectRatio, commandInput, onCommandChange, onCommandKeyDown, commandSuggestions, onCommandSubmit, voiceoverText, onGenerateVoiceover, isGeneratingVoiceover, brollClips, exportQuality, onUpdateExportQuality, exportFormat, onUpdateExportFormat }: any) {
+export default function VideoPlayerWorkspace({ project, activeMusicTrack, activeClipId, onClipSelect, onUpdateProject, aspectRatio, onUpdateAspectRatio, commandInput, onCommandChange, onCommandKeyDown, commandSuggestions, onCommandSubmit, voiceoverText, onGenerateVoiceover, isGeneratingVoiceover, brollClips, reframeAnalysis, onRunReframeAnalysis, isAnalyzingReframe, selectedReframe, onApplyReframe, imageGenPrompt, onImageGenPromptChange, imageGenModel, onImageGenModelChange, imageGenAspect, onImageGenAspectChange, isGeneratingImage, onGenerateImage, generatedImages, onSelectImage, blurRegions, onAddBlurRegion, onRemoveBlurRegion, enableFaceBlur, onToggleFaceBlur, exportQuality, onUpdateExportQuality, exportFormat, onUpdateExportFormat, onTriggerExport, onNewProject }: any) {
   if (!project) return null;
 
   const {
@@ -360,12 +360,53 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
         border: '1px solid rgba(30,41,59,0.6)',
         backdropFilter: 'blur(16px)'
       }}>
+        <button
+          onClick={onTriggerExport}
+          style={{
+            width: '100%', padding: '14px', borderRadius: '12px', border: 'none',
+            background: 'linear-gradient(135deg, #EC4899, #db2777)',
+            color: 'white', fontWeight: 900, fontSize: '12px',
+            fontFamily: '"Inter", sans-serif', textTransform: 'uppercase',
+            letterSpacing: '0.8px', cursor: 'pointer',
+            boxShadow: '0 8px 30px rgba(236,72,153,0.3)',
+            transition: 'all 0.2s',
+            marginBottom: '14px'
+          }}
+        >
+          BAKE FINAL
+        </button>
+
         {/* Toolbar */}
         <div style={{
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           marginBottom: '14px', flexWrap: 'wrap', gap: '8px'
         }}>
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+            {onNewProject && (
+              <button
+                onClick={onNewProject}
+                style={{
+                  padding: '5px 10px', borderRadius: '8px',
+                  border: '1px solid rgba(30,41,59,0.5)',
+                  background: 'rgba(9,9,11,0.4)',
+                  color: '#a1a1aa',
+                  fontSize: '9px', fontWeight: 700,
+                  cursor: 'pointer', fontFamily: '"Inter", sans-serif',
+                  textTransform: 'uppercase', letterSpacing: '0.5px',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = '#e2e8f0';
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = '#a1a1aa';
+                  e.currentTarget.style.background = 'rgba(9,9,11,0.4)';
+                }}
+              >
+                + New
+              </button>
+            )}
             <button
               onClick={() => setShowSafeZone(!showSafeZone)}
               style={{
@@ -398,6 +439,26 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
                   }}
                 >
                   {ar === '9:16' ? '📱' : ar === '16:9' ? '🖥' : '⬜'} {ar}
+                </button>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: '4px', marginLeft: '8px' }}>
+              {(['mrbeast', 'hormozi', 'minimalist', 'impact', 'comic'] as const).map((style) => (
+                <button
+                  key={style}
+                  onClick={() => onUpdateProject({ captionStyle: style })}
+                  style={{
+                    padding: '5px 10px', borderRadius: '8px',
+                    border: (project.captionStyle || 'hormozi') === style ? '1px solid rgba(236,72,153,0.5)' : '1px solid rgba(30,41,59,0.5)',
+                    background: (project.captionStyle || 'hormozi') === style ? 'rgba(236,72,153,0.15)' : 'rgba(9,9,11,0.4)',
+                    color: (project.captionStyle || 'hormozi') === style ? '#EC4899' : '#a1a1aa',
+                    fontSize: '9px', fontWeight: 700,
+                    cursor: 'pointer', fontFamily: '"Inter", sans-serif',
+                    textTransform: 'uppercase', letterSpacing: '0.5px',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  {style}
                 </button>
               ))}
             </div>
@@ -479,17 +540,219 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
           </div>
         </div>
 
-        {/* Social Simulator Frame */}
+        {/* Smart Reframe AI */}
         <div style={{
-          position: 'relative', width: '100%', maxWidth: '360px',
-          aspectRatio: '9/16', background: '#000',
-          margin: '0 auto', borderRadius: '20px', overflow: 'hidden',
-          border: '2px solid #18181b',
-          boxShadow: '0 24px 80px rgba(0,0,0,0.5)',
-          paddingTop: 'env(safe-area-inset-top, 0px)',
-          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-          paddingLeft: 'env(safe-area-inset-left, 0px)',
-          paddingRight: 'env(safe-area-inset-right, 0px)'
+          display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center',
+          marginBottom: '12px', padding: '10px 14px',
+          background: 'rgba(9,9,11,0.6)', borderRadius: '12px',
+          border: '1px solid rgba(30,41,59,0.5)'
+        }}>
+          <span style={{ fontSize: '9px', color: '#64748b', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', marginRight: '4px' }}>Reframe AI</span>
+          <button
+            onClick={onRunReframeAnalysis}
+            disabled={isAnalyzingReframe}
+            style={{
+              padding: '5px 10px', borderRadius: '8px', border: 'none',
+              background: isAnalyzingReframe ? 'rgba(236,72,149,0.1)' : 'rgba(236,72,149,0.2)',
+              color: isAnalyzingReframe ? '#a1a1aa' : '#EC4899',
+              fontWeight: 700, fontSize: '9px', cursor: isAnalyzingReframe ? 'not-allowed' : 'pointer',
+              fontFamily: '"Inter", sans-serif', textTransform: 'uppercase',
+              letterSpacing: '0.5px', transition: 'all 0.2s'
+            }}
+          >
+            {isAnalyzingReframe ? 'Analyzing...' : 'Analyze Reframe'}
+          </button>
+          {reframeAnalysis && (
+            <>
+              <div style={{ display: 'flex', gap: '4px', flex: 1 }}>
+                {(['9:16', '16:9', '1:1'] as const).map((ar) => (
+                  <button
+                    key={ar}
+                    onClick={() => onApplyReframe(ar)}
+                    style={{
+                      padding: '5px 10px', borderRadius: '8px', border: 'none',
+                      background: selectedReframe === ar ? 'rgba(236,72,153,0.25)' : 'rgba(9,9,11,0.4)',
+                      color: selectedReframe === ar ? '#EC4899' : '#a1a1aa',
+                      fontWeight: 700, fontSize: '9px', cursor: 'pointer',
+                      fontFamily: '"Inter", sans-serif', textTransform: 'uppercase',
+                      letterSpacing: '0.5px', transition: 'all 0.2s'
+                    }}
+                  >
+                    {ar} {Math.round(reframeAnalysis.recommended[ar]?.score || 0)}
+                  </button>
+                ))}
+              </div>
+              {selectedReframe && (
+                <button
+                  onClick={() => onApplyReframe(selectedReframe)}
+                  style={{
+                    padding: '5px 10px', borderRadius: '8px', border: 'none',
+                    background: 'rgba(236,72,153,0.3)', color: '#EC4899',
+                    fontWeight: 700, fontSize: '9px', cursor: 'pointer',
+                    fontFamily: '"Inter", sans-serif', textTransform: 'uppercase',
+                    letterSpacing: '0.5px', transition: 'all 0.2s'
+                  }}
+                >
+                  Apply
+                </button>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* AI Image Generation */}
+        <div style={{
+          display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center',
+          marginBottom: '12px', padding: '10px 14px',
+          background: 'rgba(9,9,11,0.6)', borderRadius: '12px',
+          border: '1px solid rgba(30,41,59,0.5)'
+        }}>
+          <span style={{ fontSize: '9px', color: '#64748b', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', marginRight: '4px' }}>AI Image</span>
+          <input
+            type="text"
+            value={imageGenPrompt}
+            onChange={(e) => onImageGenPromptChange(e.target.value)}
+            placeholder="Describe your image..."
+            style={{
+              flex: 1, minWidth: '120px', padding: '6px 10px',
+              background: '#020617', border: '1px solid #27272a',
+              borderRadius: '8px', color: '#e4e4e7',
+              fontSize: '9px', fontFamily: '"Inter", sans-serif',
+              outline: 'none'
+            }}
+          />
+          <select
+            value={imageGenModel}
+            onChange={(e) => onImageGenModelChange(e.target.value)}
+            style={{
+              padding: '6px 10px', background: '#020617', border: '1px solid #27272a',
+              borderRadius: '8px', color: '#e4e4e7', fontSize: '9px',
+              fontFamily: '"Inter", sans-serif', cursor: 'pointer'
+            }}
+          >
+            <option value="flux">Flux</option>
+            <option value="dalle">DALL-E</option>
+            <option value="sd">Stable Diffusion</option>
+          </select>
+          <select
+            value={imageGenAspect}
+            onChange={(e) => onImageGenAspectChange(e.target.value)}
+            style={{
+              padding: '6px 10px', background: '#020617', border: '1px solid #27272a',
+              borderRadius: '8px', color: '#e4e4e7', fontSize: '9px',
+              fontFamily: '"Inter", sans-serif', cursor: 'pointer'
+            }}
+          >
+            <option value="1:1">1:1</option>
+            <option value="9:16">9:16</option>
+            <option value="16:9">16:9</option>
+          </select>
+          <button
+            onClick={onGenerateImage}
+            disabled={isGeneratingImage || !imageGenPrompt}
+            style={{
+              padding: '5px 10px', borderRadius: '8px', border: 'none',
+              background: isGeneratingImage ? 'rgba(236,72,149,0.1)' : 'rgba(236,72,149,0.2)',
+              color: isGeneratingImage ? '#a1a1aa' : '#EC4899',
+              fontWeight: 700, fontSize: '9px', cursor: isGeneratingImage || !imageGenPrompt ? 'not-allowed' : 'pointer',
+              fontFamily: '"Inter", sans-serif', textTransform: 'uppercase',
+              letterSpacing: '0.5px', transition: 'all 0.2s'
+            }}
+          >
+            {isGeneratingImage ? 'Generating...' : 'Generate'}
+          </button>
+        </div>
+        {generatedImages && generatedImages.length > 0 && (
+          <div style={{
+            display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))',
+            gap: '8px', marginBottom: '12px'
+          }}>
+            {generatedImages.map((img) => (
+              <button
+                key={img.id}
+                onClick={() => onSelectImage(img)}
+                style={{
+                  padding: '4px', borderRadius: '8px',
+                  border: '2px solid #27272a',
+                  background: '#020617',
+                  cursor: 'pointer', transition: 'all 0.2s'
+                }}
+              >
+                <img src={img.url} alt="" style={{ width: '100%', aspectRatio: '1', borderRadius: '4px', objectFit: 'cover' }} />
+                <div style={{ fontSize: '7px', color: '#64748b', marginTop: '2px', textTransform: 'uppercase' }}>{img.model}</div>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Face Blur */}
+        <div style={{
+          display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center',
+          marginBottom: '12px', padding: '10px 14px',
+          background: 'rgba(9,9,11,0.6)', borderRadius: '12px',
+          border: '1px solid rgba(30,41,59,0.5)'
+        }}>
+          <span style={{ fontSize: '9px', color: '#64748b', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', marginRight: '4px' }}>Face Blur</span>
+          <button
+            onClick={onToggleFaceBlur}
+            style={{
+              padding: '5px 10px', borderRadius: '8px', border: 'none',
+              background: enableFaceBlur ? 'rgba(236,72,149,0.25)' : 'rgba(9,9,11,0.4)',
+              color: enableFaceBlur ? '#EC4899' : '#a1a1aa',
+              fontWeight: 700, fontSize: '9px', cursor: 'pointer',
+              fontFamily: '"Inter", sans-serif', textTransform: 'uppercase',
+              letterSpacing: '0.5px', transition: 'all 0.2s'
+            }}
+          >
+            {enableFaceBlur ? 'Blur On' : 'Blur Off'}
+          </button>
+          <button
+            onClick={onAddBlurRegion}
+            style={{
+              padding: '5px 10px', borderRadius: '8px', border: 'none',
+              background: 'rgba(236,72,149,0.2)',
+              color: '#EC4899',
+              fontWeight: 700, fontSize: '9px', cursor: 'pointer',
+              fontFamily: '"Inter", sans-serif', textTransform: 'uppercase',
+              letterSpacing: '0.5px', transition: 'all 0.2s'
+            }}
+          >
+            + Add Blur Region
+          </button>
+          {blurRegions && blurRegions.length > 0 && (
+            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+              {blurRegions.map((region, idx) => (
+                <span key={region.id} style={{
+                  padding: '2px 8px', borderRadius: '6px',
+                  background: 'rgba(9,9,11,0.4)', border: '1px solid #27272a',
+                  color: '#a1a1aa', fontSize: '9px', fontWeight: 700,
+                  fontFamily: '"Inter", sans-serif', textTransform: 'uppercase',
+                  display: 'flex', alignItems: 'center', gap: '4px'
+                }}>
+                  #{idx + 1}
+                  <button
+                    onClick={() => onRemoveBlurRegion(region.id)}
+                    style={{
+                      background: 'transparent', border: 'none', color: '#f87171',
+                      cursor: 'pointer', fontSize: '10px', fontWeight: 800, padding: 0,
+                      display: 'flex', alignItems: 'center'
+                    }}
+                  >
+                    <X size={10} />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Preview Canvas */}
+        <div style={{
+          position: 'relative', width: '100%', maxWidth: '960px',
+          aspectRatio: '16/9', background: '#000',
+          margin: '0 auto', borderRadius: '12px', overflow: 'hidden',
+          border: '1px solid #27272a',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
         }}>
           <video
             ref={vRef}
@@ -511,36 +774,21 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
               setPlaying(false);
             }}
             style={{
-              width: '100%', height: '100%', objectFit: 'cover',
-              transform: `scale(${currentZoom})`,
-              transition: 'transform 0.15s ease'
+              width: '100%', height: '100%', objectFit: 'contain',
+              background: '#000'
             }}
             className={enableColorGrade && project.colorGrade !== 'none' ? `filter-${project.colorGrade}` : ''}
           />
 
-          {/* Safe Zone Guides */}
-          {showSafeZone && (
-            <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 40 }}>
-              <div style={{ position: 'absolute', top: '8%', left: 0, right: 0, height: '1px', background: 'rgba(251,255,0,0.7)' }} />
-              <div style={{ position: 'absolute', bottom: '18%', left: 0, right: 0, height: '1px', background: 'rgba(251,255,0,0.7)' }} />
-              <div style={{ position: 'absolute', top: '8%', bottom: '18%', left: '8%', width: '1px', background: 'rgba(251,255,0,0.5)' }} />
-              <div style={{ position: 'absolute', top: '8%', bottom: '18%', right: '8%', width: '1px', background: 'rgba(251,255,0,0.5)' }} />
-              <div style={{ position: 'absolute', top: '8%', left: '8%', right: '8%', bottom: '18%', border: '1px dashed rgba(251,255,0,0.2)', borderRadius: '4px' }} />
-              <div style={{ position: 'absolute', top: '10%', right: '10%', fontSize: '8px', color: 'rgba(251,255,0,0.9)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', fontFamily: '"Inter", sans-serif' }}>
-                Safe Zone
-              </div>
-            </div>
-          )}
-
-          {/* Subtitles — Hormozi polished with Oswald + two-tone */}
+          {/* Subtitles */}
           {enableSubtitles && activeSub && (
             <div style={{
-              position: 'absolute', bottom: '80px', left: 0, right: 0,
-              padding: '0 16px', textAlign: 'center',
+              position: 'absolute', bottom: '40px', left: 0, right: 0,
+              padding: '0 24px', textAlign: 'center',
               pointerEvents: 'none', zIndex: 50
             }}>
               {(() => {
-                const style = getCaptionStyles(project.captionStyle || 'hormozi', activeSub.text.length, 360);
+                const style = getCaptionStyles(project.captionStyle || 'hormozi', activeSub.text.length, 960);
                 return (
                   <div style={{
                     background: style.boxBg || 'rgba(0,0,0,0.88)',
@@ -559,7 +807,7 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
                           <span key={i} style={{
                             color: isHighlight ? (style.highlightColor || '#FBFF00') : (style.textColor || '#FFFFFF'),
                             fontWeight: isMinimalist ? 500 : 900,
-                            fontSize: '15px',
+                            fontSize: '18px',
                             textShadow: style.strokeWidth && style.strokeColor
                               ? `0 0 ${style.strokeWidth * 10}px ${style.strokeColor}`
                               : '2px 2px 0px black',
@@ -580,103 +828,27 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
           {!playing && (
             <div onClick={toggle} style={{
               position: 'absolute', inset: 0,
-              background: 'rgba(0,0,0,0.35)',
+              background: 'rgba(0,0,0,0.3)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: 'pointer', zIndex: 100,
               transition: 'opacity 0.2s'
             }}>
               <div style={{
-                width: '64px', height: '64px', borderRadius: '50%',
+                width: '72px', height: '72px', borderRadius: '50%',
                 background: 'rgba(236,72,149,0.9)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 boxShadow: '0 10px 40px rgba(0,0,0,0.5)',
-                backdropFilter: 'blur(8px)',
                 border: '2px solid rgba(255,255,255,0.2)'
               }}>
                 <div style={{
-                  borderLeft: '18px solid white',
-                  borderTop: '11px solid transparent',
-                  borderBottom: '11px solid transparent',
-                  marginLeft: '4px'
+                  borderLeft: '22px solid white',
+                  borderTop: '13px solid transparent',
+                  borderBottom: '13px solid transparent',
+                  marginLeft: '5px'
                 }} />
               </div>
             </div>
           )}
-
-          {/* Notch */}
-          <div style={{
-            position: 'absolute', top: '6px', left: '50%', transform: 'translateX(-50%)',
-            width: '80px', height: '22px', background: '#000',
-            borderRadius: '0 0 16px 16px', zIndex: 30
-          }} />
-
-          {/* TikTok / Reels Social Sidebar */}
-          <div style={{
-            position: 'absolute', right: '8px', bottom: '80px',
-            display: 'flex', flexDirection: 'column', gap: '16px',
-            zIndex: 45, alignItems: 'center'
-          }}>
-            {/* Profile */}
-            <div style={{
-              width: '36px', height: '36px', borderRadius: '50%',
-              background: 'linear-gradient(135deg, #EC4899, #06b6d4)',
-              border: '2px solid white',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '14px', fontWeight: 900, color: 'white'
-            }}>
-              {project.name?.[0]?.toUpperCase() || 'U'}
-            </div>
-
-            {/* Heart */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
-              <div style={{
-                width: '32px', height: '32px', borderRadius: '50%',
-                background: 'rgba(0,0,0,0.35)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '16px', backdropFilter: 'blur(4px)'
-              }}>
-                ❤️
-              </div>
-              <span style={{ fontSize: '9px', color: 'white', fontWeight: 700, textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>842K</span>
-            </div>
-
-            {/* Comment */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
-              <div style={{
-                width: '32px', height: '32px', borderRadius: '50%',
-                background: 'rgba(0,0,0,0.35)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '16px', backdropFilter: 'blur(4px)'
-              }}>
-                💬
-              </div>
-              <span style={{ fontSize: '9px', color: 'white', fontWeight: 700, textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>12.4K</span>
-            </div>
-
-            {/* Share */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
-              <div style={{
-                width: '32px', height: '32px', borderRadius: '50%',
-                background: 'rgba(0,0,0,0.35)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '16px', backdropFilter: 'blur(4px)'
-              }}>
-                ↗️
-              </div>
-              <span style={{ fontSize: '9px', color: 'white', fontWeight: 700, textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>Share</span>
-            </div>
-
-            {/* Music Disc */}
-            <div style={{
-              width: '36px', height: '36px', borderRadius: '50%',
-              background: 'linear-gradient(135deg, #1a1a2e, #0f0f23)',
-              border: '2px solid #333',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              animation: 'spin 4s linear infinite'
-            }}>
-              <Music size={16} color="#94a3b8" />
-            </div>
-          </div>
         </div>
 
         {/* Thumbnails Row */}

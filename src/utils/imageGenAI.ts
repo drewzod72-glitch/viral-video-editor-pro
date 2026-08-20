@@ -21,23 +21,7 @@ const MODEL_MAP: Record<string, string> = {
   'stable-diffusion': 'stability-ai/stable-diffusion-xl',
 };
 
-function getOpenRouterApiKey(): string | null {
-  try {
-    const value = localStorage.getItem('avve.openrouter_api_key');
-    return value && value.trim() ? value.trim() : null;
-  } catch {
-    return null;
-  }
-}
-
-function getGroqApiKey(): string | null {
-  try {
-    const value = localStorage.getItem('avve.groq_api_key');
-    return value && value.trim() ? value.trim() : null;
-  } catch {
-    return null;
-  }
-}
+import { getStoredOpenRouterKey, getStoredApiKey, looksLikeValidAiKey } from './apiKeyStore';
 
 export function getImageGenModels(): { value: string; label: string }[] {
   return [
@@ -54,9 +38,9 @@ export async function generateImageWithAI(options: ImageGenOptions): Promise<Gen
     throw new Error(`Unknown image generation model: ${model}`);
   }
 
-  const apiKey = options.apiKey || getOpenRouterApiKey() || getGroqApiKey();
-  if (!apiKey) {
-    throw new Error('MISSING_API_KEY: No OpenRouter or Groq API key found. Add one in API Key settings.');
+  const apiKey = options.apiKey || getStoredOpenRouterKey() || getStoredApiKey();
+  if (!apiKey || !looksLikeValidAiKey(apiKey)) {
+    throw new Error('MISSING_API_KEY: No valid OpenRouter or Groq API key found. Add one in API Key settings.');
   }
 
   const sizeMap: Record<string, string> = {
