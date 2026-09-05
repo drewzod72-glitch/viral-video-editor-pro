@@ -69,6 +69,11 @@ export async function renderVideoInBrowser(
     };
 
     try {
+      // Feature detection
+      if (typeof MediaRecorder === 'undefined') {
+        throw new Error('MediaRecorder API not supported in this browser');
+      }
+
       // ── 1. LOAD SOURCE VIDEO ──────────────────────────────────────────
       const video = document.createElement('video');
       video.src = project.videoUrl;
@@ -129,6 +134,7 @@ export async function renderVideoInBrowser(
 
       // ── 3. AUDIO BUS ──────────────────────────────────────────────────
       const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
+      if (typeof AudioCtx !== 'function') throw new Error('AudioContext not supported');
       const audioCtx = new AudioCtx();
       const audioDest = audioCtx.createMediaStreamDestination();
 

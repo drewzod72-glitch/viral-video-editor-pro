@@ -108,6 +108,13 @@ export async function saveFileToDevice(blob: Blob, filename: string): Promise<vo
 
 /** Convenience wrapper when you only have a URL (e.g. an already-created object URL) rather than a Blob. */
 export async function saveUrlToDevice(url: string, filename: string): Promise<void> {
-  const blob = await (await fetch(url)).blob();
-  await saveFileToDevice(blob, filename);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000);
+  try {
+    const blob = await (await fetch(url, { signal: controller.signal as any })).blob();
+    await saveFileToDevice(blob, filename);
+  } catch (e) {
+    clearTimeout(timeout);
+    throw e;
+  }
 }

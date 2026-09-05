@@ -6,6 +6,7 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   server: {
     androidScheme: 'https',
+    iosScheme: 'https',
   },
   ios: {
     contentInset: 'automatic',
@@ -14,6 +15,28 @@ const config: CapacitorConfig = {
   android: {
     allowMixedContent: true,
     captureInput: true,
+  },
+  plugins: {
+    SplashScreen: {
+      launchAutoHide: false,
+      backgroundColor: '#0f0f0f',
+      androidScaleType: 'CENTER_CROP',
+      showSpinner: true,
+      spinnerColor: '#EC4899',
+    },
+    StatusBar: {
+      style: 'LIGHT',
+      backgroundColor: '#0f0f0f',
+    },
+    Keyboard: {
+      resize: 'body',
+    },
+    Filesystem: {
+      url: 'http://localhost',
+    },
+    Share: {
+      enabled: true,
+    },
   },
 };
 

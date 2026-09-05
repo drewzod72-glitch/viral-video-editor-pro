@@ -787,7 +787,11 @@ app.post('/api/render-project', upload.single('videoFile'), async (req, res) => 
   const blurRegionsRaw = req.body.blurRegions;
   let blurRegions: BlurRegion[] = [];
   if (blurRegionsRaw) {
-     blurRegions = JSON.parse(blurRegionsRaw);
+     try {
+       blurRegions = JSON.parse(blurRegionsRaw);
+     } catch {
+       blurRegions = [];
+     }
   }
 
   // Multi-cut segments: explicit keep-list from AI or user.
@@ -814,6 +818,7 @@ app.post('/api/render-project', upload.single('videoFile'), async (req, res) => 
         subtitles = JSON.parse(subtitlesRaw);
       } catch (e) {
         console.warn('[Video Compiler Server] Error parsing subtitles JSON string:', e);
+        subtitles = [];
       }
     } else if (Array.isArray(subtitlesRaw)) {
       subtitles = subtitlesRaw;
@@ -825,7 +830,11 @@ app.post('/api/render-project', upload.single('videoFile'), async (req, res) => 
   if (zoomEffectsRaw) {
     if (typeof zoomEffectsRaw === 'string') {
       try {
-        zoomEffects = JSON.parse(zoomEffectsRaw);
+        try {
+          zoomEffects = JSON.parse(zoomEffectsRaw);
+        } catch {
+          zoomEffects = [];
+        }
       } catch (e) {
         console.warn('[Video Compiler Server] Error parsing zoomEffects JSON:', e);
       }
@@ -839,7 +848,11 @@ app.post('/api/render-project', upload.single('videoFile'), async (req, res) => 
   if (highlightsRaw) {
     if (typeof highlightsRaw === 'string') {
       try {
+        try {
         highlights = JSON.parse(highlightsRaw);
+      } catch {
+        highlights = [];
+      }
       } catch (e) {
         console.warn('[Video Compiler Server] Error parsing highlights JSON string:', e);
       }

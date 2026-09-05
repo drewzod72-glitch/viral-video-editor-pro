@@ -18,7 +18,9 @@ export function playViralSFX(
   externalCtx?: AudioContext
 ): void {
   try {
-    const ctx = externalCtx || new (window.AudioContext || (window as any).webkitAudioContext)();
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (typeof AudioCtx !== 'function') return;
+    const ctx = externalCtx || new AudioCtx();
     if (ctx.state === 'suspended') ctx.resume();
     const now = ctx.currentTime;
     const dest = destination || ctx.destination;

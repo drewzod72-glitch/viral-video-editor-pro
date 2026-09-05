@@ -150,7 +150,7 @@ async function captureFrames(file: File): Promise<string[]> {
         resolve(snapshots);
       } catch (e) { resolve([]); }
     };
-    v.onerror = () => resolve([]);
+    v.onerror = () => { URL.revokeObjectURL(url); v.remove(); resolve([]); };
     v.load();
   });
 }
@@ -262,14 +262,24 @@ async function callGroq(model: string, messages: any[], retries = 2, mode: 'visi
       };
       if (jsonMode) body.response_format = { type: 'json_object' };
 
-      const res = await fetch(GROQ_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${key}`,
-        },
-        body: JSON.stringify(body),
-      });
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30000);
+      let res: Response;
+      try {
+        res = await fetch(GROQ_API_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${key}`,
+          },
+          body: JSON.stringify(body),
+          signal: controller.signal as any,
+        });
+        clearTimeout(timeout);
+      } catch (e) {
+        clearTimeout(timeout);
+        throw e;
+      }
 
       const text = await res.text();
       if (!res.ok) {

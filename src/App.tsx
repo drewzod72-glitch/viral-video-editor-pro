@@ -62,7 +62,7 @@ export default function App() {
   const startApp = () => {
     try {
       const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
-      if (AudioCtx) {
+      if (typeof AudioCtx === 'function') {
         const ctx = new AudioCtx();
         if (ctx.state === 'suspended') ctx.resume().catch(() => {});
       }
@@ -543,7 +543,9 @@ export default function App() {
       utterance.pitch = 1;
       utterance.volume = 1;
 
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (typeof AudioCtx !== 'function') throw new Error('AudioContext not supported');
+      const audioCtx = new AudioCtx();
       const dest = audioCtx.createMediaStreamDestination();
       const source = audioCtx.createMediaStreamSource(dest.stream);
       
@@ -554,6 +556,9 @@ export default function App() {
       window.speechSynthesis.speak(utterance);
       
       // Capture audio via MediaRecorder if available
+      if (typeof MediaRecorder === 'undefined' || !MediaRecorder.isTypeSupported('audio/webm')) {
+        throw new Error('MediaRecorder not supported');
+      }
       const chunks: Blob[] = [];
       const recorder = new MediaRecorder(dest.stream);
       recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
@@ -1039,7 +1044,7 @@ export default function App() {
       fontFamily: INTER, overflowX: 'hidden'
     }}>
       {/* ── HEADER / MENU BAR ── */}
-      <header style={{
+      <header className="header-bar safe-area-top" style={{
         height: '48px', padding: '0 16px', borderBottom: `1px solid ${colors.border}`,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         background: '#0f0f0f', position: 'sticky', top: 0, zIndex: 100
@@ -1130,7 +1135,7 @@ export default function App() {
       {/* ── PROCESSING OVERLAY ── */}
       {isProcessing && (
         <div style={{
-          position: 'fixed', top: '70px', right: '16px', zIndex: 200,
+          position: 'fixed', top: 'calc(70px + env(safe-area-inset-top, 0px))', right: '16px', zIndex: 200,
           background: tint(colors.primary, 0.92), color: colors.onPrimary,
           padding: '16px 20px', borderRadius: '16px', fontWeight: 700,
           fontSize: '11px', boxShadow: '0 10px 40px rgba(0,0,0,0.5)',
@@ -1277,7 +1282,7 @@ export default function App() {
                   </div>
                   
                   {/* Right Inspector Panel */}
-                  <div style={{
+                  <div className="inspector-panel" style={{
                     width: '320px', minWidth: '320px',
                     background: '#1a1a1a', borderLeft: '1px solid #333',
                     overflowY: 'auto', borderRadius: '12px 0 0 12px'
@@ -1291,7 +1296,7 @@ export default function App() {
           </div>
           
           {/* Bottom Timeline */}
-          <div style={{
+          <div className="timeline-panel" style={{
             height: '180px', minHeight: '180px',
             background: '#1a1a1a', borderTop: '1px solid #333',
             padding: '12px 16px'
@@ -1306,7 +1311,7 @@ export default function App() {
       {/* ── API STATUS PANEL ── */}
       {showApiStatus && (
         <div className="card" style={{
-          position: 'fixed', top: '70px', right: '16px', zIndex: 200,
+          position: 'fixed', top: 'calc(70px + env(safe-area-inset-top, 0px))', right: '16px', zIndex: 200,
           padding: '16px', borderRadius: '16px', width: '320px', maxWidth: 'calc(100vw - 32px)',
           boxShadow: '0 25px 80px rgba(0,0,0,0.6)', fontFamily: INTER,
           animation: 'slideDown 0.3s ease-out'

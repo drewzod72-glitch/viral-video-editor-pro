@@ -50,49 +50,57 @@ export async function generateImageWithAI(options: ImageGenOptions): Promise<Gen
   };
   const size = sizeMap[aspectRatio] || '1024x1024';
 
-  const response = await fetch(OPENROUTER_API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: modelId,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            { type: 'text', text: prompt },
-          ],
-        },
-      ],
-      modalities: ['image', 'text'],
-      image_config: {
-        size,
-        quality: 'standard',
-        n: 1,
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 60000);
+  try {
+    const response = await fetch(OPENROUTER_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
       },
-    }),
-  });
+      body: JSON.stringify({
+        model: modelId,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: prompt },
+            ],
+          },
+        ],
+        modalities: ['image', 'text'],
+        image_config: {
+          size,
+          quality: 'standard',
+          n: 1,
+        },
+      }),
+      signal: controller.signal as any,
+    });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Image generation failed (${response.status}): ${errorText}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Image generation failed (${response.status}): ${errorText}`);
+    }
+
+    const data = await response.json();
+    const imageMessage = data.choices?.[0]?.message;
+    const imageContent = imageMessage?.images?.[0];
+
+    if (!imageContent?.url) {
+      throw new Error('Image generation returned no image. The model may not support image output in your region.');
+    }
+
+    return {
+      id: `img-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      url: imageContent.url,
+      prompt,
+      model,
+      timestamp: Date.now(),
+    };
+  } catch (e) {
+    clearTimeout(timeout);
+    throw e;
   }
-
-  const data = await response.json();
-  const imageMessage = data.choices?.[0]?.message;
-  const imageContent = imageMessage?.images?.[0];
-
-  if (!imageContent?.url) {
-    throw new Error('Image generation returned no image. The model may not support image output in your region.');
-  }
-
-  return {
-    id: `img-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    url: imageContent.url,
-    prompt,
-    model,
-    timestamp: Date.now(),
-  };
 }
