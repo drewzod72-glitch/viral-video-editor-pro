@@ -39,24 +39,31 @@ export interface BRollSuggestion {
 
 function sampleFrame(video: HTMLVideoElement, time: number): Promise<ImageData | null> {
   return new Promise((resolve) => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 160;
-    canvas.height = 90;
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    if (!ctx) { resolve(null); return; }
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = 160;
+      canvas.height = 90;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      if (!ctx) { resolve(null); return; }
 
-    const onSeeked = () => {
-      ctx.drawImage(video, 0, 0, 160, 90);
-      try {
-        const data = ctx.getImageData(0, 0, 160, 90);
-        resolve(data);
-      } catch {
+      const onSeeked = () => {
+        try {
+          ctx.drawImage(video, 0, 0, 160, 90);
+          const data = ctx.getImageData(0, 0, 160, 90);
+          resolve(data);
+        } catch {
+          resolve(null);
+        }
+      };
+      video.currentTime = time;
+      video.addEventListener('seeked', onSeeked, { once: true });
+      setTimeout(() => {
+        video.removeEventListener('seeked', onSeeked);
         resolve(null);
-      }
-    };
-    video.currentTime = time;
-    video.addEventListener('seeked', onSeeked, { once: true });
-    setTimeout(() => resolve(null), 1000);
+      }, 1000);
+    } catch {
+      resolve(null);
+    }
   });
 }
 

@@ -48,6 +48,14 @@ window.addEventListener('error', (e) => {
 window.addEventListener('unhandledrejection', (e) => {
   console.error('UNHANDLED PROMISE REJECTION:', e.reason);
   const reason = e.reason instanceof Error ? e.reason : new Error(String(e.reason));
+  try {
+    localStorage.setItem('avve_last_error', JSON.stringify({
+      name: reason.name,
+      message: reason.message,
+      stack: reason.stack,
+      time: Date.now()
+    }));
+  } catch {}
   const errorDiv = document.createElement('div');
   errorDiv.style.cssText = 'background:#020617;color:white;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:sans-serif;padding:20px;text-align:center;';
   errorDiv.innerHTML = `
@@ -59,4 +67,17 @@ window.addEventListener('unhandledrejection', (e) => {
   if (errorText) errorText.textContent = `${reason.name}: ${reason.message}\n${reason.stack || ''}`;
   document.body.innerHTML = '';
   document.body.appendChild(errorDiv);
+});
+
+window.addEventListener('error', (e) => {
+  console.error('GLOBAL RUNTIME ERROR:', e.error);
+  const err = e.error instanceof Error ? e.error : new Error(String(e.error));
+  try {
+    localStorage.setItem('avve_last_error', JSON.stringify({
+      name: err.name,
+      message: err.message,
+      stack: err.stack,
+      time: Date.now()
+    }));
+  } catch {}
 });
