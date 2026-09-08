@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Zap, Settings, Volume2, Infinity as InfinityIcon, Smartphone, Clapperboard, BarChart3, Brain, Menu, X, AlertTriangle, Satellite, Trophy, Loader2, Palette, Check, Eye, Download, Wand2, Command } from 'lucide-react';
 import { VideoProject, AspectRatio, BrollClip, ExportQuality, ExportFormat } from './types';
 import { FREE_MUSIC_TRACKS, RAW_VIDEO_TEMPLATES, STOCK_FOOTAGE_BROLL } from './data';
@@ -9,12 +9,15 @@ import VideoPlayerWorkspace from './components/VideoPlayerWorkspace';
 import ViralityScorecard from './components/ViralityScorecard';
 import { AICopilotConsole } from './components/AICopilotConsole';
 import ApiKeySettingsModal from './components/ApiKeySettingsModal';
+import ShareModal from './components/ShareModal';
+import LoadingOverlay from './components/LoadingOverlay';
 import { runAnalyzeVideo, getApiStatusLog, clearApiStatusLog } from './utils/groqClient';
 import { saveFileToDevice } from './utils/download';
 import { renderVideoInBrowser } from './utils/ffmpegClient';
 import { computeViralityScore } from './utils/viralityScore';
 import { renderVideoWithFFmpegWasm, LUT_PRESETS, TRANSITION_PRESETS, detectViralMoments } from './utils/ffmpegWasmRenderer';
 import { analyzeReframeCrops, getCropFFmpegFilter } from './utils/reframeAI';
+import { analyzeScenes, analyzeHook, predictRetention, suggestAutoZooms, matchBRoll, type Scene, type HookAnalysis, type RetentionPrediction, type AutoZoomSuggestion, type BRollSuggestion } from './utils/sceneDetection';
 import { colors, borderRadius, INTER, statusColors, TRANSITION, tint } from './utils/styles';
 import { parseTextCommand, getCommandSuggestions } from './utils/textCommands';
 import { generateImageWithAI, getImageGenModels } from './utils/imageGenAI';
@@ -30,9 +33,12 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'studio' | 'viral' | 'copilot'>('studio');
   const [downloadReadyInfo, setDownloadReadyInfo] = useState<{ blob: Blob; filename: string } | null>(null);
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const [activeClipId, setActiveClipId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [aiSuccess, setAiSuccess] = useState(false);
+  const [sceneAnalysis, setSceneAnalysis] = useState<any>(null);
+  const [isAnalyzingScenes, setIsAnalyzingScenes] = useState(false);
   const [analysisMode, setAnalysisMode] = useState<'vision' | 'text' | null>(null);
   const [apiStatusLog, setApiStatusLog] = useState<any[]>([]);
   const [showApiStatus, setShowApiStatus] = useState(false);
@@ -58,6 +64,15 @@ export default function App() {
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
   const [blurRegions, setBlurRegions] = useState<BlurRegion[]>([]);
   const [enableFaceBlur, setEnableFaceBlur] = useState(false);
+  const [timelineZoom, setTimelineZoom] = useState(1);
+  const [timelineTime, setTimelineTime] = useState(0);
+
+  const videoSeekRef = useRef<((time: number) => void) | null>(null);
+
+  const handleTimelineSeek = useCallback((t: number) => {
+    setTimelineTime(t);
+    videoSeekRef.current?.(t);
+  }, []);
 
   const startApp = () => {
     try {
@@ -186,6 +201,9 @@ export default function App() {
       } finally {
         setIsProcessing(false);
       }
+      
+      // Run scene analysis after AI completes
+      setTimeout(() => runSceneAnalysis(), 1000);
     };
 
     if (typeof requestIdleCallback !== 'undefined') {
@@ -308,6 +326,9 @@ export default function App() {
       } finally {
         setIsProcessing(false);
       }
+      
+      // Run scene analysis after AI completes
+      setTimeout(() => runSceneAnalysis(), 1000);
     };
 
     if (typeof requestIdleCallback !== 'undefined') {
@@ -462,6 +483,54 @@ export default function App() {
     } finally {
       setIsProcessing(false);
       setRenderProgress(0);
+    }
+  };
+
+  const runSceneAnalysis = async () => {
+    if (!activeProject || isAnalyzingScenes) return;
+    setIsAnalyzingScenes(true);
+    setSceneAnalysis(null);
+    try {
+      const [scenes, hook] = await Promise.all([
+        analyzeScenes(activeProject.videoUrl, activeProject.duration || 30),
+        analyzeHook(activeProject.videoUrl),
+      ]);
+
+      const retentionPredictions = predictRetention(scenes, activeProject.duration || 30);
+      const zoomSuggestions = suggestAutoZooms(scenes);
+      const brollSuggestions = matchBRoll(
+        activeProject.transcript || activeProject.subtitles?.map(s => s.text).join(' ') || '',
+        STOCK_FOOTAGE_BROLL
+      );
+
+      setSceneAnalysis({
+        scenes,
+        hook,
+        retention: retentionPredictions,
+        autoZooms: zoomSuggestions,
+        brollSuggestions,
+      });
+
+      setActiveProject(prev => prev ? {
+        ...prev,
+        highlights: scenes.map(s => ({
+          id: `scene-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          start: s.start,
+          end: s.end,
+          title: `${s.type.replace('_', ' ')} (${Math.round(s.score)}%)`,
+          description: `AI detected ${s.type}`,
+          duration: s.end - s.start,
+        })),
+        zoomEffects: zoomSuggestions.map(z => ({
+          timestamp: z.timestamp,
+          scale: z.scale,
+          duration: z.duration,
+        })),
+      } : prev);
+    } catch (e) {
+      console.warn('Scene analysis failed:', e);
+    } finally {
+      setIsAnalyzingScenes(false);
     }
   };
 
@@ -1269,7 +1338,12 @@ export default function App() {
                         onUpdateExportFormat={setExportFormat}
                         onTriggerExport={triggerExport}
                         onNewProject={() => setActiveProject(null)}
-                      />
+                         sceneAnalysis={sceneAnalysis}
+                         isAnalyzingScenes={isAnalyzingScenes}
+                         onRunSceneAnalysis={runSceneAnalysis}
+                         onTimeUpdate={handleTimelineSeek}
+                         registerSeek={(fn: (time: number) => void) => { videoSeekRef.current = fn; }}
+                       />
                     )}
                     {activeTab === 'viral' && <ViralityScorecard project={activeProject} onUpdateProject={(up) => setActiveProject(up as VideoProject)} />}
                     {activeTab === 'copilot' && (
@@ -1301,12 +1375,39 @@ export default function App() {
             background: '#1a1a1a', borderTop: '1px solid #333',
             padding: '12px 16px'
           }}>
-            <Timeline project={activeProject} activeClipId={activeClipId} onClipSelect={setActiveClipId} />
+            <Timeline
+              project={activeProject}
+              activeClipId={activeClipId}
+              onClipSelect={setActiveClipId}
+              onUpdateProject={(up) => setActiveProject(up as VideoProject)}
+              currentTime={timelineTime}
+              onSeek={handleTimelineSeek}
+              zoom={timelineZoom}
+              onZoomChange={setTimelineZoom}
+            />
           </div>
         </div>
       </main>
 
       <ApiKeySettingsModal isOpen={showApiKeyModal} onClose={() => setShowApiKeyModal(false)} />
+      <ShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        projectName={activeProject?.name || 'My Video'}
+        shareText={`Check out my video "${activeProject?.name || 'My Video'}" created with AutoViral Editor!`}
+        shareUrl={typeof window !== 'undefined' ? window.location.href : undefined}
+      />
+      {(isProcessing || renderProgress > 0) && (
+        <LoadingOverlay
+          stage={processingStage}
+          progress={renderProgress}
+          onCancel={() => {
+            setIsProcessing(false);
+            setRenderProgress(0);
+            setProcessingStage('');
+          }}
+        />
+      )}
 
       {/* ── API STATUS PANEL ── */}
       {showApiStatus && (

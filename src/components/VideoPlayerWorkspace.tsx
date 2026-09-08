@@ -4,7 +4,7 @@ import { FREE_MUSIC_TRACKS, STOCK_FOOTAGE_BROLL } from '../data';
 import { ThumbnailGenerator } from './ThumbnailGenerator';
 import { playViralSFX } from '../utils/sfx';
 import { LUT_PRESETS, TRANSITION_PRESETS } from '../utils/ffmpegWasmRenderer';
-import { Play, Pause, SkipBack, SkipForward, Heart, MessageCircle, Share2, Music, Pause as PauseIcon, CheckCircle, Square, Flame, Coffee, Clapperboard, Disc, Wand2, Command, X } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Heart, MessageCircle, Share2, Music, Pause as PauseIcon, CheckCircle, Square, Flame, Coffee, Clapperboard, Disc, Wand2, Command, X, Zap } from 'lucide-react';
 import { colors, borderRadius, INTER, statusColors, TRANSITION, tint } from '../utils/styles';
 
 const fixDunikTypo = (str: string) => str?.replace(/dunik/gi, 'Dunk') || '';
@@ -16,7 +16,7 @@ const MOOD_CATEGORIES = [
   { key: 'chill', label: 'Tech / Chill', icon: <Disc size={14} color={statusColors.cyan} />, color: statusColors.cyan },
 ] as const;
 
-export default function VideoPlayerWorkspace({ project, activeMusicTrack, activeClipId, onClipSelect, onUpdateProject, aspectRatio, onUpdateAspectRatio, commandInput, onCommandChange, onCommandKeyDown, commandSuggestions, onCommandSubmit, voiceoverText, onGenerateVoiceover, isGeneratingVoiceover, brollClips, reframeAnalysis, onRunReframeAnalysis, isAnalyzingReframe, selectedReframe, onApplyReframe, imageGenPrompt, onImageGenPromptChange, imageGenModel, onImageGenModelChange, imageGenAspect, onImageGenAspectChange, isGeneratingImage, onGenerateImage, generatedImages, onSelectImage, blurRegions, onAddBlurRegion, onRemoveBlurRegion, enableFaceBlur, onToggleFaceBlur, exportQuality, onUpdateExportQuality, exportFormat, onUpdateExportFormat, onTriggerExport, onNewProject }: any) {
+export default function VideoPlayerWorkspace({ project, activeMusicTrack, activeClipId, onClipSelect, onUpdateProject, aspectRatio, onUpdateAspectRatio, commandInput, onCommandChange, onCommandKeyDown, commandSuggestions, onCommandSubmit, voiceoverText, onGenerateVoiceover, isGeneratingVoiceover, brollClips, reframeAnalysis, onRunReframeAnalysis, isAnalyzingReframe, selectedReframe, onApplyReframe, imageGenPrompt, onImageGenPromptChange, imageGenModel, onImageGenModelChange, imageGenAspect, onImageGenAspectChange, isGeneratingImage, onGenerateImage, generatedImages, onSelectImage, blurRegions, onAddBlurRegion, onRemoveBlurRegion, enableFaceBlur, onToggleFaceBlur, exportQuality, onUpdateExportQuality, exportFormat, onUpdateExportFormat, onTriggerExport, onNewProject, sceneAnalysis, isAnalyzingScenes, onRunSceneAnalysis, onTimeUpdate, registerSeek }: any) {
   if (!project) return null;
 
   const {
@@ -60,6 +60,7 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
   const enableZoomsRef = useRef(enableZooms);
   const autoZoomPunchRef = useRef(autoZoomPunch);
   const sfxPopEnabledRef = useRef(project.sfxPopEnabled);
+  const seekRef = useRef<((time: number) => void) | null>(null);
 
   // Keep refs in sync with state
   useEffect(() => { playingRef.current = playing; }, [playing]);
@@ -72,6 +73,14 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
   useEffect(() => { enableZoomsRef.current = enableZooms; }, [enableZooms]);
   useEffect(() => { autoZoomPunchRef.current = autoZoomPunch; }, [autoZoomPunch]);
   useEffect(() => { sfxPopEnabledRef.current = project.sfxPopEnabled; }, [project.sfxPopEnabled]);
+
+  useEffect(() => {
+    if (registerSeek) {
+      registerSeek((time: number) => {
+        if (vRef.current) vRef.current.currentTime = time;
+      });
+    }
+  }, [registerSeek]);
 
   const currentHighlight = activeClipId
     ? activeHighlights.find((h: any) => h.id === activeClipId)
@@ -86,11 +95,13 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
   useEffect(() => {
     const heartbeat = setInterval(() => {
       if (vRef.current && playingRef.current && !isDraggingRef.current) {
-        setTime(vRef.current.currentTime);
+        const t = vRef.current.currentTime;
+        setTime(t);
+        onTimeUpdate?.(t);
       }
     }, 500);
     return () => clearInterval(heartbeat);
-  }, []);
+  }, [onTimeUpdate]);
 
   // MASTER SYNC LOOP - uses refs to avoid stale closures and unnecessary restarts
   useEffect(() => {
@@ -1373,6 +1384,184 @@ export default function VideoPlayerWorkspace({ project, activeMusicTrack, active
             )}
           </button>
         </div>
+      </div>
+
+      {/* Scene Analysis */}
+      <div style={{
+        background: 'linear-gradient(180deg, rgba(24,24,27,0.95) 0%, rgba(9,9,11,0.98) 100%)',
+        padding: '20px', borderRadius: '24px',
+        border: '1px solid rgba(30,41,59,0.6)',
+        backdropFilter: 'blur(16px)'
+      }}>
+        <div style={{
+          color: '#64748b', fontSize: '9px', fontWeight: 800,
+          textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '14px'
+        }}>
+          Smart AI Analysis
+        </div>
+
+        {!sceneAnalysis && !isAnalyzingScenes && (
+          <button
+            onClick={onRunSceneAnalysis}
+            style={{
+              width: '100%', padding: '12px', borderRadius: '12px', border: 'none',
+              background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+              color: 'white', fontWeight: 700, fontSize: '11px', cursor: 'pointer',
+              fontFamily: '"Inter", sans-serif', textTransform: 'uppercase',
+              letterSpacing: '0.5px', transition: 'all 0.2s',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+            }}
+          >
+            <Zap size={14} />
+            Analyze Video Scenes
+          </button>
+        )}
+
+        {isAnalyzingScenes && (
+          <div style={{ textAlign: 'center', padding: '20px' }}>
+            <div style={{ fontSize: '10px', color: '#3b82f6', fontWeight: 700, marginBottom: '8px' }}>
+              Analyzing scenes...
+            </div>
+            <div style={{ width: '100%', height: '4px', background: '#27272a', borderRadius: '2px', overflow: 'hidden' }}>
+              <div style={{ width: '60%', height: '100%', background: '#3b82f6', borderRadius: '2px', animation: 'pulse 1.5s ease-in-out infinite' }} />
+            </div>
+          </div>
+        )}
+
+        {sceneAnalysis && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {/* Hook Score */}
+            <div style={{
+              padding: '12px', borderRadius: '10px',
+              border: '1px solid #27272a',
+              background: '#020617'
+            }}>
+              <div style={{ fontSize: '9px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+                Hook Score: {sceneAnalysis.hook.score}/100
+              </div>
+              <div style={{ fontSize: '10px', color: '#94a3b8', lineHeight: 1.4 }}>
+                {sceneAnalysis.hook.recommendation}
+              </div>
+              <div style={{ display: 'flex', gap: '8px', marginTop: '6px', fontSize: '9px', color: '#64748b' }}>
+                <span>Motion: {sceneAnalysis.hook.hasMotion ? 'Yes' : 'No'}</span>
+                <span>Face: {sceneAnalysis.hook.hasFace ? 'Yes' : 'No'}</span>
+                <span>Text: {sceneAnalysis.hook.hasText ? 'Yes' : 'No'}</span>
+              </div>
+            </div>
+
+            {/* Scenes */}
+            <div>
+              <div style={{ fontSize: '9px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+                Detected Scenes ({sceneAnalysis.scenes.length})
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '120px', overflowY: 'auto' }}>
+                {sceneAnalysis.scenes.slice(0, 8).map((scene: any, idx: number) => (
+                  <div key={idx} style={{
+                    display: 'flex', alignItems: 'center', gap: '8px',
+                    padding: '6px 8px', borderRadius: '6px',
+                    background: '#020617', border: '1px solid #27272a',
+                    fontSize: '9px'
+                  }}>
+                    <span style={{ color: '#3b82f6', fontWeight: 700, minWidth: '20px' }}>#{idx + 1}</span>
+                    <span style={{ color: '#e4e4e7', flex: 1 }}>{scene.type.replace('_', ' ')}</span>
+                    <span style={{ color: '#64748b', fontFamily: 'monospace' }}>
+                      {scene.start.toFixed(1)}s - {scene.end.toFixed(1)}s
+                    </span>
+                    <span style={{ color: sceneAnalysis.hook.hasFace ? '#10b981' : '#64748b' }}>
+                      {Math.round(scene.score)}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Retention Predictions */}
+            <div>
+              <div style={{ fontSize: '9px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+                Retention Predictions
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {sceneAnalysis.retention.slice(0, 5).map((pred: any, idx: number) => (
+                  <div key={idx} style={{
+                    display: 'flex', alignItems: 'center', gap: '8px',
+                    padding: '6px 8px', borderRadius: '6px',
+                    background: '#020617', border: '1px solid #27272a',
+                    fontSize: '9px'
+                  }}>
+                    <span style={{ color: '#f59e0b', fontWeight: 700, minWidth: '20px' }}>@{pred.timestamp.toFixed(0)}s</span>
+                    <span style={{ color: '#e4e4e7', flex: 1 }}>{pred.reason}</span>
+                    <span style={{ color: pred.predictedDropoff > 30 ? '#ef4444' : '#10b981' }}>
+                      {Math.round(pred.predictedDropoff)}% drop
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Auto Zoom Suggestions */}
+            {sceneAnalysis.autoZooms.length > 0 && (
+              <div>
+                <div style={{ fontSize: '9px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+                  Auto Zoom Suggestions
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {sceneAnalysis.autoZooms.map((zoom: any, idx: number) => (
+                    <div key={idx} style={{
+                      padding: '8px 10px', borderRadius: '8px',
+                      border: '1px solid #27272a',
+                      background: 'rgba(59,130,246,0.05)',
+                      fontSize: '9px'
+                    }}>
+                      <div style={{ color: '#3b82f6', fontWeight: 700, marginBottom: '2px' }}>
+                        @ {zoom.timestamp.toFixed(1)}s · {zoom.scale}x zoom
+                      </div>
+                      <div style={{ color: '#64748b' }}>{zoom.reason}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* B-Roll Suggestions */}
+            {sceneAnalysis.brollSuggestions.length > 0 && (
+              <div>
+                <div style={{ fontSize: '9px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+                  AI B-Roll Matches
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {sceneAnalysis.brollSuggestions.map((suggestion: any, idx: number) => (
+                    <div key={idx} style={{
+                      padding: '8px 10px', borderRadius: '8px',
+                      border: '1px solid #27272a',
+                      background: 'rgba(16,185,129,0.05)',
+                      fontSize: '9px'
+                    }}>
+                      <div style={{ color: '#10b981', fontWeight: 700, marginBottom: '2px' }}>
+                        "{suggestion.keyword}" @ {suggestion.timestamp.toFixed(1)}s
+                      </div>
+                      <div style={{ color: '#64748b' }}>
+                        Confidence: {Math.round(suggestion.confidence * 100)}%
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <button
+              onClick={onRunSceneAnalysis}
+              style={{
+                padding: '8px 16px', borderRadius: '10px', border: '1px solid #27272a',
+                background: 'transparent', color: '#64748b',
+                fontSize: '9px', fontWeight: 700, cursor: 'pointer',
+                fontFamily: '"Inter", sans-serif', textTransform: 'uppercase',
+                letterSpacing: '0.5px', transition: 'all 0.2s'
+              }}
+            >
+              Re-analyze
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Color Grading & Effects */}

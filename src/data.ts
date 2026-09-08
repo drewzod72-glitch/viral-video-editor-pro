@@ -133,6 +133,150 @@ export const RAW_VIDEO_TEMPLATES = [
     originalDuration: 30,
     userDescription: 'High-energy startup pitch teaser showing product demo, problem/solution, and team culture. Designed to attract investors and customers.',
     defaultTranscribe: 'We are solving the problem everyone has but no one talks about. Our AI platform cuts your workflow from days to minutes. We have already onboarded fifty companies, saved them over two million dollars, and we are just getting started. If you are ready to build the future with us, hit that link and join the revolution.'
+  },
+  {
+    id: 'template-fitness-2',
+    name: 'HIIT Workout Challenge (Fitness)',
+    niche: 'fitness' as const,
+    videoUrl: 'https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4',
+    originalDuration: 25,
+    userDescription: 'High intensity interval training workout with explosive energy. Quick cuts, motivational tone, and strong call to action.',
+    defaultTranscribe: 'This is your 20-minute full body HIIT challenge. No equipment needed. We start with jumping jacks, 30 seconds on, 15 seconds rest. Now squats with a twist. Now push-ups. Now mountain climbers. Give it everything you have. The burn means it is working. Push through. Three more seconds. You did it. Cool down and stretch. You are stronger than you think.'
+  },
+  {
+    id: 'template-tech-review',
+    name: 'iPhone 16 Pro Max Review (Tech)',
+    niche: 'tech' as const,
+    videoUrl: 'https://raw.githubusercontent.com/intel-iot-devkit/sample-videos/master/people-detection.mp4',
+    originalDuration: 35,
+    userDescription: 'Detailed smartphone review covering camera quality, battery life, performance benchmarks, and daily usage experience.',
+    defaultTranscribe: 'The iPhone 16 Pro Max is here and after two weeks of daily use, here is my honest review. The camera system is unreal — 48 megapixels with perfect color science. Battery life easily gets me through a full day of heavy use. The A18 Pro chip handles everything I throw at it without breaking a sweat. But the titanium build is what really sells it. Light, premium, and feels incredible in hand. Is it worth the upgrade? If you have an iPhone 13 or older, absolutely yes.'
+  },
+  {
+    id: 'template-comedy-2',
+    name: 'When the WiFi Goes Out (Comedy)',
+    niche: 'comedy' as const,
+    videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4',
+    originalDuration: 22,
+    userDescription: 'Relatable comedy skit about modern life struggles. Quick punchlines and visual gags.',
+    defaultTranscribe: 'Me when the WiFi goes out during a ranked match. Me when my mom says we need to talk. Me when the teacher says pop quiz. Me when the group project is due tomorrow and nobody did their part. Me when the charger is at 1% and there is no outlet in sight. If you related to any of these, drop a like and follow for more chaos!'
+  },
+  {
+    id: 'template-education',
+    name: 'How to Build a PC in 60 Seconds (Education)',
+    niche: 'education' as const,
+    videoUrl: 'https://test-videos.co.uk/vids/jellyfish/mp4/h264/360/Jellyfish_360_10s_1MB.mp4',
+    originalDuration: 30,
+    userDescription: 'Quick tutorial showing PC building process. Clear visuals, step-by-step instructions, satisfying ASMR elements.',
+    defaultTranscribe: 'Building a PC sounds intimidating but it is actually like adult Lego. First, install the CPU on the motherboard. Be gentle with the pins. Next, slot in the RAM until it clicks. Mount the motherboard in the case. Install the power supply. Connect all cables. Screw in the GPU. Add storage. Plug it in and turn it on. If it lights up, congratulations. You just built your own computer and saved hundreds of dollars.'
+  },
+  {
+    id: 'template-motivation-2',
+    name: 'Morning Routine of a Millionaire (Motivation)',
+    niche: 'motivation' as const,
+    videoUrl: 'https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4',
+    originalDuration: 28,
+    userDescription: 'Inspiring morning routine montage showing discipline, productivity, and success habits.',
+    defaultTranscribe: 'This is the morning routine that changed everything. Wake up at 5 AM. No snooze. No excuses. Drink a glass of water. Meditate for ten minutes. Exercise for thirty minutes. Cold shower. Healthy breakfast. Review your goals. Then start your most important task before the world wakes up. The gap between where you are and where you want to be is measured in early mornings. Discipline equals freedom.'
+  },
+  {
+    id: 'template-pets-2',
+    name: 'Cat vs Cucumber (Funny Pets)',
+    niche: 'pets' as const,
+    videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4',
+    originalDuration: 20,
+    userDescription: 'Funny compilation of cats reacting to cucumbers. Hilarious jumps and unexpected reactions.',
+    defaultTranscribe: 'Why are cats so afraid of cucumbers? Scientists think it is because cucumbers resemble snakes. But honestly, watching a cat jump three feet in the air over a vegetable is the funniest thing on the internet. Here is the ultimate compilation of cats versus cucumbers. Each reaction is more dramatic than the last. If this made you laugh, share it with a cat lover.'
+  },
+  {
+    id: 'template-sales-2',
+    name: 'How I Sold 1000 Tickets in 24 Hours (Sales)',
+    niche: 'sales' as const,
+    videoUrl: 'https://raw.githubusercontent.com/intel-iot-devkit/sample-videos/master/store-aisle-detection.mp4',
+    originalDuration: 30,
+    userDescription: 'Marketing breakdown showing ticket sales strategy. Data-driven, actionable insights, urgency creation.',
+    defaultTranscribe: 'Last week I sold one thousand concert tickets in twenty-four hours. Here is exactly how I did it. First, I built anticipation with a teaser campaign three days before. Second, I offered an early bird discount for the first hundred buyers. Third, I partnered with micro-influencers who had engaged audiences. Fourth, I created urgency with a countdown timer. Fifth, I made the checkout process dead simple. The key is to create FOMO and remove every possible friction. Your turn. What are you selling?'
+  },
+  {
+    id: 'template-cooking-2',
+    name: 'Gordon Ramsay Style Steak (Cooking)',
+    niche: 'cooking' as const,
+    videoUrl: 'https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4',
+    originalDuration: 32,
+    userDescription: 'Professional steak cooking tutorial with high-energy commentary and perfect sear technique.',
+    defaultTranscribe: 'Right, let us cook the perfect steak. Get your pan screaming hot. Season the steak generously with salt and pepper. Sear for two minutes each side. Baste with butter, garlic, and rosemary. Rest the steak for five minutes. Slice against the grain. Look at that juice. That is how you cook a steak. Simple, elegant, perfect. Enjoy.'
+  },
+  {
+    id: 'template-travel-2',
+    name: 'Hidden Waterfall in Bali (Travel)',
+    niche: 'general' as const,
+    videoUrl: 'https://raw.githubusercontent.com/intel-iot-devkit/sample-videos/master/people-detection.mp4',
+    originalDuration: 35,
+    userDescription: 'Breathtaking travel vlog showcasing a hidden waterfall. Cinematic shots, local culture, adventure vibes.',
+    defaultTranscribe: 'You will not believe this place exists. Tucked away in the jungles of Bali, this hidden waterfall is the most magical spot I have ever found. Crystal clear water cascading down ancient rocks. The locals say it has healing properties. I do not know about that, but I do know this is the most underrated destination in Southeast Asia. Save this for your next adventure and tag the person you need to bring here.'
+  },
+  {
+    id: 'template-business-2',
+    name: 'From Zero to $10K Month (Business)',
+    niche: 'sales' as const,
+    videoUrl: 'https://test-videos.co.uk/vids/jellyfish/mp4/h264/360/Jellyfish_360_10s_1MB.mp4',
+    originalDuration: 30,
+    userDescription: 'Business growth story with actionable steps. Data-driven, motivational, results-focused.',
+    defaultTranscribe: 'Twelve months ago I was broke. Today I make ten thousand dollars a month. Here is exactly what changed. I stopped consuming content and started creating. I picked one skill and got dangerously good at it. I built in public and shared my journey. I networked with people better than me. I failed fast and iterated faster. The internet does not care about your background. It only cares about your output. Start today. No excuses.'
+  },
+  {
+    id: 'template-gaming',
+    name: 'Insane Gaming Montage (Gaming)',
+    niche: 'general' as const,
+    videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4',
+    originalDuration: 25,
+    userDescription: 'High-energy gaming highlight reel with epic plays, clutch moments, and sick edits.',
+    defaultTranscribe: 'This is not even my best game. One tap headshot. Clutch one versus three. Wall bang through smoke. No scope across map. The crowd goes wild. This is why I love competitive gaming. Every match is a new story. Every play could be the highlight of the year. Like and subscribe for more insane moments.'
+  },
+  {
+    id: 'template-fashion',
+    name: 'Outfit of the Day - Street Style (Fashion)',
+    niche: 'general' as const,
+    videoUrl: 'https://raw.githubusercontent.com/intel-iot-devkit/sample-videos/master/people-detection.mp4',
+    originalDuration: 28,
+    userDescription: 'Fashion lookbook showcasing street style outfit. Quick transitions, trendy music, aesthetic vibes.',
+    defaultTranscribe: 'Today is outfit of the day and this street style is absolutely fire. Vintage denim jacket, oversized white tee, high-waisted cargo pants, and chunky white sneakers. Accessorized with a silver chain and retro sunglasses. This fit works for coffee runs, shopping trips, and golden hour photo shoots. Save this for your next outfit inspiration. What would you add to this look?'
+  },
+  {
+    id: 'template-real-estate',
+    name: 'Luxury Home Tour - $5M Property (Real Estate)',
+    niche: 'sales' as const,
+    videoUrl: 'https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4',
+    originalDuration: 35,
+    userDescription: 'Professional real estate listing tour. Cinematic walkthrough, luxury finishes, compelling narration.',
+    defaultTranscribe: 'Welcome to this stunning five million dollar modern masterpiece. Four bedrooms, five bathrooms, three thousand square feet of pure luxury. Floor to ceiling windows with panoramic ocean views. Chef is kitchen with Italian marble countertops. Infinity pool overlooking the coastline. Smart home technology throughout. This is not just a house. This is a lifestyle. Schedule your private showing today. This will not last long.'
+  },
+  {
+    id: 'template-podcast-2',
+    name: 'How to Network Like a Pro (Podcast Clip)',
+    niche: 'education' as const,
+    videoUrl: 'https://raw.githubusercontent.com/intel-iot-devkit/sample-videos/master/store-aisle-detection.mp4',
+    originalDuration: 40,
+    userDescription: 'Podcast clip with actionable networking advice. Engaging speaker, clear value prop, shareable moment.',
+    defaultTranscribe: 'Most people network wrong. They walk into a room and immediately ask what the other person does. That is a terrible opening. Instead, ask about their story. Ask about their biggest challenge. Ask about their wins. People love talking about themselves. Listen more than you speak. Follow up within twenty-four hours with a specific value add. That is how you build real relationships. Not business cards. Not LinkedIn connections. Real relationships. That is the secret.'
+  },
+  {
+    id: 'template-diy',
+    name: 'DIY Room Makeover Under $100 (DIY)',
+    niche: 'general' as const,
+    videoUrl: 'https://test-videos.co.uk/vids/jellyfish/mp4/h264/360/Jellyfish_360_10s_1MB.mp4',
+    originalDuration: 30,
+    userDescription: 'Budget-friendly room transformation. Before/after shots, shopping list, step-by-step instructions.',
+    defaultTranscribe: 'I transformed my entire bedroom for under one hundred dollars and the results are insane. First, I painted one accent wall with deep navy blue. Then I added fairy lights behind the headboard. Next, I upcycled old crates into a nightstand. Added large mirror to create space illusion. New bedding from the discount section. Thrifted lamp with a new shade. Total cost: ninety-seven dollars. Your room should be your sanctuary. You do not need a big budget to make it beautiful.'
+  },
+  {
+    id: 'template-car',
+    name: 'Porsche 911 Review - Driver Perspective (Automotive)',
+    niche: 'general' as const,
+    videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4',
+    originalDuration: 35,
+    userDescription: 'Professional car review with driving footage, engine sounds, and detailed specs breakdown.',
+    defaultTranscribe: 'The Porsche 911 GT3. Five hundred and eleven horsepower. Zero to sixty in 3.2 seconds. Top speed of one hundred ninety-nine miles per hour. But the numbers do not tell the whole story. This car is a symphony of engineering. The sound of that flat-six engine screaming to nine thousand RPM. The way it grips corners like it is on rails. The steering feel that tells you everything. This is not just transportation. This is automotive art. If you ever get the chance to drive one, do not hesitate. Just do it.'
   }
 ];
 

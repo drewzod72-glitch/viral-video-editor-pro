@@ -1,4 +1,5 @@
 import { resolveCaptionMetrics, normalizeCaptionStyle } from './utils/captionStyleConfig';
+import { type Scene, type HookAnalysis, type RetentionPrediction, type AutoZoomSuggestion, type BRollSuggestion } from './utils/sceneDetection';
 
 export type VideoNiche = 'fitness' | 'education' | 'comedy' | 'motivation' | 'cooking' | 'tech' | 'pets' | 'unboxing' | 'sales' | 'general';
 export type CaptionStyle = 'mrbeast' | 'hormozi' | 'minimalist' | 'impact' | 'comic';
@@ -239,4 +240,12 @@ export function getCaptionStyles(style: string, textLen: number, W: number): Cap
   }
 
   return config;
+}
+
+export interface SceneAnalysis {
+  scenes: Scene[];
+  hook: HookAnalysis;
+  retention: RetentionPrediction[];
+  autoZooms: AutoZoomSuggestion[];
+  brollSuggestions: BRollSuggestion[];
 }
