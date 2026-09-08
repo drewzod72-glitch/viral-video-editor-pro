@@ -607,6 +607,28 @@ export default function App() {
     if (!activeProject?.voiceoverText || isGeneratingVoiceover) return;
     setIsGeneratingVoiceover(true);
     try {
+      // iOS Safari does not support MediaRecorder for audio capture.
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent || '') || (navigator.userAgent.includes('Mac') && 'ontouchend' in document);
+      const supportsMediaRecorder = typeof MediaRecorder !== 'undefined' && (MediaRecorder.isTypeSupported('audio/webm') || MediaRecorder.isTypeSupported('audio/mp4'));
+      
+      if (!supportsMediaRecorder || isIOS) {
+        // Fallback: just play the speech, no recording
+        const SpeechCtor = (window as any).SpeechSynthesisUtterance;
+        if (!SpeechCtor || typeof (window as any).speechSynthesis?.speak !== 'function') {
+          throw new Error('Speech synthesis not supported on this device');
+        }
+        const utterance = new SpeechCtor(activeProject.voiceoverText);
+        utterance.rate = 1;
+        utterance.pitch = 1;
+        utterance.volume = 1;
+        (window as any).speechSynthesis.speak(utterance);
+        setTimeout(() => {
+          (window as any).speechSynthesis?.cancel();
+          setIsGeneratingVoiceover(false);
+        }, (activeProject.voiceoverText?.length || 10) * 80);
+        return;
+      }
+
       const utterance = new SpeechSynthesisUtterance(activeProject.voiceoverText);
       utterance.rate = 1;
       utterance.pitch = 1;
@@ -624,15 +646,12 @@ export default function App() {
 
       window.speechSynthesis.speak(utterance);
       
-      // Capture audio via MediaRecorder if available
-      if (typeof MediaRecorder === 'undefined' || !MediaRecorder.isTypeSupported('audio/webm')) {
-        throw new Error('MediaRecorder not supported');
-      }
       const chunks: Blob[] = [];
-      const recorder = new MediaRecorder(dest.stream);
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
+      const recorder = new MediaRecorder(dest.stream, { mimeType });
       recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
       recorder.onstop = () => {
-        const blob = new Blob(chunks, { type: 'audio/webm' });
+        const blob = new Blob(chunks, { type: mimeType });
         setVoiceoverBlob(blob);
         setIsGeneratingVoiceover(false);
       };
