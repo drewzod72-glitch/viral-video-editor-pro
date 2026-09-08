@@ -103,7 +103,7 @@ export const AICopilotConsole: React.FC<any> = ({
       // Director Feedback: make the AI's decision explicit
       const subCount = data.subtitles?.length || 0;
       let advice = data.advice || 'Optimization complete.';
-      if (!data.advice || data.advice.trim() === '' || data.advice === 'Optimization complete.') {
+      if (!data.advice || !data.advice.trim() || data.advice === 'Optimization complete.') {
         if (actionType === 'hookboost' && subCount > 0) {
           advice = `Director's note: I kept the visual clean and strengthened ${subCount} hook captions to maximize retention in the first 3 seconds.`;
         } else if (actionType === 'spellcheck' && subCount > 0) {
@@ -128,7 +128,7 @@ export const AICopilotConsole: React.FC<any> = ({
 
   const handleLinkClone = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!userPrompt.trim() || !project) return;
+    if (!userPrompt?.trim() || !project) return;
 
     if (!userPrompt.includes('http')) {
       runAction('chat', userPrompt);
@@ -384,7 +384,7 @@ export const AICopilotConsole: React.FC<any> = ({
           />
           <button
             type="submit"
-            disabled={isLoading || !userPrompt.trim()}
+            disabled={isLoading || !userPrompt?.trim()}
             style={{
               background: 'linear-gradient(135deg, #EC4899, #DB2777)',
               color: 'white',

@@ -11,7 +11,7 @@ const COLOR_GRADES = ['none', 'cinematic', 'warm_vintage', 'vibrant_pop', 'moody
 const TRANSITIONS = ['none', 'crossfade', 'glitch', 'flash', 'zoom', 'fade_black', 'slide_left', 'wipe_left', 'wipe_right', 'slide_right', 'circle_open', 'circle_close', 'dissolve', 'glow', 'pixelize'];
 
 export function parseTextCommand(input: string): any {
-  const raw = input.trim().toLowerCase();
+  const raw = (input || '').trim().toLowerCase();
   if (!raw) return null;
 
   if (raw.includes('remove silence') || raw.includes('delete silence') || raw.includes('cut silence')) {

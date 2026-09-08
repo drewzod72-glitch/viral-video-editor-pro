@@ -535,11 +535,11 @@ export default function App() {
   };
 
   const handleTextCommand = () => {
-    if (!activeProject || !commandInput.trim()) return;
+    if (!activeProject || !commandInput?.trim()) return;
     const cmd = parseTextCommand(commandInput);
     if (!cmd) return;
 
-    setCommandHistory(prev => [...prev, commandInput.trim()].slice(-20));
+    setCommandHistory(prev => [...prev, commandInput?.trim() || ''].slice(-20));
     setCommandInput('');
     setCommandSuggestions([]);
 
@@ -731,7 +731,7 @@ export default function App() {
   const handleCommandChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setCommandInput(val);
-    if (val.trim().length > 1) {
+    if (val?.trim()?.length > 1) {
       setCommandSuggestions(getCommandSuggestions(val));
     } else {
       setCommandSuggestions([]);
