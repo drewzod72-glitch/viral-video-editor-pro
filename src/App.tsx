@@ -717,6 +717,7 @@ export default function App() {
   };
 
   const handleCommandKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!e?.target) return;
     if (e.key === 'Enter') {
       e.preventDefault();
       handleTextCommand();
@@ -729,8 +730,8 @@ export default function App() {
   };
 
   const handleCommandChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setCommandInput(val);
+    const val = e?.target?.value;
+    setCommandInput(val || '');
     if (val?.trim()?.length > 1) {
       setCommandSuggestions(getCommandSuggestions(val));
     } else {
